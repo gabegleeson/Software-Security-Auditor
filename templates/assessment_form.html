@@ -1,0 +1,1013 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block head_extra %}
+    <style>
+        .assessment-wrap {
+            display: grid;
+            gap: 1.5rem;
+        }
+
+        h1, h2 {
+            margin-top: 30px;
+        }
+
+        .section {
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            padding: 20px;
+            margin-bottom: 24px;
+            border-radius: 16px;
+            background: rgba(255, 255, 255, 0.92);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .field {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-weight: bold;
+            margin-bottom: 6px;
+        }
+
+        input[type="text"],
+        input[type="url"],
+        input[type="date"],
+        input[type="number"],
+        input[type="search"],
+        textarea,
+        select {
+            width: 100%;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .checkbox-group label,
+        .radio-group label {
+            display: inline-block;
+            font-weight: normal;
+            margin-right: 16px;
+        }
+
+        button {
+            padding: 12px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .vendor-search-wrap {
+            position: relative;
+        }
+
+        .vendor-suggestions {
+            position: absolute;
+            top: calc(100% + 6px);
+            left: 0;
+            right: 0;
+            z-index: 20;
+            background: #fff;
+            border: 1px solid rgba(0, 0, 0, 0.08);
+            border-radius: 14px;
+            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+            overflow: hidden;
+            display: none;
+        }
+
+        .vendor-field-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .vendor-field-row input {
+            flex: 1;
+        }
+
+        .vendor-match-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 34px;
+            height: 34px;
+            border-radius: 999px;
+            background: #d1e7dd;
+            color: #0f5132;
+            font-size: 1.1rem;
+            font-weight: 700;
+            visibility: hidden;
+            flex: 0 0 auto;
+        }
+
+        .vendor-match-indicator.is-visible {
+            visibility: visible;
+        }
+
+        .vendor-suggestions.is-visible {
+            display: block;
+        }
+
+        .vendor-suggestion {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            text-align: left;
+            padding: 12px 14px;
+            display: block;
+        }
+
+        .vendor-suggestion:hover,
+        .vendor-suggestion:focus,
+        .vendor-suggestion.active {
+            background: #eef5fb;
+            outline: none;
+        }
+
+        .vendor-suggestion-name {
+            font-weight: 700;
+            color: #16324f;
+        }
+
+        .vendor-suggestion-meta {
+            display: block;
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 2px;
+        }
+
+        .vendor-empty-state {
+            padding: 12px 14px;
+            color: #6c757d;
+            font-size: 0.95rem;
+        }
+
+        .page-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .page-header-actions {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+    </style>
+{% endblock %}
+
+{% block content %}
+    <div class="assessment-wrap">
+    <div class="glass-panel rounded-5 p-4 p-md-5">
+        <div class="page-header-row">
+            <div>
+                <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">
+                    {% if is_edit %}Assessment Update{% else %}Assessment Intake{% endif %}
+                </span>
+                <h1 class="display-6 mt-0">{{ form_title }}</h1>
+                <p class="text-secondary mb-0">
+                    {% if is_edit %}
+                    Update the saved answers for this software assessment.
+                    {% else %}
+                    Capture the answers for a new software assessment.
+                    {% endif %}
+                </p>
+            </div>
+            {% if is_edit %}
+            <div class="page-header-actions">
+                <form method="POST" action="{{ url_for('delete_assessment', assessment_id=assessment_id) }}" onsubmit="return confirm('Delete this assessment? This cannot be undone while the app is running.');">
+                    <button type="submit" class="btn btn-outline-danger rounded-pill px-4">Delete Assessment</button>
+                </form>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="table-panel p-4 p-md-5">
+    <form method="POST" id="assessment_form" data-autosave-enabled="{{ 'true' if autosave_enabled else 'false' }}">
+        <div class="section">
+            <div class="field">
+                <label for="assessment_date">Assessment Date</label>
+                <input type="date" id="assessment_date" name="assessment_date" value="{{ assessment_date }}">
+            </div>
+        </div>
+        {% if assessment_id %}
+        <input type="hidden" name="assessment_id" value="{{ assessment_id }}">
+        {% endif %}
+        <input type="hidden" name="next_audit_date" value="{{ assessment.next_audit_date }}">
+        <input type="hidden" name="terms_conditions_link" value="{{ assessment.terms_conditions_link }}">
+        <input type="hidden" name="license_agreement_link" value="{{ assessment.license_agreement_link }}">
+        <div class="section">
+            <h2>Software and Online Subscriptions</h2>
+            {% if software_details_editable %}
+            <div class="field">
+                <label for="software_name">Software Name</label>
+                <input type="text" id="software_name" name="software_name" required>
+            </div>
+
+            <input type="hidden" id="vendor_name" name="vendor_name" value="{{ assessment.vendor_name }}">
+            <div class="field">
+                <label>Vendor Name</label>
+                <div class="form-control bg-light">
+                    {% if assessment.vendor_name %}
+                    <a class="text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=assessment.vendor_name) }}">
+                        {{ assessment.vendor_name }}
+                    </a>
+                    {% else %}
+                    Linked through the selected software
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="field d-none">
+                <label for="vendor_name">Vendor Name</label>
+                <div class="vendor-search-wrap">
+                    <div class="vendor-field-row">
+                        <input type="hidden" id="vendor_name_hidden_legacy" name="vendor_name_legacy" autocomplete="off">
+                        <span id="vendor_match_indicator" class="vendor-match-indicator" aria-hidden="true">✓</span>
+                    </div>
+                    <div id="vendor_suggestions" class="vendor-suggestions" role="listbox" aria-label="Suggested vendors"></div>
+                </div>
+                <div id="vendor_match_status" class="form-text">
+                    Start typing to match an existing vendor, or keep the new name to add it to the vendor register.
+                </div>
+            </div>
+
+            <input type="hidden" name="vendor_country" value="{{ assessment.vendor_country }}">
+            <input type="hidden" name="software_website" value="{{ assessment.software_website }}">
+            <input type="hidden" name="vendor_website" value="{{ assessment.vendor_website }}">
+            <input type="hidden" name="license_agreement_link" value="{{ assessment.license_agreement_link }}">
+            <input type="hidden" name="license_type" value="{{ assessment.license_type }}">
+            <input type="hidden" name="duplicates_existing" value="{{ assessment.duplicates_existing }}">
+            <input type="hidden" name="genuine_need_notes" value="{{ assessment.genuine_need_notes }}">
+            <input type="hidden" name="product_security_assessment" value="{{ assessment.product_security_assessment }}">
+            <input type="hidden" name="product_updates" value="{{ assessment.product_updates }}">
+            <input type="hidden" name="security_updates" value="{{ assessment.security_updates }}">
+            <input type="hidden" name="vendor_support" value="{{ assessment.vendor_support }}">
+            <input type="hidden" name="support_notes" value="{{ assessment.support_notes }}">
+            <input type="hidden" name="software_license_details" value="{{ assessment.software_license_details }}">
+            <input type="hidden" name="license_renewal_date" value="{{ assessment.license_renewal_date }}">
+            <input type="hidden" id="deployment_date" name="deployment_date" value="{{ assessment.deployment_date }}">
+            <input type="hidden" id="audit_reminder_frequency" name="audit_reminder_frequency" value="{{ assessment.audit_reminder_frequency }}">
+            <input type="hidden" name="vendor_security_assessment" value="{{ assessment.vendor_security_assessment }}">
+            {% else %}
+            <input type="hidden" name="software_name" value="{{ assessment.software_name }}">
+            <input type="hidden" name="vendor_name" value="{{ assessment.vendor_name }}">
+            <input type="hidden" name="vendor_country" value="{{ assessment.vendor_country }}">
+            <input type="hidden" name="software_website" value="{{ assessment.software_website }}">
+            <input type="hidden" name="vendor_website" value="{{ assessment.vendor_website }}">
+            <input type="hidden" name="license_agreement_link" value="{{ assessment.license_agreement_link }}">
+            <input type="hidden" name="license_type" value="{{ assessment.license_type }}">
+            <input type="hidden" name="duplicates_existing" value="{{ assessment.duplicates_existing }}">
+            <input type="hidden" name="genuine_need_notes" value="{{ assessment.genuine_need_notes }}">
+            <input type="hidden" name="product_security_assessment" value="{{ assessment.product_security_assessment }}">
+            <input type="hidden" name="product_updates" value="{{ assessment.product_updates }}">
+            <input type="hidden" name="security_updates" value="{{ assessment.security_updates }}">
+            <input type="hidden" name="vendor_support" value="{{ assessment.vendor_support }}">
+            <input type="hidden" name="support_notes" value="{{ assessment.support_notes }}">
+            <input type="hidden" name="software_license_details" value="{{ assessment.software_license_details }}">
+            <input type="hidden" name="license_renewal_date" value="{{ assessment.license_renewal_date }}">
+            <input type="hidden" id="deployment_date" name="deployment_date" value="{{ assessment.deployment_date }}">
+            <input type="hidden" id="audit_reminder_frequency" name="audit_reminder_frequency" value="{{ assessment.audit_reminder_frequency }}">
+            <input type="hidden" name="vendor_security_assessment" value="{{ assessment.vendor_security_assessment }}">
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label>Software Name</label>
+                    <div class="form-control bg-light">
+                        {% if assessment.software_name %}
+                        <a class="text-decoration-none" href="{{ url_for('software_detail', software_name=assessment.software_name) }}">
+                            {{ assessment.software_name }}
+                        </a>
+                        {% else %}
+                        Not provided
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <label>Vendor Name</label>
+                    <div class="form-control bg-light">
+                        {% if assessment.vendor_name %}
+                        <a class="text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=assessment.vendor_name) }}">
+                            {{ assessment.vendor_name }}
+                        </a>
+                        {% else %}
+                        Not provided
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <div class="field">
+                <label for="version">Version</label>
+                <input type="text" id="version" name="version">
+            </div>
+
+            <div class="field">
+                <label><input type="checkbox" id="free_software" name="free_software" value="true"> Free software</label>
+            </div>
+
+            <div class="field" id="currency_type_field">
+                <label for="currency_type">Currency</label>
+                <select id="currency_type" name="currency_type">
+                    <option value="">Select currency</option>
+                    <option value="AUD">AUD</option>
+                    <option value="USD">USD</option>
+                    <option value="EUR">EUR</option>
+                    <option value="GBP">GBP</option>
+                    <option value="NZD">NZD</option>
+                </select>
+            </div>
+
+            <div class="field" id="license_cost_field">
+                <label for="license_cost">License Cost</label>
+                <input type="number" id="license_cost" name="license_cost" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+            </div>
+
+            <div class="field">
+                <label for="purchase_link">Purchase Link</label>
+                <div id="purchase_link_input_wrap" {% if software_purchase_link %}style="display: none;"{% endif %}>
+                    <input
+                        type="url"
+                        id="purchase_link"
+                        name="purchase_link"
+                        value="{{ software_purchase_link }}"
+                        placeholder="https://example.com/purchase"
+                    >
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <button type="button" id="purchase_link_add_button">Add</button>
+                    </div>
+                    <div class="form-text mt-2">If there is no purchase link yet, add it here and then press Add.</div>
+                </div>
+                <div id="purchase_link_display_wrap" {% if not software_purchase_link %}style="display: none;"{% endif %}>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <a id="purchase_link_open_link" href="{{ software_purchase_link or '#' }}" target="_blank" rel="noopener noreferrer">
+                            {{ software_purchase_link }}
+                        </a>
+                        <button type="button" id="purchase_link_edit_button">Edit</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <input type="hidden" name="vendor_privacy_policy_link" value="{{ vendor_privacy_policy_link }}">
+
+
+        <div class="section">
+            <h2>Terms of Use / License Agreement Compliance</h2>
+
+            <div class="field">
+                <label>Vendor Terms and Conditions</label>
+                <div id="vendor_terms_conditions_input_wrap" {% if vendor_terms_conditions_link %}style="display: none;"{% endif %}>
+                    <input
+                        type="url"
+                        id="vendor_terms_conditions_link"
+                        name="vendor_terms_conditions_link"
+                        value="{{ vendor_terms_conditions_link }}"
+                    >
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <button type="button" id="vendor_terms_conditions_add_button">Add</button>
+                    </div>
+                    <div class="form-text mt-2">If there is no vendor terms link yet, add it here and then press Add.</div>
+                </div>
+                <div id="vendor_terms_conditions_display_wrap" {% if not vendor_terms_conditions_link %}style="display: none;"{% endif %}>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <a id="vendor_terms_conditions_open_link" href="{{ vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer">
+                            {{ vendor_terms_conditions_link }}
+                        </a>
+                        <button type="button" id="vendor_terms_conditions_edit_button">Edit</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="age_restrictions">Age Restrictions</label>
+                <select id="age_restrictions" name="age_restrictions">
+                    <option value="">Select an option</option>
+                    <option value="None">None</option>
+                    <option value="13+">13+</option>
+                    <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf">Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
+                </select>
+            </div>
+
+            <div class="field">
+                <label><input type="checkbox" name="allows_acceptance_on_behalf_of_entity" value="true"> Allows acceptance on behalf of an entity</label>
+            </div>
+
+            <div class="field">
+                <label for="terms_compliance_notes">Notes</label>
+                <textarea id="terms_compliance_notes" name="terms_compliance_notes"></textarea>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Compatibility</h2>
+
+            <div class="field">
+                <label>Compatible with applicable end-user devices?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="compatible_end_user_devices" value="Yes"> Yes</label>
+                    <label><input type="radio" name="compatible_end_user_devices" value="No"> No</label>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="end_user_device_notes">Notes</label>
+                <textarea id="end_user_device_notes" name="end_user_device_notes"></textarea>
+            </div>
+
+            <div class="field">
+                <label>Compatible with supporting infrastructure?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="compatible_infrastructure" value="Yes"> Yes</label>
+                    <label><input type="radio" name="compatible_infrastructure" value="No"> No</label>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="infrastructure_notes">Notes</label>
+                <textarea id="infrastructure_notes" name="infrastructure_notes"></textarea>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Integration Assessment</h2>
+
+            <div class="field">
+                <label>Supports Microsoft 365 Single Sign-On?</label>
+                <div class="radio-group">
+                    <label><input type="radio" name="supports_m365_sso" value="Yes"> Yes</label>
+                    <label><input type="radio" name="supports_m365_sso" value="No"> No</label>
+                    <label><input type="radio" name="supports_m365_sso" value="NA"> N/A</label>
+                </div>
+            </div>
+
+            <div class="field">
+                <label for="integration_notes">Notes</label>
+                <textarea id="integration_notes" name="integration_notes"></textarea>
+            </div>
+        </div>
+
+        <input type="hidden" id="review_date" name="review_date">
+
+        <div class="section">
+            <h2>Deployment</h2>
+            <div class="field">
+                <label for="deployment_type">Deployment Type</label>
+                <select id="deployment_type" name="deployment_type">
+                    <option value="">Select deployment type</option>
+                    <option value="Remote deployment">Remote deployment</option>
+                    <option value="Manual deployment">Manual deployment</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+            <div class="field">
+                <label><input type="checkbox" name="tested" value="true"> Tested</label>
+            </div>
+            <div class="field">
+                <label><input type="checkbox" name="deployed" value="true"> Deployed</label>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Risk Level</h2>
+            <div class="field">
+                <label for="risk_level">Risk Level</label>
+                <select id="risk_level" name="risk_level">
+                    <option value="">Select risk level</option>
+                    <option value="Low">Low</option>
+                    <option value="Medium">Medium</option>
+                    <option value="High">High</option>
+                    <option value="Critical">Critical</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
+            <div class="small text-secondary" id="draft_status_text">
+                {% if autosave_enabled %}
+                Draft saved automatically while you work.
+                {% endif %}
+            </div>
+            <div class="d-flex gap-2 flex-wrap">
+                <button type="submit" name="submit_action" value="draft" class="btn btn-outline-secondary btn-lg rounded-pill px-4">Save Draft</button>
+                <button type="submit" name="submit_action" value="submit" class="btn btn-primary btn-lg rounded-pill px-4">{{ submit_label }}</button>
+            </div>
+        </div>
+    </form>
+    <script type="application/json" id="assessment_data">{{ assessment|tojson }}</script>
+    <script>
+        const assessmentForm = document.getElementById("assessment_form");
+        const assessmentDataScript = document.getElementById("assessment_data");
+        const assessment = assessmentDataScript ? JSON.parse(assessmentDataScript.textContent) : {};
+        Object.entries(assessment).forEach(([key, value]) => {
+            const fields = document.querySelectorAll(`[name="${key}"]`);
+            if (!fields.length) {
+                return;
+            }
+
+            fields.forEach((field) => {
+                if (field.type === "radio") {
+                    field.checked = field.value === value;
+                } else if (field.type === "checkbox") {
+                    field.checked = Boolean(value);
+                } else {
+                    field.value = value ?? "";
+                }
+            });
+        });
+
+        const vendorNameField = document.getElementById("vendor_name");
+        const vendorCountryField = document.getElementById("vendor_country");
+        const vendorWebsiteField = document.getElementById("vendor_website");
+        const deploymentDateField = document.getElementById("deployment_date");
+        const auditReminderFrequencyField = document.getElementById("audit_reminder_frequency");
+        const reviewDateField = document.getElementById("review_date");
+        const assessmentVendorNameField = document.querySelector('input[name="vendor_name"]');
+        const assessmentIdField = document.querySelector('input[name="assessment_id"]');
+        const draftStatusText = document.getElementById("draft_status_text");
+        const freeSoftwareField = document.getElementById("free_software");
+        const currencyTypeFieldWrap = document.getElementById("currency_type_field");
+        const currencyTypeField = document.getElementById("currency_type");
+        const licenseCostFieldWrap = document.getElementById("license_cost_field");
+        const licenseCostField = document.getElementById("license_cost");
+        const purchaseLinkInput = document.getElementById("purchase_link");
+        const purchaseLinkInputWrap = document.getElementById("purchase_link_input_wrap");
+        const purchaseLinkDisplayWrap = document.getElementById("purchase_link_display_wrap");
+        const purchaseLinkAddButton = document.getElementById("purchase_link_add_button");
+        const purchaseLinkEditButton = document.getElementById("purchase_link_edit_button");
+        const purchaseLinkOpenLink = document.getElementById("purchase_link_open_link");
+        const vendorTermsConditionsInput = document.getElementById("vendor_terms_conditions_link");
+        const vendorTermsConditionsInputWrap = document.getElementById("vendor_terms_conditions_input_wrap");
+        const vendorTermsConditionsDisplayWrap = document.getElementById("vendor_terms_conditions_display_wrap");
+        const vendorTermsConditionsAddButton = document.getElementById("vendor_terms_conditions_add_button");
+        const vendorTermsConditionsEditButton = document.getElementById("vendor_terms_conditions_edit_button");
+        const vendorTermsConditionsOpenLink = document.getElementById("vendor_terms_conditions_open_link");
+        const vendorMatchStatus = document.getElementById("vendor_match_status");
+        const vendorMatchIndicator = document.getElementById("vendor_match_indicator");
+        const vendorSuggestions = document.getElementById("vendor_suggestions");
+        const autosaveEnabled = assessmentForm?.dataset.autosaveEnabled === "true";
+        let latestVendorResults = [];
+        let activeSuggestionIndex = -1;
+        let reviewDateManuallyEdited = Boolean(reviewDateField.value);
+        let autosaveTimer = null;
+        let autosaveRequestInFlight = false;
+
+        function hideVendorSuggestions() {
+            if (!vendorSuggestions) {
+                return;
+            }
+            vendorSuggestions.classList.remove("is-visible");
+        }
+
+        function showVendorSuggestions() {
+            if (!vendorSuggestions || !vendorNameField) {
+                return;
+            }
+            if (vendorSuggestions.childElementCount && vendorNameField.value.trim()) {
+                vendorSuggestions.classList.add("is-visible");
+            }
+        }
+
+        function selectVendor(vendor) {
+            if (!vendorNameField || !vendorCountryField || !vendorWebsiteField) {
+                return;
+            }
+            vendorNameField.value = vendor.vendor_name;
+
+            if (vendor.vendor_country) {
+                vendorCountryField.value = vendor.vendor_country;
+            }
+
+            if (vendor.vendor_website) {
+                vendorWebsiteField.value = vendor.vendor_website;
+            }
+
+            if (vendorMatchIndicator) {
+                vendorMatchIndicator.classList.add("is-visible");
+            }
+            if (vendorMatchStatus) {
+                vendorMatchStatus.textContent = "Existing vendor found.";
+            }
+            hideVendorSuggestions();
+        }
+
+        function renderVendorOptions(vendors, query) {
+            if (!vendorSuggestions) {
+                return;
+            }
+            vendorSuggestions.innerHTML = "";
+            activeSuggestionIndex = -1;
+
+            if (!vendors.length && query.trim()) {
+                const emptyState = document.createElement("div");
+                emptyState.className = "vendor-empty-state";
+                emptyState.textContent = `No existing vendor match for "${query}". Saving will add it as a new vendor.`;
+                vendorSuggestions.appendChild(emptyState);
+                showVendorSuggestions();
+                return;
+            }
+
+            vendors.forEach((vendor, index) => {
+                const button = document.createElement("button");
+                button.type = "button";
+                button.className = "vendor-suggestion";
+                button.setAttribute("role", "option");
+                button.dataset.index = index;
+                button.innerHTML = `
+                    <span class="vendor-suggestion-name">${vendor.vendor_name}</span>
+                    <span class="vendor-suggestion-meta">${[vendor.vendor_country, vendor.vendor_website].filter(Boolean).join(" | ")}</span>
+                `;
+                button.addEventListener("mousedown", (event) => {
+                    event.preventDefault();
+                    selectVendor(vendor);
+                });
+                vendorSuggestions.appendChild(button);
+            });
+
+            if (vendors.length) {
+                showVendorSuggestions();
+            } else {
+                hideVendorSuggestions();
+            }
+        }
+
+        function updateActiveSuggestion(nextIndex) {
+            if (!vendorSuggestions) {
+                return;
+            }
+            const buttons = vendorSuggestions.querySelectorAll(".vendor-suggestion");
+            if (!buttons.length) {
+                activeSuggestionIndex = -1;
+                return;
+            }
+
+            activeSuggestionIndex = (nextIndex + buttons.length) % buttons.length;
+            buttons.forEach((button, index) => {
+                button.classList.toggle("active", index === activeSuggestionIndex);
+            });
+        }
+
+        function applyVendorMatch(vendorName) {
+            if (!vendorMatchIndicator || !vendorMatchStatus || !vendorCountryField || !vendorWebsiteField) {
+                return;
+            }
+            const match = latestVendorResults.find(
+                (vendor) => vendor.vendor_name.toLowerCase() === vendorName.trim().toLowerCase()
+            );
+
+            if (!match) {
+                vendorMatchIndicator.classList.remove("is-visible");
+                vendorMatchStatus.textContent = vendorName.trim()
+                    ? "No exact match found yet. Saving this assessment will add the vendor to the register."
+                    : "Start typing to match an existing vendor, or keep the new name to add it to the vendor register.";
+                return;
+            }
+
+            if (!vendorCountryField.value.trim() && match.vendor_country) {
+                vendorCountryField.value = match.vendor_country;
+            }
+
+            if (!vendorWebsiteField.value.trim() && match.vendor_website) {
+                vendorWebsiteField.value = match.vendor_website;
+            }
+
+            vendorMatchIndicator.classList.add("is-visible");
+            vendorMatchStatus.textContent = "Existing vendor found.";
+        }
+
+        async function searchVendors(query) {
+            if (!vendorNameField || !vendorSuggestions) {
+                return;
+            }
+            if (!query.trim()) {
+                latestVendorResults = [];
+                vendorSuggestions.innerHTML = "";
+                hideVendorSuggestions();
+                applyVendorMatch("");
+                return;
+            }
+
+            const response = await fetch(`/api/vendors/search?q=${encodeURIComponent(query)}`);
+            if (!response.ok) {
+                return;
+            }
+
+            latestVendorResults = await response.json();
+            renderVendorOptions(latestVendorResults, query);
+            applyVendorMatch(vendorNameField.value);
+        }
+
+        if (vendorNameField) {
+            vendorNameField.addEventListener("input", () => {
+                searchVendors(vendorNameField.value);
+            });
+
+            vendorNameField.addEventListener("change", () => {
+                applyVendorMatch(vendorNameField.value);
+            });
+
+            vendorNameField.addEventListener("focus", () => {
+                if (vendorNameField.value.trim() && latestVendorResults.length) {
+                    showVendorSuggestions();
+                }
+            });
+
+            vendorNameField.addEventListener("keydown", (event) => {
+                if (event.key === "ArrowDown") {
+                    event.preventDefault();
+                    updateActiveSuggestion(activeSuggestionIndex + 1);
+                    return;
+                }
+
+                if (event.key === "ArrowUp") {
+                    event.preventDefault();
+                    updateActiveSuggestion(activeSuggestionIndex - 1);
+                    return;
+                }
+
+                if (event.key === "Enter" && activeSuggestionIndex >= 0) {
+                    event.preventDefault();
+                    const selectedVendor = latestVendorResults[activeSuggestionIndex];
+                    if (selectedVendor) {
+                        selectVendor(selectedVendor);
+                    }
+                    return;
+                }
+
+                if (event.key === "Escape") {
+                    hideVendorSuggestions();
+                }
+            });
+        }
+
+        document.addEventListener("click", (event) => {
+            if (!event.target.closest(".vendor-search-wrap")) {
+                hideVendorSuggestions();
+            }
+        });
+
+        function addMonthsToDateString(dateString, monthsToAdd) {
+            if (!dateString || !monthsToAdd) {
+                return "";
+            }
+
+            const [year, month, day] = dateString.split("-").map(Number);
+            const targetMonthIndex = month - 1 + monthsToAdd;
+            const targetYear = year + Math.floor(targetMonthIndex / 12);
+            const targetMonth = (targetMonthIndex % 12) + 1;
+            const lastDayOfMonth = new Date(targetYear, targetMonth, 0).getDate();
+            const targetDay = Math.min(day, lastDayOfMonth);
+            const result = new Date(Date.UTC(targetYear, targetMonth - 1, targetDay));
+            return result.toISOString().slice(0, 10);
+        }
+
+        function updateReviewDate() {
+            const reminderMap = {
+                "6_months": 6,
+                "1_year": 12,
+                "2_years": 24,
+            };
+            const monthsToAdd = reminderMap[auditReminderFrequencyField.value];
+            if (reviewDateManuallyEdited && reviewDateField.value) {
+                return;
+            }
+
+            reviewDateField.value = addMonthsToDateString(deploymentDateField.value, monthsToAdd);
+        }
+
+        function updateFreeSoftwareFields() {
+            if (!freeSoftwareField || !currencyTypeFieldWrap || !currencyTypeField || !licenseCostFieldWrap || !licenseCostField) {
+                return;
+            }
+
+            const isFreeSoftware = freeSoftwareField.checked;
+            currencyTypeFieldWrap.style.display = isFreeSoftware ? "none" : "";
+            licenseCostFieldWrap.style.display = isFreeSoftware ? "none" : "";
+            currencyTypeField.disabled = isFreeSoftware;
+            licenseCostField.disabled = isFreeSoftware;
+
+            if (isFreeSoftware) {
+                currencyTypeField.value = "";
+                licenseCostField.value = "";
+            }
+        }
+
+        function setPurchaseLinkMode(mode) {
+            if (!purchaseLinkInput || !purchaseLinkInputWrap || !purchaseLinkDisplayWrap) {
+                return;
+            }
+
+            if (mode === "display") {
+                const currentValue = purchaseLinkInput.value.trim();
+                if (!currentValue) {
+                    purchaseLinkInput.focus();
+                    return;
+                }
+
+                if (purchaseLinkOpenLink) {
+                    purchaseLinkOpenLink.href = currentValue;
+                    purchaseLinkOpenLink.textContent = currentValue;
+                }
+                purchaseLinkInputWrap.style.display = "none";
+                purchaseLinkDisplayWrap.style.display = "";
+                return;
+            }
+
+            purchaseLinkInputWrap.style.display = "";
+            purchaseLinkDisplayWrap.style.display = "none";
+            purchaseLinkInput.focus();
+            purchaseLinkInput.select();
+        }
+
+        async function persistPurchaseLink() {
+            const softwareNameField = document.querySelector('input[name="software_name"]');
+            if (!softwareNameField || !purchaseLinkInput) {
+                return true;
+            }
+
+            const softwareName = softwareNameField.value.trim();
+            const purchaseLink = purchaseLinkInput.value.trim();
+            if (!softwareName) {
+                return true;
+            }
+
+            const response = await fetch(`/software/${encodeURIComponent(softwareName)}/purchase-link`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                },
+                body: new URLSearchParams({
+                    purchase_link: purchaseLink,
+                }),
+            });
+
+            return response.ok;
+        }
+
+        function setVendorTermsConditionsMode(mode) {
+            if (!vendorTermsConditionsInput || !vendorTermsConditionsInputWrap || !vendorTermsConditionsDisplayWrap) {
+                return;
+            }
+
+            if (mode === "display") {
+                const currentValue = vendorTermsConditionsInput.value.trim();
+                if (!currentValue) {
+                    vendorTermsConditionsInput.focus();
+                    return;
+                }
+
+                if (vendorTermsConditionsOpenLink) {
+                    vendorTermsConditionsOpenLink.href = currentValue;
+                    vendorTermsConditionsOpenLink.textContent = currentValue;
+                }
+                vendorTermsConditionsInputWrap.style.display = "none";
+                vendorTermsConditionsDisplayWrap.style.display = "";
+                return;
+            }
+
+            vendorTermsConditionsInputWrap.style.display = "";
+            vendorTermsConditionsDisplayWrap.style.display = "none";
+            vendorTermsConditionsInput.focus();
+            vendorTermsConditionsInput.select();
+        }
+
+        async function persistVendorTermsConditionsLink() {
+            if (!assessmentVendorNameField || !vendorTermsConditionsInput) {
+                return true;
+            }
+
+            const vendorName = assessmentVendorNameField.value.trim();
+            const termsConditionsLink = vendorTermsConditionsInput.value.trim();
+            if (!vendorName) {
+                return true;
+            }
+
+            const response = await fetch(`/vendors/${encodeURIComponent(vendorName)}/terms-conditions`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                },
+                body: new URLSearchParams({
+                    vendor_terms_conditions_link: termsConditionsLink,
+                }),
+            });
+
+            return response.ok;
+        }
+
+        async function autosaveDraft() {
+            if (!autosaveEnabled || !assessmentForm || !assessmentIdField || autosaveRequestInFlight) {
+                return;
+            }
+
+            autosaveRequestInFlight = true;
+            if (draftStatusText) {
+                draftStatusText.textContent = "Saving draft...";
+            }
+
+            const formData = new FormData(assessmentForm);
+            const response = await fetch(`/assessment/${encodeURIComponent(assessmentIdField.value)}/draft`, {
+                method: "POST",
+                body: formData,
+            });
+
+            autosaveRequestInFlight = false;
+            if (!response.ok) {
+                if (draftStatusText) {
+                    draftStatusText.textContent = "Draft save failed.";
+                }
+                return;
+            }
+
+            const payload = await response.json();
+            if (draftStatusText) {
+                draftStatusText.textContent = `Draft saved at ${payload.saved_at}`;
+            }
+        }
+
+        function scheduleDraftAutosave() {
+            if (!autosaveEnabled) {
+                return;
+            }
+            window.clearTimeout(autosaveTimer);
+            autosaveTimer = window.setTimeout(() => {
+                autosaveDraft();
+            }, 500);
+        }
+
+        deploymentDateField.addEventListener("input", updateReviewDate);
+        auditReminderFrequencyField.addEventListener("change", updateReviewDate);
+        reviewDateField.addEventListener("input", () => {
+            reviewDateManuallyEdited = Boolean(reviewDateField.value);
+        });
+
+        if (freeSoftwareField) {
+            freeSoftwareField.addEventListener("change", updateFreeSoftwareFields);
+            updateFreeSoftwareFields();
+        }
+
+        if (purchaseLinkAddButton) {
+            purchaseLinkAddButton.addEventListener("click", async () => {
+                const saved = await persistPurchaseLink();
+                if (!saved) {
+                    return;
+                }
+                setPurchaseLinkMode("display");
+            });
+        }
+
+        if (purchaseLinkEditButton) {
+            purchaseLinkEditButton.addEventListener("click", () => {
+                setPurchaseLinkMode("edit");
+            });
+        }
+
+        if (vendorTermsConditionsAddButton) {
+            vendorTermsConditionsAddButton.addEventListener("click", async () => {
+                const saved = await persistVendorTermsConditionsLink();
+                if (!saved) {
+                    return;
+                }
+                setVendorTermsConditionsMode("display");
+            });
+        }
+
+        if (vendorTermsConditionsEditButton) {
+            vendorTermsConditionsEditButton.addEventListener("click", () => {
+                setVendorTermsConditionsMode("edit");
+            });
+        }
+
+        if (autosaveEnabled && assessmentForm) {
+            assessmentForm.addEventListener("input", (event) => {
+                if (event.target.type !== "submit") {
+                    scheduleDraftAutosave();
+                }
+            });
+            assessmentForm.addEventListener("change", (event) => {
+                if (event.target.type !== "submit") {
+                    scheduleDraftAutosave();
+                }
+            });
+        }
+
+        if (vendorNameField) {
+            searchVendors(vendorNameField.value);
+        }
+        if (!reviewDateField.value) {
+            updateReviewDate();
+        }
+    </script>
+    </div>
+    </div>
+{% endblock %}

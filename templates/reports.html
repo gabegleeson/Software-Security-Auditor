@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block head_extra %}
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQd9LOQ9crLNfkL4bIwSlezC1wT2Cpk="
+    crossorigin=""
+>
+<style>
+    .heatmap-panel {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .heatmap-summary {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+        gap: 10px;
+    }
+
+    .heatmap-stat {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 999px;
+        padding: 10px 14px;
+        background: #f8fafc;
+    }
+
+    .heatmap-stat-value {
+        color: #16324f;
+        font-size: 1.2rem;
+        font-weight: 700;
+        line-height: 1.1;
+    }
+
+    .hosting-map-stack {
+        display: grid;
+        gap: 14px;
+    }
+
+    .leaflet-hosting-map {
+        min-height: 540px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        overflow: hidden;
+        background: #eef5fb;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+    }
+
+    .leaflet-container {
+        font-family: inherit;
+    }
+
+    .leaflet-hosting-map .leaflet-pane,
+    .leaflet-hosting-map .leaflet-map-pane {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+
+    .leaflet-hosting-map .leaflet-tile-pane {
+        z-index: 200;
+    }
+
+    .leaflet-hosting-map .leaflet-marker-pane {
+        z-index: 900;
+    }
+
+    .leaflet-hosting-map .leaflet-popup-pane {
+        z-index: 1200;
+        pointer-events: auto;
+    }
+
+    .leaflet-hosting-map .leaflet-popup {
+        z-index: 1201;
+    }
+
+    .leaflet-hosting-map .leaflet-tile,
+    .leaflet-hosting-map .leaflet-marker-icon,
+    .leaflet-hosting-map .leaflet-marker-shadow,
+    .leaflet-hosting-map .leaflet-tile-container,
+    .leaflet-hosting-map .leaflet-pane > svg,
+    .leaflet-hosting-map .leaflet-pane > canvas,
+    .leaflet-hosting-map .leaflet-zoom-box,
+    .leaflet-hosting-map .leaflet-image-layer,
+    .leaflet-hosting-map .leaflet-layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+
+    .leaflet-hosting-map .leaflet-tile {
+        width: 256px !important;
+        height: 256px !important;
+        max-width: none !important;
+        max-height: none !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    .leaflet-hosting-map .leaflet-control-container {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1100;
+    }
+
+    .leaflet-hosting-map .leaflet-control {
+        pointer-events: auto;
+    }
+
+    .leaflet-hosting-map .leaflet-control-zoom {
+        border: 0;
+        border-radius: 14px;
+        overflow: hidden;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+        width: auto;
+        display: inline-flex;
+        flex-direction: column;
+    }
+
+    .leaflet-hosting-map .leaflet-control-zoom a {
+        width: 38px;
+        height: 38px;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: rgba(255, 255, 255, 0.94);
+        color: #16324f;
+        font-size: 1.25rem;
+        font-weight: 700;
+        line-height: 1;
+        text-indent: 0;
+    }
+
+    .leaflet-hosting-map .leaflet-control-zoom a:first-child {
+        border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    .leaflet-hosting-map .leaflet-control-zoom a:hover,
+    .leaflet-hosting-map .leaflet-control-zoom a:focus {
+        background: #eef5fb;
+        color: #16324f;
+    }
+
+    .hosting-map-marker {
+        border: 2px solid #ffffff;
+        border-radius: 999px;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
+        opacity: 0.92;
+        transition: width 0.12s ease, height 0.12s ease;
+    }
+
+    .hosting-map-selection-title {
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .hosting-map-selection-list {
+        margin: 8px 0 0;
+        padding-left: 18px;
+    }
+
+    .hosting-map-selection-list li {
+        margin-bottom: 4px;
+    }
+
+    .location-breakdown-wrap,
+    .hosting-map-selection {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        padding: 14px;
+        background: #fff;
+    }
+
+    .location-breakdown {
+        columns: 3 220px;
+        column-gap: 24px;
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    .location-breakdown li {
+        break-inside: avoid;
+        margin-bottom: 6px;
+    }
+
+    .heatmap-legend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        flex-wrap: wrap;
+        color: #6c757d;
+        font-size: 0.9rem;
+    }
+
+    .heatmap-legend-swatch {
+        width: 28px;
+        height: 12px;
+        border-radius: 999px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    @media (max-width: 992px) {
+        .leaflet-hosting-map {
+            min-height: 420px;
+        }
+    }
+
+    @media (max-width: 620px) {
+        .heatmap-summary {
+            grid-template-columns: 1fr;
+        }
+
+        .leaflet-hosting-map {
+            min-height: 340px;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="table-panel p-4 mb-4 heatmap-panel">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3">
+        <div>
+            <h2 class="h4 fw-semibold mb-2">Global Data Hosting Map</h2>
+            <p class="text-secondary mb-0">Vendors plotted by selected data storage locations from vendor audits.</p>
+        </div>
+        <div class="heatmap-legend">
+            <span class="heatmap-legend-swatch" style="background: #22c55e;"></span><span>Low</span>
+            <span class="heatmap-legend-swatch" style="background: #facc15;"></span><span>Moderate</span>
+            <span class="heatmap-legend-swatch" style="background: #f97316;"></span><span>High</span>
+            <span class="heatmap-legend-swatch" style="background: #dc2626;"></span><span>Very High</span>
+            <span class="heatmap-legend-swatch" style="background: #2563eb;"></span><span>Unassigned</span>
+        </div>
+    </div>
+
+    {% if data_hosting_heatmap.locations %}
+    <div class="hosting-map-stack">
+        <div class="heatmap-summary">
+            <div class="heatmap-stat">
+                <div class="small text-secondary mb-1">Vendors</div>
+                <div class="heatmap-stat-value">{{ data_hosting_heatmap.assessment_count }}</div>
+            </div>
+            <div class="heatmap-stat">
+                <div class="small text-secondary mb-1">Locations</div>
+                <div class="heatmap-stat-value">{{ data_hosting_heatmap.total_locations }}</div>
+            </div>
+            <div class="heatmap-stat">
+                <div class="small text-secondary mb-1">Mapped</div>
+                <div class="heatmap-stat-value">{{ data_hosting_heatmap.mapped_locations }}</div>
+            </div>
+        </div>
+        <div id="hosting_map" class="leaflet-hosting-map"></div>
+        <div class="hosting-map-selection" id="hosting_map_selection">
+            <div class="text-secondary">Select a map point to view vendors storing data in that location.</div>
+        </div>
+        <div class="location-breakdown-wrap">
+            <div class="fw-semibold mb-2">Location Breakdown</div>
+            <ol class="location-breakdown">
+                {% for item in data_hosting_heatmap.locations %}
+                <li>
+                    <strong>{{ item.location }}</strong>:
+                    {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}
+                    {% if item.percentage %}&middot; {{ item.percentage }}%{% endif %}
+                    {% if not item.map_x %}<span class="text-secondary">(not plotted)</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    {% else %}
+    <div class="text-secondary">No vendor audits include data storage locations yet.</div>
+    {% endif %}
+</section>
+
+{% if data_hosting_heatmap.locations %}
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
+<script type="application/json" id="hosting_map_data" data-max-count="{{ data_hosting_heatmap.max_count or 1 }}">{{ data_hosting_heatmap.map_locations|tojson }}</script>
+<script>
+    const hostingMapDataScript = document.getElementById("hosting_map_data");
+    const hostingMapLocations = hostingMapDataScript ? JSON.parse(hostingMapDataScript.textContent) : [];
+    const hostingMapSelection = document.getElementById("hosting_map_selection");
+    const maxHostingCount = Number(hostingMapDataScript?.dataset.maxCount || 1);
+    const defaultHostingMapZoom = 2;
+    const hostingMapBounds = [[-85, -180], [85, 180]];
+
+    const hostingMap = L.map("hosting_map", {
+        attributionControl: false,
+        maxBounds: hostingMapBounds,
+        maxBoundsViscosity: 1,
+        minZoom: defaultHostingMapZoom,
+        zoomControl: false,
+        worldCopyJump: false,
+        scrollWheelZoom: false,
+    }).setView([18, 20], defaultHostingMapZoom);
+
+    L.control.zoom({ position: "bottomright" }).addTo(hostingMap);
+    L.control.attribution({
+        position: "bottomright",
+        prefix: false,
+    }).addTo(hostingMap);
+
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        minZoom: defaultHostingMapZoom,
+        maxZoom: 8,
+        noWrap: true,
+        subdomains: "abcd",
+    }).addTo(hostingMap);
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function showHostedVendorSelection(item) {
+        if (!hostingMapSelection) {
+            return;
+        }
+
+        const vendorList = (item.vendors || [])
+            .map((vendor) => {
+                const vendorName = vendor.vendor_name || "Unnamed vendor";
+                return `<li><a href="/vendors/${encodeURIComponent(vendorName)}">${escapeHtml(vendorName)}</a></li>`;
+            })
+            .join("");
+
+        hostingMapSelection.innerHTML = `
+            <div class="hosting-map-selection-title">${escapeHtml(item.location)}</div>
+            <div>${item.count} vendor${item.count === 1 ? "" : "s"} storing data in this location</div>
+            ${vendorList ? `<ol class="hosting-map-selection-list">${vendorList}</ol>` : ""}
+        `;
+    }
+
+    const markerBounds = [];
+    const hostingMarkers = [];
+    function getHostingMarkerSize(count) {
+        const ratio = Math.max(0, Math.min(1, count / maxHostingCount));
+        return 9 + Math.round(Math.pow(ratio, 1.35) * 23);
+    }
+
+    hostingMapLocations.forEach((item) => {
+        const markerSize = getHostingMarkerSize(item.count);
+        const marker = L.marker([item.latitude, item.longitude], {
+            icon: L.divIcon({
+                className: "",
+                html: `<span class="hosting-map-marker" data-base-size="${markerSize}" style="display:block;width:${markerSize}px;height:${markerSize}px;background:${item.marker_color || "#2563eb"};"></span>`,
+                iconSize: [markerSize, markerSize],
+                iconAnchor: [markerSize / 2, markerSize / 2],
+                popupAnchor: [0, -(markerSize / 2)],
+            }),
+            zIndexOffset: 1000,
+            title: item.location,
+        }).addTo(hostingMap);
+
+        marker.on("click", () => showHostedVendorSelection(item));
+        hostingMarkers.push(marker);
+        markerBounds.push([item.latitude, item.longitude]);
+    });
+
+    function refreshHostingMarkers() {
+        const zoom = hostingMap.getZoom();
+        const scale = Math.max(1, Math.min(1.45, 1 + ((zoom - 3) * 0.1)));
+        hostingMarkers.forEach((marker) => {
+            const element = marker.getElement()?.querySelector(".hosting-map-marker");
+            if (!element) {
+                return;
+            }
+            const baseSize = Number(element.dataset.baseSize || 24);
+            const nextSize = Math.round(baseSize * scale);
+            element.style.width = `${nextSize}px`;
+            element.style.height = `${nextSize}px`;
+            marker.setZIndexOffset(1000 + Math.round(zoom * 10));
+        });
+    }
+
+    if (markerBounds.length) {
+        hostingMap.fitBounds(markerBounds, { padding: [32, 32], maxZoom: 3 });
+    }
+
+    hostingMap.on("zoomend", refreshHostingMarkers);
+    refreshHostingMarkers();
+
+    window.requestAnimationFrame(() => {
+        hostingMap.invalidateSize();
+    });
+
+    window.addEventListener("load", () => {
+        hostingMap.invalidateSize();
+    });
+</script>
+{% endif %}
+{% endblock %}

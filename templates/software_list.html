@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Software Register{% endblock %}
+
+{% block head_extra %}
+<style>
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .sortable-header::after {
+        content: " \2195";
+        font-size: 0.85em;
+        color: #7b8794;
+    }
+
+    .sortable-header.sort-asc::after {
+        content: " \2191";
+        color: #16324f;
+    }
+
+    .sortable-header.sort-desc::after {
+        content: " \2193";
+        color: #16324f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div>
+            <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Software Register</span>
+            <h1 class="display-6 fw-semibold mb-2">Tracked software products</h1>
+            <p class="text-secondary mb-0">A clearer list of platforms, owners, risk level, and deployment state.</p>
+        </div>
+        <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_software') }}">Add Software</a>
+    </div>
+</section>
+
+<section class="table-panel p-4">
+    <div class="mb-4" style="max-width: 360px;">
+            <input
+                class="form-control"
+                type="search"
+                id="software_search"
+                placeholder="Search software"
+                aria-label="Search software"
+            >
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="sortable-header" data-sort-key="software">Software</th>
+                    <th class="sortable-header" data-sort-key="vendor">Vendor</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="software_table_body">
+                {% for record in software_records %}
+                <tr data-software-name="{{ record.software_name|lower }}" data-vendor-name="{{ record.vendor_name|lower }}">
+                    <td data-title-cell>
+                        <div class="fw-semibold">
+                            <a class="link-dark text-decoration-none" href="{{ url_for('software_detail', software_name=record.software_name) }}">
+                                {{ record.software_name }}
+                            </a>
+                        </div>
+                    </td>
+                    <td>
+                        {% if record.vendor_name %}
+                        <a class="text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=record.vendor_name) }}">
+                            {{ record.vendor_name }}
+                        </a>
+                        {% else %}
+                        Not provided
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" href="{{ url_for('edit_software', software_name=record.software_name) }}" aria-label="Edit software" title="Edit software">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706l-1.793 1.793-2.647-2.647L12.855 0a.5.5 0 0 1 .707 0z"/>
+                                <path d="M1 13.5V16h2.5l7.372-7.372-2.647-2.647z"/>
+                            </svg>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div id="software_search_empty" class="text-secondary mt-3" style="display: none;">
+        No software titles match your search.
+    </div>
+</section>
+
+<script>
+    const softwareSearchField = document.getElementById("software_search");
+    const softwareTableBody = document.getElementById("software_table_body");
+    const softwareRows = Array.from(document.querySelectorAll("#software_table_body tr"));
+    const softwareSearchEmpty = document.getElementById("software_search_empty");
+    const softwareSortableHeaders = Array.from(document.querySelectorAll(".sortable-header"));
+    let softwareSortState = { key: "", direction: "asc" };
+
+    function sortSoftwareRows(sortKey) {
+        const nextDirection =
+            softwareSortState.key === sortKey && softwareSortState.direction === "asc" ? "desc" : "asc";
+
+        softwareRows.sort((firstRow, secondRow) => {
+            const firstValue = (firstRow.dataset[`${sortKey}Name`] || "").toLowerCase();
+            const secondValue = (secondRow.dataset[`${sortKey}Name`] || "").toLowerCase();
+            const comparison = firstValue.localeCompare(secondValue);
+            return nextDirection === "asc" ? comparison : -comparison;
+        });
+
+        softwareRows.forEach((row) => softwareTableBody.appendChild(row));
+        softwareSortState = { key: sortKey, direction: nextDirection };
+
+        softwareSortableHeaders.forEach((header) => {
+            header.classList.remove("sort-asc", "sort-desc");
+            if (header.dataset.sortKey === sortKey) {
+                header.classList.add(nextDirection === "asc" ? "sort-asc" : "sort-desc");
+            }
+        });
+
+        filterSoftwareRows();
+    }
+
+    function filterSoftwareRows() {
+        const query = softwareSearchField.value.trim().toLowerCase();
+        let visibleCount = 0;
+
+        softwareRows.forEach((row) => {
+            const title = row.dataset.softwareName || "";
+            const matches = !query || title.includes(query);
+            row.style.display = matches ? "" : "none";
+            if (matches) {
+                visibleCount += 1;
+            }
+        });
+
+        softwareSearchEmpty.style.display = visibleCount ? "none" : "block";
+    }
+
+    softwareSearchField.addEventListener("input", filterSoftwareRows);
+    softwareSortableHeaders.forEach((header) => {
+        header.addEventListener("click", () => sortSoftwareRows(header.dataset.sortKey));
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block title %}{{ vendor.vendor_name }}{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+        <div>
+            <span class="badge text-bg-secondary rounded-pill px-3 py-2 mb-3">Vendor</span>
+            <h1 class="display-6 fw-semibold mb-2">{{ vendor.vendor_name }}</h1>
+            {% if vendor.vendor_website %}
+            <div class="mb-2">
+                <a class="text-decoration-none fw-semibold" href="{{ vendor.vendor_website }}" target="_blank" rel="noopener noreferrer">
+                    {{ vendor.vendor_website }}
+                </a>
+            </div>
+            {% endif %}
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            <a class="btn btn-success rounded-pill px-4" href="/vendors/{{ vendor.vendor_name|urlencode }}/assessments/new">Add Vendor Audit</a>
+            <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('edit_vendor', vendor_name=vendor.vendor_name) }}">Edit Vendor</a>
+            <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('vendor_list') }}">Back to Vendors</a>
+        </div>
+    </div>
+</section>
+
+<section class="table-panel p-4 mb-4">
+    <div class="row g-3">
+        {% if vendor.vendor_country %}
+        <div class="col-md-4">
+            <div class="small text-secondary mb-1">Country</div>
+            <div>{{ vendor.vendor_country }}</div>
+        </div>
+        {% endif %}
+        <div class="col-md-4">
+            <div class="small text-secondary mb-1">Products</div>
+            <div>{{ vendor.product_count }}</div>
+        </div>
+        {% if vendor.vendor_website %}
+        <div class="col-md-4">
+            <div class="small text-secondary mb-1">Website</div>
+            <div>
+                <a class="text-decoration-none" href="{{ vendor.vendor_website }}" target="_blank" rel="noopener noreferrer">Open website</a>
+            </div>
+        </div>
+        {% endif %}
+        <div class="col-md-4">
+            <div class="small text-secondary mb-1">Audit Reminder Schedule</div>
+            <div>
+                {% if vendor.vendor_audit_reminder_frequency == "6_months" %}Every 6 months
+                {% elif vendor.vendor_audit_reminder_frequency == "2_years" %}Every 2 years
+                {% else %}Every 1 year{% endif %}
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="small text-secondary mb-1">Next Audit Date</div>
+            <div>{{ vendor.vendor_next_audit_date or "Not scheduled" }}</div>
+        </div>
+    </div>
+</section>
+
+{% if vendor.vendor_terms_conditions_link or vendor.online_support or vendor.vendor_privacy_policy_link %}
+<section class="table-panel p-4 mb-4">
+    <div class="row g-3">
+        {% if vendor.vendor_terms_conditions_link %}
+        <div class="col-md-6">
+            <div class="small text-secondary mb-1">Terms and Conditions</div>
+            <div>
+                <a class="text-decoration-none" href="{{ vendor.vendor_terms_conditions_link }}" target="_blank" rel="noopener noreferrer">Open terms</a>
+            </div>
+        </div>
+        {% endif %}
+        {% if vendor.online_support %}
+        <div class="col-md-6">
+            <div class="small text-secondary mb-1">Online Support</div>
+            <div>
+                <a class="text-decoration-none" href="{{ vendor.online_support }}" target="_blank" rel="noopener noreferrer">Open support</a>
+            </div>
+        </div>
+        {% endif %}
+        {% if vendor.vendor_privacy_policy_link %}
+        <div class="col-md-6">
+            <div class="small text-secondary mb-1">Privacy Policy</div>
+            <div>
+                <a class="text-decoration-none" href="{{ vendor.vendor_privacy_policy_link }}" target="_blank" rel="noopener noreferrer">Open privacy policy</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+
+<section class="table-panel p-4 mb-4">
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+        <h2 class="h5 mb-0">Vendor Audits</h2>
+        <span class="badge rounded-pill text-bg-secondary">{{ vendor_assessments|length }}</span>
+    </div>
+    {% if vendor_assessments %}
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Audit Date</th>
+                    <th>Data Storage Location</th>
+                    <th>Next Audit Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for assessment in vendor_assessments %}
+                <tr>
+                    <td>{{ assessment.vendor_assessment_date or "Not provided" }}</td>
+                    <td>{{ assessment.data_storage_location or "Not provided" }}</td>
+                    <td>{{ assessment.vendor_next_audit_date or "Not scheduled" }}</td>
+                    <td>
+                        {% if assessment.submission_status == "draft" %}
+                        <span class="badge rounded-pill text-bg-warning">Draft</span>
+                        {% else %}
+                        <span class="badge rounded-pill text-bg-success">Submitted</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" href="/vendor-assessments/{{ assessment.id }}/edit" aria-label="Edit vendor audit" title="Edit vendor audit">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706l-1.793 1.793-2.647-2.647L12.855 0a.5.5 0 0 1 .707 0z"/>
+                                <path d="M1 13.5V16h2.5l7.372-7.372-2.647-2.647z"/>
+                            </svg>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-secondary">No vendor audits have been created for this vendor yet.</div>
+    {% endif %}
+</section>
+
+<section class="table-panel p-4">
+    <div class="d-flex justify-content-between align-items-center gap-3 mb-3">
+        <h2 class="h5 mb-0">Linked software</h2>
+        <span class="badge rounded-pill text-bg-secondary">{{ linked_software|length }}</span>
+    </div>
+    {% if linked_software %}
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Software</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for record in linked_software %}
+                <tr>
+                    <td>
+                        <a class="link-dark text-decoration-none fw-semibold" href="{{ url_for('software_detail', software_name=record.software_name) }}">
+                            {{ record.software_name or "Not provided" }}
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-secondary">No software is linked to this vendor yet.</div>
+    {% endif %}
+</section>
+{% endblock %}

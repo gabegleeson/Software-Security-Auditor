@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+<style>
+    .settings-form-grid {
+        max-width: 1080px;
+    }
+
+    .settings-section {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.88);
+        padding: 20px;
+        margin-bottom: 20px;
+    }
+
+    .settings-section-header {
+        margin-bottom: 16px;
+    }
+
+    .settings-section-title {
+        font-weight: 700;
+        color: #16324f;
+        margin-bottom: 4px;
+    }
+
+    .assignment-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 52px minmax(0, 1fr);
+        gap: 8px;
+        align-items: stretch;
+    }
+
+    .assignment-pane {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        background: #fff;
+        height: 360px;
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    .assignment-pane-header {
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+    }
+
+    .assignment-pane-body {
+        padding: 10px;
+        flex: 1;
+        overflow: auto;
+        min-height: 0;
+    }
+
+    .assignment-list {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .assignment-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .assignment-item input {
+        margin: 0;
+    }
+
+    .assignment-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        justify-content: center;
+        align-self: center;
+        width: 52px;
+    }
+
+    .assignment-controls .btn {
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        border-radius: 999px;
+        font-size: 1.1rem;
+    }
+
+    .assignment-empty {
+        color: #6c757d;
+        padding: 10px 12px;
+    }
+
+    @media (max-width: 991.98px) {
+        .assignment-layout {
+            grid-template-columns: 1fr;
+        }
+
+        .assignment-controls {
+            flex-direction: row;
+            justify-content: flex-start;
+        }
+
+        .assignment-pane {
+            height: 260px;
+        }
+    }
+</style>
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div>
+        <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Settings</span>
+        <h1 class="display-6 fw-semibold mb-2">Settings</h1>
+        <p class="text-secondary mb-0">Manage reminder emails, your organisation's home country, and country risk assignments.</p>
+    </div>
+</section>
+
+<section class="table-panel p-4 p-md-5">
+    {% if saved %}
+    <div class="alert alert-success rounded-4" role="alert">
+        Settings updated.
+    </div>
+    {% endif %}
+
+    <form method="POST" class="settings-form-grid">
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <div class="settings-section-title">General</div>
+                <div class="form-text">Core settings for reminders and your organisation profile.</div>
+            </div>
+
+            <div class="mb-4">
+                <label for="reminder_email" class="form-label fw-semibold">Reminder email address</label>
+                <input
+                    class="form-control"
+                    type="email"
+                    id="reminder_email"
+                    name="reminder_email"
+                    value="{{ settings.reminder_email }}"
+                    placeholder="name@example.com"
+                >
+                <div class="form-text">Audit reminder emails will be sent to this address.</div>
+            </div>
+
+            <div>
+                <label for="home_country" class="form-label fw-semibold">Home country</label>
+                <select class="form-select" id="home_country" name="home_country" required>
+                    {% for country in country_options %}
+                    <option value="{{ country }}" {% if settings.home_country == country %}selected{% endif %}>{{ country }}</option>
+                    {% endfor %}
+                </select>
+                <div class="form-text">Used as the data storage location when a Data Processing Agreement is in place.</div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 settings-section-header">
+                <div>
+                    <div class="settings-section-title">Country Risk Categories</div>
+                    <div class="form-text">Assign countries to Low, Moderate, High, or Very High risk categories.</div>
+                </div>
+                <div style="min-width: 240px;">
+                    <label for="risk_level_selector" class="form-label fw-semibold">Risk level</label>
+                    <select class="form-select" id="risk_level_selector">
+                        {% for risk_level in risk_category_options %}
+                        <option value="{{ risk_level }}">{{ risk_level }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <input type="hidden" id="country_risk_assignments" name="country_risk_assignments" value='{{ country_risk_assignments|tojson }}'>
+
+            <div class="assignment-layout">
+                <div class="assignment-pane">
+                    <div class="assignment-pane-header">
+                        <div class="fw-semibold">Countries</div>
+                        <div class="form-text">Select one or more countries to assign to the chosen risk level.</div>
+                    </div>
+                    <div class="assignment-pane-body">
+                        <div class="assignment-list" id="available_countries_list"></div>
+                    </div>
+                </div>
+
+                <div class="assignment-controls">
+                    <button class="btn btn-outline-primary" type="button" id="assign_countries_button" aria-label="Assign selected countries">
+                        &rarr;
+                    </button>
+                    <button class="btn btn-outline-secondary" type="button" id="remove_countries_button" aria-label="Remove selected countries from risk level">
+                        &larr;
+                    </button>
+                </div>
+
+                <div class="assignment-pane">
+                    <div class="assignment-pane-header">
+                        <div class="fw-semibold">Assigned to <span id="selected_risk_level_label">Low</span></div>
+                        <div class="form-text">Countries shown here are currently assigned to the selected risk level.</div>
+                    </div>
+                    <div class="assignment-pane-body">
+                        <div class="assignment-list" id="assigned_countries_list"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary rounded-pill px-4">Save Settings</button>
+    </form>
+</section>
+<script type="application/json" id="country_options_data">{{ country_options|tojson }}</script>
+<script>
+    const countryOptions = JSON.parse(document.getElementById("country_options_data").textContent);
+    const riskLevelSelector = document.getElementById("risk_level_selector");
+    const selectedRiskLevelLabel = document.getElementById("selected_risk_level_label");
+    const countryRiskAssignmentsField = document.getElementById("country_risk_assignments");
+    const availableCountriesList = document.getElementById("available_countries_list");
+    const assignedCountriesList = document.getElementById("assigned_countries_list");
+    const assignCountriesButton = document.getElementById("assign_countries_button");
+    const removeCountriesButton = document.getElementById("remove_countries_button");
+    let countryRiskAssignments = {};
+
+    try {
+        countryRiskAssignments = JSON.parse(countryRiskAssignmentsField.value || "{}");
+    } catch (error) {
+        countryRiskAssignments = {};
+    }
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function syncCountryRiskAssignmentsField() {
+        const orderedAssignments = {};
+        countryOptions.forEach((country) => {
+            if (countryRiskAssignments[country]) {
+                orderedAssignments[country] = countryRiskAssignments[country];
+            }
+        });
+        countryRiskAssignments = orderedAssignments;
+        countryRiskAssignmentsField.value = JSON.stringify(countryRiskAssignments);
+    }
+
+    function renderAssignmentItem(country, listName) {
+        return `
+            <label class="assignment-item">
+                <input type="checkbox" data-country="${escapeHtml(country)}" data-list="${listName}">
+                <span>${escapeHtml(country)}</span>
+            </label>
+        `;
+    }
+
+    function renderCountryRiskLists() {
+        const selectedRiskLevel = riskLevelSelector.value;
+        selectedRiskLevelLabel.textContent = selectedRiskLevel;
+
+        const assignedCountries = countryOptions.filter((country) => countryRiskAssignments[country] === selectedRiskLevel);
+        const availableCountries = countryOptions.filter((country) => countryRiskAssignments[country] !== selectedRiskLevel);
+
+        availableCountriesList.innerHTML = availableCountries.length
+            ? availableCountries.map((country) => renderAssignmentItem(country, "available")).join("")
+            : '<div class="assignment-empty">Every country is already assigned to this risk level.</div>';
+
+        assignedCountriesList.innerHTML = assignedCountries.length
+            ? assignedCountries.map((country) => renderAssignmentItem(country, "assigned")).join("")
+            : '<div class="assignment-empty">No countries assigned to this risk level yet.</div>';
+
+        syncCountryRiskAssignmentsField();
+    }
+
+    function getCheckedCountries(listName) {
+        return Array.from(document.querySelectorAll(`input[data-list="${listName}"]:checked`)).map((input) => input.dataset.country);
+    }
+
+    assignCountriesButton.addEventListener("click", () => {
+        const selectedRiskLevel = riskLevelSelector.value;
+        getCheckedCountries("available").forEach((country) => {
+            countryRiskAssignments[country] = selectedRiskLevel;
+        });
+        renderCountryRiskLists();
+    });
+
+    removeCountriesButton.addEventListener("click", () => {
+        getCheckedCountries("assigned").forEach((country) => {
+            delete countryRiskAssignments[country];
+        });
+        renderCountryRiskLists();
+    });
+
+    riskLevelSelector.addEventListener("change", renderCountryRiskLists);
+    renderCountryRiskLists();
+</script>
+{% endblock %}

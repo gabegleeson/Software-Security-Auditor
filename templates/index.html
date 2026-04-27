@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+
+{% block content %}
+{% if software_needing_assessment %}
+<section class="table-panel p-4 mb-4">
+    <h2 class="h4 mb-1">Action Required</h2>
+    <p class="text-secondary mb-3">Software titles that still need their first assessment.</p>
+    {% if software_needing_assessment %}
+        {% for record in software_needing_assessment %}
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom gap-3">
+            <div>
+                <div class="fw-semibold">
+                    <a class="link-dark text-decoration-none" href="{{ url_for('software_detail', software_name=record.software_name) }}">
+                        {{ record.software_name }}
+                    </a>
+                </div>
+                <div class="text-secondary small">
+                    {% if record.vendor_name %}
+                    <a class="text-secondary text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=record.vendor_name) }}">
+                        {{ record.vendor_name }}
+                    </a>
+                    {% else %}
+                    Not provided
+                    {% endif %}
+                </div>
+            </div>
+            <div class="text-end">
+                <div class="small text-danger fw-semibold">Action required</div>
+                <a class="btn btn-sm btn-outline-danger rounded-pill px-3 mt-2" href="{{ url_for('new_assessment', source_assessment_id=record.id) }}">
+                    Create assessment
+                </a>
+            </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+</section>
+{% endif %}
+
+{% if vendors_needing_assessment %}
+<section class="table-panel p-4 mb-4">
+    <h2 class="h4 mb-1">Vendor Action Required</h2>
+    <p class="text-secondary mb-3">Vendors that still need their first assessment.</p>
+    {% for vendor in vendors_needing_assessment %}
+    <div class="d-flex justify-content-between align-items-center py-2 border-bottom gap-3">
+        <div>
+            <div class="fw-semibold">
+                <a class="link-dark text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=vendor.vendor_name) }}">
+                    {{ vendor.vendor_name }}
+                </a>
+            </div>
+            <div class="text-secondary small">{{ vendor.vendor_country or "Not provided" }}</div>
+        </div>
+        <div class="text-end">
+            <div class="small text-danger fw-semibold">Action required</div>
+            <a class="btn btn-sm btn-outline-danger rounded-pill px-3 mt-2" href="/vendors/{{ vendor.vendor_name|urlencode }}/assessments/new">
+                Create assessment
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if draft_assessments %}
+<section class="table-panel p-4 mb-4">
+    <h2 class="h4 mb-1">Uncompleted Draft Audits</h2>
+    <p class="text-secondary mb-3">Assessment drafts that have been started but not submitted yet.</p>
+    {% for record in draft_assessments %}
+    <div class="d-flex justify-content-between align-items-center py-2 border-bottom gap-3">
+        <div>
+            <div class="fw-semibold">
+                <a class="link-dark text-decoration-none" href="{{ url_for('software_detail', software_name=record.software_name) }}">
+                    {{ record.software_name }}
+                </a>
+            </div>
+            <div class="text-secondary small">
+                {% if record.vendor_name %}
+                <a class="text-secondary text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=record.vendor_name) }}">
+                    {{ record.vendor_name }}
+                </a>
+                {% else %}
+                Not provided
+                {% endif %}
+            </div>
+        </div>
+        <div class="text-end">
+            <div class="small text-danger fw-semibold">Draft</div>
+            {% if record.is_overdue %}
+            <div class="small text-danger mt-1">{{ record.overdue_label }}</div>
+            {% endif %}
+            <a class="btn btn-sm btn-outline-danger rounded-pill px-3 mt-2" href="{{ url_for('edit_assessment', assessment_id=record.id) }}">
+                Resume draft
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+{% if draft_vendor_assessments %}
+<section class="table-panel p-4 mb-4">
+    <h2 class="h4 mb-1">Uncompleted Draft Vendor Audits</h2>
+    <p class="text-secondary mb-3">Vendor audit drafts that have been started but not submitted yet.</p>
+    {% for record in draft_vendor_assessments %}
+    <div class="d-flex justify-content-between align-items-center py-2 border-bottom gap-3">
+        <div>
+            <div class="fw-semibold">
+                <a class="link-dark text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=record.vendor_name) }}">
+                    {{ record.vendor_name }}
+                </a>
+            </div>
+            <div class="text-secondary small">Vendor audit draft</div>
+        </div>
+        <div class="text-end">
+            <div class="small text-danger fw-semibold">Draft</div>
+            {% if record.is_overdue %}
+            <div class="small text-danger mt-1">{{ record.overdue_label }}</div>
+            {% endif %}
+            <a class="btn btn-sm btn-outline-danger rounded-pill px-3 mt-2" href="{{ url_for('edit_vendor_assessment', assessment_id=record.id) }}">
+                Resume draft
+            </a>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
+<section class="table-panel p-4">
+    <div class="mb-3">
+        <h2 class="h4 mb-1">Upcoming Software Audits</h2>
+        <p class="text-secondary mb-0">Software with the nearest scheduled audit dates.</p>
+    </div>
+    {% if upcoming_software_audits %}
+        {% for record in upcoming_software_audits %}
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom gap-3">
+            <div>
+                <div class="fw-semibold">
+                    <a class="link-dark text-decoration-none" href="{{ url_for('software_detail', software_name=record.software_name) }}">
+                        {{ record.software_name }}
+                    </a>
+                </div>
+                <div class="text-secondary small">
+                    {% if record.vendor_name %}
+                    <a class="text-secondary text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=record.vendor_name) }}">
+                        {{ record.vendor_name }}
+                    </a>
+                    {% else %}
+                    Not provided
+                    {% endif %}
+                </div>
+                <div class="mt-2">
+                    <a class="btn btn-sm btn-outline-primary rounded-pill px-3" href="{{ url_for('new_assessment', source_assessment_id=record.id) }}">
+                        New assessment
+                    </a>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge rounded-pill text-bg-light border">{{ record.audit_date }}</span>
+                {% if record.is_overdue %}
+                <div class="small text-danger fw-semibold mt-1">{{ record.overdue_label }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-secondary">No software audit dates scheduled yet.</div>
+    {% endif %}
+</section>
+
+<section class="table-panel p-4 mt-4">
+    <div class="mb-3">
+        <h2 class="h4 mb-1">Upcoming Vendor Audits</h2>
+        <p class="text-secondary mb-0">Vendors with the nearest scheduled audit dates.</p>
+    </div>
+    {% if upcoming_vendor_audits %}
+        {% for record in upcoming_vendor_audits %}
+        <div class="d-flex justify-content-between align-items-center py-2 border-bottom gap-3">
+            <div>
+                <div class="fw-semibold">
+                    <a class="link-dark text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=record.vendor_name) }}">
+                        {{ record.vendor_name }}
+                    </a>
+                </div>
+                <div class="text-secondary small">Vendor audit</div>
+                <div class="mt-2">
+                    <a class="btn btn-sm btn-outline-primary rounded-pill px-3" href="/vendors/{{ record.vendor_name|urlencode }}/assessments/new">
+                        New vendor audit
+                    </a>
+                </div>
+            </div>
+            <div class="text-end">
+                <span class="badge rounded-pill text-bg-light border">{{ record.audit_date }}</span>
+                {% if record.is_overdue %}
+                <div class="small text-danger fw-semibold mt-1">{{ record.overdue_label }}</div>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    {% else %}
+        <div class="text-secondary">No vendor audit dates scheduled yet.</div>
+    {% endif %}
+</section>
+{% endblock %}

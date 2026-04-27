@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px 16px;
+    }
+
+    .checkbox-grid.is-scrollable {
+        max-height: 320px;
+        overflow: auto;
+        padding: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .checkbox-grid label {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0;
+        font-weight: normal;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+        <div>
+            <span class="badge text-bg-secondary rounded-pill px-3 py-2 mb-3">Vendor Setup</span>
+            <h1 class="display-6 fw-semibold mb-2">{{ form_title }}</h1>
+            <p class="text-secondary mb-0">
+                {% if is_edit %}
+                Update the saved vendor details and sync them back to linked software records.
+                {% else %}
+                Create a vendor entry with its basic profile information.
+                {% endif %}
+            </p>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if is_edit %}
+            <form method="POST" action="{{ url_for('delete_vendor', vendor_name=vendor.vendor_name) }}" onsubmit="return confirm('Delete this vendor? Linked software will have vendor details cleared.');">
+                <button class="btn btn-outline-danger rounded-pill px-4" type="submit">Delete Vendor</button>
+            </form>
+            {% endif %}
+            <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('vendor_list') }}">Back to Vendors</a>
+        </div>
+    </div>
+</section>
+
+<section class="table-panel p-4">
+    <form method="POST">
+        <div class="row g-4">
+            <div class="col-md-6">
+                <label class="form-label" for="vendor_name">Vendor Name</label>
+                <input class="form-control" type="text" id="vendor_name" name="vendor_name" value="{{ vendor.vendor_name }}" required>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="vendor_country">Vendor Country</label>
+                <select class="form-select" id="vendor_country" name="vendor_country">
+                    <option value="">Select a country</option>
+                    {% if vendor.vendor_country and vendor.vendor_country not in country_options %}
+                    <option value="{{ vendor.vendor_country }}" selected>{{ vendor.vendor_country }}</option>
+                    {% endif %}
+                    {% for country in country_options %}
+                    <option value="{{ country }}" {% if vendor.vendor_country == country %}selected{% endif %}>{{ country }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="vendor_website">Website</label>
+                <input class="form-control" type="url" id="vendor_website" name="vendor_website" placeholder="https://example.com" value="{{ vendor.vendor_website }}">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="vendor_terms_conditions_link">Terms and Conditions Link</label>
+                <input class="form-control" type="url" id="vendor_terms_conditions_link" name="vendor_terms_conditions_link" value="{{ vendor.vendor_terms_conditions_link }}">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="vendor_privacy_policy_link">Privacy Policy Link</label>
+                <input class="form-control" type="url" id="vendor_privacy_policy_link" name="vendor_privacy_policy_link" placeholder="https://example.com/privacy" value="{{ vendor.vendor_privacy_policy_link }}">
+            </div>
+            <div class="col-12">
+                <label class="form-label" for="online_support">Online Support</label>
+                <input class="form-control" type="url" id="online_support" name="online_support" placeholder="https://example.com/support" value="{{ vendor.online_support }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="vendor_audit_reminder_frequency">Audit Reminder Schedule</label>
+                <select class="form-select" id="vendor_audit_reminder_frequency" name="vendor_audit_reminder_frequency">
+                    <option value="6_months" {% if vendor.vendor_audit_reminder_frequency == "6_months" %}selected{% endif %}>Every 6 months</option>
+                    <option value="1_year" {% if vendor.vendor_audit_reminder_frequency == "1_year" or not vendor.vendor_audit_reminder_frequency %}selected{% endif %}>Every 1 year</option>
+                    <option value="2_years" {% if vendor.vendor_audit_reminder_frequency == "2_years" %}selected{% endif %}>Every 2 years</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label" for="vendor_next_audit_date">Next Audit Date</label>
+                <input class="form-control" type="date" id="vendor_next_audit_date" name="vendor_next_audit_date" value="{{ vendor.vendor_next_audit_date }}">
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-3 mt-4">
+            <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('vendor_list') }}">Cancel</a>
+            <button class="btn btn-primary rounded-pill px-4" type="submit">{{ submit_label }}</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

@@ -1,0 +1,520 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .assessment-section {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 16px;
+        background: rgba(255, 255, 255, 0.92);
+        padding: 20px;
+        margin-bottom: 24px;
+    }
+
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px 16px;
+    }
+
+    .checkbox-grid.is-scrollable {
+        max-height: 320px;
+        overflow: auto;
+        padding: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .checkbox-grid label {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0;
+        font-weight: normal;
+    }
+
+    .data-location-group {
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 8px;
+        background: #fff;
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+
+    .data-location-group-check {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 4px;
+        padding: 0;
+    }
+
+    .privacy-subsection {
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 8px;
+        background: #fff;
+        padding: 16px;
+        height: 100%;
+    }
+
+    .privacy-subsection-title {
+        font-size: 1rem;
+        font-weight: 700;
+        margin-bottom: 12px;
+    }
+
+    .privacy-subsection .checkbox-grid {
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+        <div>
+            <span class="badge text-bg-secondary rounded-pill px-3 py-2 mb-3">Vendor Audit</span>
+            <h1 class="display-6 fw-semibold mb-2">{{ form_title }}</h1>
+            <p class="text-secondary mb-0">{{ vendor.vendor_name }}</p>
+        </div>
+        <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('vendor_detail', vendor_name=vendor.vendor_name) }}">Back to Vendor</a>
+    </div>
+</section>
+
+<section class="table-panel p-4">
+    <form method="POST">
+        <div class="assessment-section">
+            <h2 class="h5 fw-semibold mb-3">Vendor Details</h2>
+            <div class="row g-4">
+                <div class="col-md-6">
+                    <label class="form-label" for="vendor_name">Vendor Name</label>
+                    <input class="form-control" type="text" id="vendor_name" name="vendor_name" value="{{ vendor.vendor_name }}" required>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="vendor_country">Vendor Country</label>
+                    <select class="form-select" id="vendor_country" name="vendor_country">
+                        <option value="">Select country</option>
+                        {% for country in country_options %}
+                        <option value="{{ country }}" {% if vendor.vendor_country == country %}selected{% endif %}>{{ country }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="vendor_website">Vendor Website</label>
+                    <input class="form-control" type="url" id="vendor_website" name="vendor_website" value="{{ vendor.vendor_website }}" placeholder="https://example.com">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="online_support">Online Support</label>
+                    <input class="form-control" type="url" id="online_support" name="online_support" value="{{ vendor.online_support }}" placeholder="https://example.com/support">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label" for="vendor_terms_conditions_link">Terms and Conditions</label>
+                    <input class="form-control" type="url" id="vendor_terms_conditions_link" name="vendor_terms_conditions_link" value="{{ vendor.vendor_terms_conditions_link }}" placeholder="https://example.com/terms">
+                </div>
+            </div>
+        </div>
+
+        <div class="assessment-section">
+            <h2 class="h5 fw-semibold mb-3">Data Storage and Privacy</h2>
+            <div class="row g-3">
+                <div class="col-12">
+                    <div class="privacy-subsection">
+                        <div class="privacy-subsection-title">Vendor Privacy Policy</div>
+                        <div id="vendor_privacy_policy_input_wrap" {% if vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
+                            <input class="form-control" type="url" id="vendor_privacy_policy_link" name="vendor_privacy_policy_link" value="{{ vendor.vendor_privacy_policy_link }}" placeholder="https://example.com/privacy">
+                            <div class="d-flex align-items-center gap-2 mt-2">
+                                <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_privacy_policy_add_button">Add</button>
+                            </div>
+                            <div class="form-text mt-2">If there is no vendor privacy policy yet, add it here and then press Add.</div>
+                        </div>
+                        <div id="vendor_privacy_policy_display_wrap" {% if not vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <a id="vendor_privacy_policy_open_link" href="{{ vendor.vendor_privacy_policy_link or '#' }}" target="_blank" rel="noopener noreferrer">{{ vendor.vendor_privacy_policy_link }}</a>
+                                <button class="btn btn-outline-secondary rounded-pill px-3" type="button" id="vendor_privacy_policy_copy_button">Copy link</button>
+                                <button class="btn btn-outline-secondary rounded-pill px-3" type="button" id="vendor_privacy_policy_edit_button">Edit</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="privacy-subsection">
+                        <div class="privacy-subsection-title">Storage Location</div>
+                        <label class="form-label fw-semibold" for="cloud_hosted_data">Cloud-Hosted Data</label>
+                        <select class="form-select mb-3" id="cloud_hosted_data" name="cloud_hosted_data" required>
+                            <option value="">Select an option</option>
+                            <option value="Yes" {% if assessment.cloud_hosted_data == "Yes" %}selected{% endif %}>Yes</option>
+                            <option value="No" {% if assessment.cloud_hosted_data == "No" %}selected{% endif %}>No</option>
+                        </select>
+                        <div id="data_processing_agreement_wrap">
+                            <label class="form-label fw-semibold d-flex align-items-start gap-2">
+                                <input type="checkbox" id="data_processing_agreement_in_place" name="data_processing_agreement_in_place" value="true" {% if assessment.data_processing_agreement_in_place %}checked{% endif %}>
+                                <span>Data Processing Agreement in place</span>
+                            </label>
+                            <div class="form-text mb-3">When checked, data storage location is set to {{ home_country }}.</div>
+                        </div>
+                        <div id="data_storage_location_wrap">
+                            <label class="form-label fw-semibold">Data Storage Location</label>
+                            {% set selected_storage_locations = (assessment.data_storage_location or "").split(", ") %}
+                            {% if assessment.data_storage_location %}
+                            <div class="form-text mb-2">Selected: {{ assessment.data_storage_location }}</div>
+                            {% endif %}
+                            <div class="data-location-group">
+                                <div class="fw-semibold mb-1">European Union Countries</div>
+                                <label class="data-location-group-check">
+                                    <input class="form-check-input m-0" type="checkbox" id="eu_data_storage_group" data-eu-countries="{{ eu_country_options|join('|') }}">
+                                    <span class="form-check-label">Select all EU countries</span>
+                                </label>
+                                <div class="form-text">Selects each EU member country below as individual data storage locations.</div>
+                            </div>
+                            <div class="checkbox-grid is-scrollable">
+                                {% for country in country_options %}
+                                <label><input type="checkbox" name="data_storage_location" value="{{ country }}" {% if country in selected_storage_locations %}checked{% endif %}> {{ country }}</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                        <input type="hidden" id="home_country" value="{{ home_country }}">
+                        <div id="storage_location_notes_wrap">
+                            <label for="storage_location_notes" class="form-label fw-semibold mt-3">Storage Location Notes</label>
+                            <textarea class="form-control" id="storage_location_notes" name="storage_location_notes" rows="4">{{ assessment.storage_location_notes }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="privacy-subsection" id="hosted_data_panel">
+                        <div class="privacy-subsection-title">Hosted Data</div>
+                        <div id="data_types_hosted_wrap" class="mb-3">
+                            <label class="form-label fw-semibold">Data Types Hosted by Vendor</label>
+                            {% set selected_data_types = (assessment.data_types_stored or "").split(", ") %}
+                            <div class="checkbox-grid">
+                                {% for data_type in data_type_options %}
+                                <label><input type="checkbox" name="data_types_stored" value="{{ data_type }}" {% if data_type in selected_data_types %}checked{% endif %}> {{ data_type }}</label>
+                                {% endfor %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="col-12" id="data_storage_notes_wrap">
+                    <div class="privacy-subsection">
+                        <label for="data_storage_notes" class="form-label fw-semibold">Data Storage Notes</label>
+                        <textarea class="form-control" id="data_storage_notes" name="data_storage_notes" rows="4">{{ assessment.data_storage_notes }}</textarea>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="privacy-subsection">
+                        <div class="privacy-subsection-title">Privacy Laws</div>
+                        <label class="form-label fw-semibold">Core Privacy Laws Followed</label>
+                        {% set selected_privacy_laws = (assessment.privacy_laws_adhered_to or "").split(", ") %}
+                        <div class="checkbox-grid mb-3">
+                            {% for privacy_law in privacy_law_options %}
+                            <label><input type="checkbox" name="privacy_laws_adhered_to" value="{{ privacy_law }}" {% if privacy_law in selected_privacy_laws %}checked{% endif %}> {{ privacy_law }}</label>
+                            {% endfor %}
+                        </div>
+                        <label class="form-label fw-semibold">International Laws</label>
+                        <div class="checkbox-grid mb-3">
+                            {% for privacy_law in international_privacy_law_options %}
+                            <label><input type="checkbox" name="privacy_laws_adhered_to" value="{{ privacy_law }}" {% if privacy_law in selected_privacy_laws %}checked{% endif %}> {{ privacy_law }}</label>
+                            {% endfor %}
+                        </div>
+                        <label class="form-label fw-semibold">Sector-Specific or Contextual Laws</label>
+                        {% set selected_contextual_laws = (assessment.sector_specific_contextual_laws or "").split(", ") %}
+                        <div class="checkbox-grid mb-3">
+                            {% for law in sector_specific_contextual_law_options %}
+                            <label><input type="checkbox" name="sector_specific_contextual_laws" value="{{ law }}" {% if law in selected_contextual_laws %}checked{% endif %}> {{ law }}</label>
+                            {% endfor %}
+                        </div>
+                        <label class="form-label fw-semibold">Cross-Border Data Transfer Mechanisms</label>
+                        {% set selected_transfer_mechanisms = (assessment.cross_border_data_transfer_mechanisms or "").split(", ") %}
+                        <div class="checkbox-grid mb-3">
+                            {% for mechanism in cross_border_data_transfer_mechanism_options %}
+                            <label><input type="checkbox" name="cross_border_data_transfer_mechanisms" value="{{ mechanism }}" {% if mechanism in selected_transfer_mechanisms %}checked{% endif %}> {{ mechanism }}</label>
+                            {% endfor %}
+                        </div>
+                        <label class="form-label fw-semibold">US-Specific Laws</label>
+                        {% set selected_us_laws = (assessment.us_specific_laws or "").split(", ") %}
+                        <div class="checkbox-grid mb-3">
+                            {% for law in us_specific_law_options %}
+                            <label><input type="checkbox" name="us_specific_laws" value="{{ law }}" {% if law in selected_us_laws %}checked{% endif %}> {{ law }}</label>
+                            {% endfor %}
+                        </div>
+                        <label for="privacy_law_notes" class="form-label fw-semibold">Privacy Law notes</label>
+                        <textarea class="form-control" id="privacy_law_notes" name="privacy_law_notes" rows="4">{{ assessment.privacy_law_notes }}</textarea>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="privacy-subsection">
+                        <div class="privacy-subsection-title">Security and Privacy Standards</div>
+                        {% set selected_security_standards = (assessment.security_privacy_standards or "").split(", ") %}
+                        <div class="checkbox-grid mb-3">
+                            {% for standard in security_privacy_standard_options %}
+                            <label><input type="checkbox" name="security_privacy_standards" value="{{ standard }}" {% if standard in selected_security_standards %}checked{% endif %}> {{ standard }}</label>
+                            {% endfor %}
+                        </div>
+                        <label for="privacy_notes" class="form-label fw-semibold">Privacy Standards notes</label>
+                        <textarea class="form-control" id="privacy_notes" name="privacy_notes" rows="4">{{ assessment.privacy_notes }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="d-flex justify-content-end gap-3 mt-4">
+            <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('vendor_detail', vendor_name=vendor.vendor_name) }}">Cancel</a>
+            <button class="btn btn-outline-secondary rounded-pill px-4" type="submit" name="submit_action" value="draft">Save Draft</button>
+            <button class="btn btn-primary rounded-pill px-4" type="submit" name="submit_action" value="submit">{{ submit_label }}</button>
+        </div>
+    </form>
+</section>
+<script type="application/json" id="vendor_assessment_data">{{ assessment|tojson }}</script>
+<script>
+    const vendorAssessmentDataScript = document.getElementById("vendor_assessment_data");
+    const vendorAssessmentData = vendorAssessmentDataScript ? JSON.parse(vendorAssessmentDataScript.textContent) : {};
+    const multiValueVendorAssessmentFields = [
+        "data_storage_location",
+        "data_types_stored",
+        "privacy_laws_adhered_to",
+        "security_privacy_standards",
+        "sector_specific_contextual_laws",
+        "cross_border_data_transfer_mechanisms",
+        "us_specific_laws",
+    ];
+
+    multiValueVendorAssessmentFields.forEach((fieldName) => {
+        const selectedValues = new Set(
+            String(vendorAssessmentData[fieldName] || "")
+                .split(",")
+                .map((item) => item.trim())
+                .filter(Boolean)
+        );
+
+        document.querySelectorAll(`input[name="${fieldName}"]`).forEach((input) => {
+            input.checked = selectedValues.has(input.value);
+        });
+    });
+
+    const vendorNameField = document.getElementById("vendor_name");
+    const vendorPrivacyPolicyInput = document.getElementById("vendor_privacy_policy_link");
+    const vendorPrivacyPolicyInputWrap = document.getElementById("vendor_privacy_policy_input_wrap");
+    const vendorPrivacyPolicyDisplayWrap = document.getElementById("vendor_privacy_policy_display_wrap");
+    const vendorPrivacyPolicyAddButton = document.getElementById("vendor_privacy_policy_add_button");
+    const vendorPrivacyPolicyEditButton = document.getElementById("vendor_privacy_policy_edit_button");
+    const vendorPrivacyPolicyCopyButton = document.getElementById("vendor_privacy_policy_copy_button");
+    const vendorPrivacyPolicyOpenLink = document.getElementById("vendor_privacy_policy_open_link");
+    const dataProcessingAgreementWrap = document.getElementById("data_processing_agreement_wrap");
+    const dataProcessingAgreementField = document.getElementById("data_processing_agreement_in_place");
+    const dataStorageLocationWrap = document.getElementById("data_storage_location_wrap");
+    const dataStorageLocationInputs = document.querySelectorAll('input[name="data_storage_location"]');
+    const storageLocationNotesWrap = document.getElementById("storage_location_notes_wrap");
+    const storageLocationNotesField = document.getElementById("storage_location_notes");
+    const euDataStorageGroupField = document.getElementById("eu_data_storage_group");
+    const homeCountryField = document.getElementById("home_country");
+    const cloudHostedDataField = document.getElementById("cloud_hosted_data");
+    const hostedDataPanel = document.getElementById("hosted_data_panel");
+    const dataTypesHostedWrap = document.getElementById("data_types_hosted_wrap");
+    const dataTypesHostedInputs = document.querySelectorAll('input[name="data_types_stored"]');
+    const dataStorageNotesWrap = document.getElementById("data_storage_notes_wrap");
+    const dataStorageNotesField = document.getElementById("data_storage_notes");
+    const euDataStorageCountries = new Set(
+        (euDataStorageGroupField?.dataset.euCountries || "")
+            .split("|")
+            .map((country) => country.trim())
+            .filter(Boolean)
+    );
+
+    function syncEuDataStorageGroupState() {
+        if (!euDataStorageGroupField || !euDataStorageCountries.size) {
+            return;
+        }
+
+        const euInputs = Array.from(dataStorageLocationInputs).filter((input) => euDataStorageCountries.has(input.value));
+        const selectedCount = euInputs.filter((input) => input.checked).length;
+        euDataStorageGroupField.checked = selectedCount === euInputs.length && euInputs.length > 0;
+        euDataStorageGroupField.indeterminate = selectedCount > 0 && selectedCount < euInputs.length;
+    }
+
+    function updateDataStorageLocationVisibility() {
+        if (!dataProcessingAgreementField || !dataStorageLocationWrap) {
+            return;
+        }
+
+        const hasCloudHostedData = cloudHostedDataField?.value === "Yes";
+        const hasDataProcessingAgreement = dataProcessingAgreementField.checked;
+        const homeCountry = homeCountryField ? homeCountryField.value : "";
+        if (dataProcessingAgreementWrap) {
+            dataProcessingAgreementWrap.style.display = hasCloudHostedData ? "" : "none";
+        }
+        dataProcessingAgreementField.disabled = !hasCloudHostedData;
+        if (!hasCloudHostedData) {
+            dataProcessingAgreementField.checked = false;
+        }
+        dataStorageLocationWrap.style.display = hasCloudHostedData && !hasDataProcessingAgreement ? "" : "none";
+        if (euDataStorageGroupField) {
+            euDataStorageGroupField.disabled = !hasCloudHostedData || hasDataProcessingAgreement;
+        }
+        if (storageLocationNotesWrap && storageLocationNotesField) {
+            storageLocationNotesWrap.style.display = hasCloudHostedData ? "" : "none";
+            storageLocationNotesField.disabled = !hasCloudHostedData;
+            if (!hasCloudHostedData) {
+                storageLocationNotesField.value = "";
+            }
+        }
+        dataStorageLocationInputs.forEach((input) => {
+            input.disabled = !hasCloudHostedData || hasDataProcessingAgreement;
+            if (!hasCloudHostedData) {
+                input.checked = false;
+            } else if (hasDataProcessingAgreement) {
+                input.checked = input.value === homeCountry;
+            }
+        });
+        syncEuDataStorageGroupState();
+    }
+
+    function updateDataTypesHostedVisibility() {
+        if (!cloudHostedDataField || !dataTypesHostedWrap) {
+            return;
+        }
+
+        const shouldShowDataTypes = cloudHostedDataField.value === "Yes";
+        const hasCloudHostedDataAnswer = cloudHostedDataField.value === "Yes" || cloudHostedDataField.value === "No";
+        if (hostedDataPanel) {
+            hostedDataPanel.style.display = shouldShowDataTypes ? "" : "none";
+        }
+        dataTypesHostedWrap.style.display = shouldShowDataTypes ? "" : "none";
+        if (dataStorageNotesWrap && dataStorageNotesField) {
+            dataStorageNotesWrap.style.display = hasCloudHostedDataAnswer ? "" : "none";
+            dataStorageNotesField.disabled = !hasCloudHostedDataAnswer;
+            if (!hasCloudHostedDataAnswer) {
+                dataStorageNotesField.value = "";
+            }
+        }
+        dataTypesHostedInputs.forEach((input) => {
+            input.disabled = !shouldShowDataTypes;
+            if (!shouldShowDataTypes) {
+                input.checked = false;
+            }
+        });
+    }
+
+    function setVendorPrivacyPolicyMode(mode) {
+        if (!vendorPrivacyPolicyInput || !vendorPrivacyPolicyInputWrap || !vendorPrivacyPolicyDisplayWrap) {
+            return;
+        }
+
+        if (mode === "display") {
+            const currentValue = vendorPrivacyPolicyInput.value.trim();
+            if (!currentValue) {
+                vendorPrivacyPolicyInput.focus();
+                return;
+            }
+
+            if (vendorPrivacyPolicyOpenLink) {
+                vendorPrivacyPolicyOpenLink.href = currentValue;
+                vendorPrivacyPolicyOpenLink.textContent = currentValue;
+            }
+            vendorPrivacyPolicyInputWrap.style.display = "none";
+            vendorPrivacyPolicyDisplayWrap.style.display = "";
+            return;
+        }
+
+        vendorPrivacyPolicyInputWrap.style.display = "";
+        vendorPrivacyPolicyDisplayWrap.style.display = "none";
+        vendorPrivacyPolicyInput.focus();
+        vendorPrivacyPolicyInput.select();
+    }
+
+    async function persistVendorPrivacyPolicyLink() {
+        if (!vendorNameField || !vendorPrivacyPolicyInput) {
+            return true;
+        }
+
+        const vendorName = vendorNameField.value.trim();
+        const privacyPolicyLink = vendorPrivacyPolicyInput.value.trim();
+        if (!vendorName) {
+            return true;
+        }
+
+        const response = await fetch(`/vendors/${encodeURIComponent(vendorName)}/privacy-policy`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+            },
+            body: new URLSearchParams({
+                vendor_privacy_policy_link: privacyPolicyLink,
+            }),
+        });
+
+        return response.ok;
+    }
+
+    async function copyVendorPrivacyPolicyLink() {
+        if (!vendorPrivacyPolicyInput || !vendorPrivacyPolicyCopyButton) {
+            return;
+        }
+
+        const privacyPolicyLink = vendorPrivacyPolicyInput.value.trim();
+        if (!privacyPolicyLink) {
+            return;
+        }
+
+        await navigator.clipboard.writeText(privacyPolicyLink);
+        vendorPrivacyPolicyCopyButton.textContent = "Copied";
+        window.setTimeout(() => {
+            vendorPrivacyPolicyCopyButton.textContent = "Copy link";
+        }, 1600);
+    }
+
+    if (vendorPrivacyPolicyAddButton) {
+        vendorPrivacyPolicyAddButton.addEventListener("click", async () => {
+            const saved = await persistVendorPrivacyPolicyLink();
+            if (!saved) {
+                return;
+            }
+            setVendorPrivacyPolicyMode("display");
+        });
+    }
+
+    if (vendorPrivacyPolicyEditButton) {
+        vendorPrivacyPolicyEditButton.addEventListener("click", () => {
+            setVendorPrivacyPolicyMode("edit");
+        });
+    }
+
+    if (vendorPrivacyPolicyCopyButton) {
+        vendorPrivacyPolicyCopyButton.addEventListener("click", () => {
+            copyVendorPrivacyPolicyLink();
+        });
+    }
+
+    if (cloudHostedDataField) {
+        cloudHostedDataField.addEventListener("change", () => {
+            updateDataTypesHostedVisibility();
+            updateDataStorageLocationVisibility();
+        });
+        updateDataTypesHostedVisibility();
+    }
+
+    if (dataProcessingAgreementField) {
+        dataProcessingAgreementField.addEventListener("change", updateDataStorageLocationVisibility);
+        updateDataStorageLocationVisibility();
+    }
+
+    if (euDataStorageGroupField) {
+        euDataStorageGroupField.addEventListener("change", () => {
+            dataStorageLocationInputs.forEach((input) => {
+                if (euDataStorageCountries.has(input.value)) {
+                    input.checked = euDataStorageGroupField.checked;
+                }
+            });
+            syncEuDataStorageGroupState();
+        });
+        dataStorageLocationInputs.forEach((input) => {
+            input.addEventListener("change", syncEuDataStorageGroupState);
+        });
+        syncEuDataStorageGroupState();
+    }
+</script>
+{% endblock %}

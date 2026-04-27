@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Software Security Auditor{% endblock %}</title>
+    <link
+        rel="icon"
+        type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath fill='%2316324f' d='M8 0 1.5 3v4.5c0 4.06 2.73 7.78 6.5 8.5 3.77-.72 6.5-4.44 6.5-8.5V3z'/%3E%3Cpath fill='%23ffb703' d='M8 3.2 4.4 4.86v2.7c0 2.63 1.66 5.07 3.6 5.64 1.94-.57 3.6-3.01 3.6-5.64v-2.7z'/%3E%3C/svg%3E"
+    >
+    <link
+        href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+        rel="stylesheet"
+        integrity="sha384-QWTKZyjpPEjISv5WaRU9OFeRpok6YctnYmDr5pNlyT2bRjXh0JMhjY6hW+ALEwIH"
+        crossorigin="anonymous"
+    >
+    <style>
+        :root {
+            --navy: #16324f;
+            --teal: #2f6f7e;
+            --sand: #f8f5ef;
+        }
+
+        body {
+            min-height: 100vh;
+            background:
+                radial-gradient(circle at top left, rgba(22, 50, 79, 0.08), transparent 30%),
+                linear-gradient(135deg, #eef2f7 0%, #f8f5ef 100%);
+        }
+
+        .page-shell {
+            width: min(1100px, calc(100% - 2rem));
+            margin: 1.25rem auto 2rem;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.92);
+            border: 1px solid rgba(15, 23, 42, 0.08);
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+            backdrop-filter: blur(6px);
+        }
+
+        .section-card {
+            border: 0;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+        }
+
+        .section-card .card-header {
+            background: linear-gradient(135deg, #1d3557, #2a5d79);
+            color: #fff;
+            border: 0;
+        }
+
+        .form-control,
+        .form-select {
+            border-radius: 0.85rem;
+        }
+
+        textarea.form-control {
+            min-height: 120px;
+        }
+
+        .app-nav {
+            background:
+                linear-gradient(135deg, rgba(14, 35, 58, 0.98), rgba(31, 78, 99, 0.94)),
+                rgba(22, 50, 79, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 22px 45px rgba(15, 23, 42, 0.18);
+            backdrop-filter: blur(12px);
+            position: relative;
+            z-index: 1100;
+        }
+
+        .app-nav .navbar-brand,
+        .app-nav .nav-link {
+            color: rgba(255, 255, 255, 0.92);
+        }
+
+        .brand-mark {
+            width: 42px;
+            height: 42px;
+            border-radius: 14px;
+            background: linear-gradient(145deg, rgba(255, 255, 255, 0.2), rgba(255, 183, 3, 0.26));
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+            box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+            flex: 0 0 auto;
+        }
+
+        .brand-stack {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+
+        .brand-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .app-nav .navbar-brand {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.85rem;
+            margin-right: 1rem;
+        }
+
+        .nav-pill {
+            border-radius: 999px;
+            padding: 0.65rem 1rem !important;
+            font-weight: 600;
+            letter-spacing: 0.01em;
+            transition: background-color 0.18s ease, color 0.18s ease, transform 0.18s ease;
+        }
+
+        .app-nav .nav-link:hover,
+        .app-nav .nav-link:focus,
+        .app-nav .nav-link.active {
+            color: #ffffff;
+        }
+
+        .app-nav .nav-link:hover,
+        .app-nav .nav-link:focus {
+            background: rgba(255, 255, 255, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .app-nav .nav-link.active {
+            background: rgba(255, 255, 255, 0.16);
+            box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+        }
+
+        .nav-icon-button {
+            width: 52px;
+            height: 52px;
+            border-radius: 999px;
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            background: rgba(255, 255, 255, 0.08);
+            color: #fff;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+
+        .nav-icon-button:hover,
+        .nav-icon-button:focus {
+            background: rgba(255, 255, 255, 0.14);
+            color: #fff;
+        }
+
+        .nav-icon-badge {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 12px;
+            height: 12px;
+            border-radius: 999px;
+            background: #ffb703;
+            border: 2px solid var(--navy);
+        }
+
+        .notifications-menu {
+            min-width: 320px;
+            border: 0;
+            border-radius: 1rem;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
+            padding: 0.75rem;
+            z-index: 1200;
+        }
+
+        .notification-item {
+            display: block;
+            padding: 0.85rem 0.9rem;
+            border-radius: 0.85rem;
+            text-decoration: none;
+            color: #16324f;
+        }
+
+        .notification-item:hover,
+        .notification-item:focus {
+            background: #eef5fb;
+            color: #16324f;
+        }
+
+        .notification-title {
+            display: block;
+            font-weight: 700;
+        }
+
+        .notification-meta {
+            display: block;
+            color: #6c757d;
+            font-size: 0.9rem;
+            margin-top: 0.15rem;
+        }
+
+        .metric-card {
+            border: 0;
+            border-radius: 1.25rem;
+            background: linear-gradient(160deg, var(--navy), var(--teal));
+            color: #fff;
+            box-shadow: 0 18px 40px rgba(22, 50, 79, 0.18);
+        }
+
+        .metric-card .metric-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            opacity: 0.75;
+        }
+
+        .table-panel {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 1.25rem;
+            box-shadow: 0 18px 40px rgba(15, 23, 42, 0.08);
+            overflow: hidden;
+        }
+
+        .navbar-toggler {
+            border-radius: 14px;
+            background: rgba(255, 255, 255, 0.08);
+            padding: 0.55rem 0.75rem;
+        }
+
+        .navbar-toggler:focus {
+            box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.12);
+        }
+
+        .navbar-toggler-icon {
+            filter: invert(1);
+        }
+
+        @media (max-width: 991.98px) {
+            .app-nav .navbar-collapse {
+                margin-top: 1rem;
+                padding-top: 1rem;
+                border-top: 1px solid rgba(255, 255, 255, 0.08);
+            }
+
+            .nav-pill {
+                width: 100%;
+            }
+        }
+    </style>
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <main class="page-shell">
+        {% if session.get('authenticated') %}
+        <nav class="navbar navbar-expand-lg app-nav rounded-5 px-3 px-lg-4 py-3 mb-4">
+            <div class="container-fluid px-0">
+                <a class="navbar-brand" href="{{ url_for('index') }}">
+                    <span class="brand-mark" aria-hidden="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                            <path d="M8 0 1.5 3v4.5c0 4.06 2.73 7.78 6.5 8.5 3.77-.72 6.5-4.44 6.5-8.5V3z"/>
+                            <path d="M8 3.2 4.4 4.86v2.7c0 2.63 1.66 5.07 3.6 5.64 1.94-.57 3.6-3.01 3.6-5.64v-2.7z" fill="rgba(14,35,58,0.38)"/>
+                        </svg>
+                    </span>
+                    <span class="brand-stack">
+                        <span class="brand-title">Software Security Auditor</span>
+                    </span>
+                </a>
+                <button class="navbar-toggler border-0 shadow-none" type="button" data-bs-toggle="collapse" data-bs-target="#appNav" aria-controls="appNav" aria-expanded="false" aria-label="Toggle navigation">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
+                <div class="collapse navbar-collapse" id="appNav">
+                    <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
+                        <a class="nav-link nav-pill px-3 {% if request.path == url_for('index') %}active{% endif %}" href="{{ url_for('index') }}">Dashboard</a>
+                        <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('software_list')) %}active{% endif %}" href="{{ url_for('software_list') }}">Software</a>
+                        <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('vendor_list')) %}active{% endif %}" href="{{ url_for('vendor_list') }}">Vendors</a>
+                        <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('reports')) %}active{% endif %}" href="{{ url_for('reports') }}">Reports</a>
+                        <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('settings')) %}active{% endif %}" href="{{ url_for('settings') }}">Settings</a>
+                        <a class="nav-link nav-pill px-3" href="{{ url_for('logout') }}">Logout</a>
+                        <div class="dropdown ms-lg-3 mt-3 mt-lg-0">
+                            <button class="btn nav-icon-button dropdown-toggle border-0 shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
+                                <span class="nav-icon-badge"></span>
+                                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                    <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2"/>
+                                    <path d="M8 1.918a1 1 0 0 0-.9.55A5 5 0 0 0 3 7c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7a5 5 0 0 0-4.1-4.532 1 1 0 0 0-.9-.55"/>
+                                </svg>
+                            </button>
+                            <div class="dropdown-menu dropdown-menu-end notifications-menu">
+                                <div class="px-3 pt-2 pb-1">
+                                    <div class="fw-semibold">Notifications</div>
+                                    <div class="text-secondary small">Recent audit activity and reminders</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </nav>
+        {% endif %}
+        {% block content %}{% endblock %}
+    </main>
+
+    <script
+        src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-YvpcrYf0tY3lHB60NNkmXc5s9fDVZLESaAA55NDzOxhy9GkcIdslK1eN7N6jIeHz"
+        crossorigin="anonymous"
+    ></script>
+</body>
+</html>

@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor Register{% endblock %}
+
+{% block head_extra %}
+<style>
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .sortable-header::after {
+        content: " \2195";
+        font-size: 0.85em;
+        color: #7b8794;
+    }
+
+    .sortable-header.sort-asc::after {
+        content: " \2191";
+        color: #16324f;
+    }
+
+    .sortable-header.sort-desc::after {
+        content: " \2193";
+        color: #16324f;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-4 align-items-lg-start">
+        <div>
+            <span class="badge text-bg-secondary rounded-pill px-3 py-2 mb-3">Vendor Register</span>
+            <h1 class="display-6 fw-semibold mb-2">Software vendors and suppliers</h1>
+            <p class="text-secondary mb-0">A quick view of vendor footprint, product count, and audit scheduling.</p>
+        </div>
+        <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_vendor') }}" target="_blank" rel="noreferrer">Add Vendor</a>
+    </div>
+</section>
+
+<section class="table-panel p-4">
+    <div class="mb-4" style="max-width: 360px;">
+        <input
+            class="form-control"
+            type="search"
+            id="vendor_search"
+            placeholder="Search vendors"
+            aria-label="Search vendors"
+        >
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="sortable-header" data-sort-key="vendor">Vendor</th>
+                    <th class="sortable-header" data-sort-key="country">Country</th>
+                    <th class="sortable-header" data-sort-key="products">Products</th>
+                    <th class="sortable-header" data-sort-key="nextAudit">Next Audit</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="vendor_table_body">
+                {% for vendor in vendors %}
+                <tr data-vendor-name="{{ vendor.vendor_name|lower }}" data-country-name="{{ (vendor.vendor_country or 'Not provided')|lower }}" data-products-name="{{ vendor.product_count }}" data-next-audit-name="{{ vendor.vendor_next_audit_date or '9999-12-31' }}">
+                    <td class="fw-semibold">
+                        <a class="link-dark text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=vendor.vendor_name) }}">
+                            {{ vendor.vendor_name }}
+                        </a>
+                    </td>
+                    <td>{{ vendor.vendor_country or "Not provided" }}</td>
+                    <td><span class="badge rounded-pill text-bg-primary">{{ vendor.product_count }}</span></td>
+                    <td>{{ vendor.vendor_next_audit_date or "Not scheduled" }}</td>
+                    <td>
+                        <a class="btn btn-sm btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" href="{{ url_for('edit_vendor', vendor_name=vendor.vendor_name) }}" aria-label="Edit vendor" title="Edit vendor">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                <path d="M15.502 1.94a.5.5 0 0 1 0 .706l-1.793 1.793-2.647-2.647L12.855 0a.5.5 0 0 1 .707 0z"/>
+                                <path d="M1 13.5V16h2.5l7.372-7.372-2.647-2.647z"/>
+                            </svg>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div id="vendor_search_empty" class="text-secondary mt-3" style="display: none;">
+        No vendors match your search.
+    </div>
+</section>
+
+<script>
+    const vendorSearchField = document.getElementById("vendor_search");
+    const vendorTableBody = document.getElementById("vendor_table_body");
+    const vendorRows = Array.from(document.querySelectorAll("#vendor_table_body tr"));
+    const vendorSearchEmpty = document.getElementById("vendor_search_empty");
+    const vendorSortableHeaders = Array.from(document.querySelectorAll(".sortable-header"));
+    let vendorSortState = { key: "", direction: "asc" };
+
+    function sortVendorRows(sortKey) {
+        const nextDirection =
+            vendorSortState.key === sortKey && vendorSortState.direction === "asc" ? "desc" : "asc";
+
+        vendorRows.sort((firstRow, secondRow) => {
+            let firstValue = firstRow.dataset[`${sortKey}Name`] || "";
+            let secondValue = secondRow.dataset[`${sortKey}Name`] || "";
+
+            if (sortKey === "products") {
+                firstValue = Number(firstValue);
+                secondValue = Number(secondValue);
+                return nextDirection === "asc" ? firstValue - secondValue : secondValue - firstValue;
+            }
+
+            const comparison = firstValue.localeCompare(secondValue);
+            return nextDirection === "asc" ? comparison : -comparison;
+        });
+
+        vendorRows.forEach((row) => vendorTableBody.appendChild(row));
+        vendorSortState = { key: sortKey, direction: nextDirection };
+
+        vendorSortableHeaders.forEach((header) => {
+            header.classList.remove("sort-asc", "sort-desc");
+            if (header.dataset.sortKey === sortKey) {
+                header.classList.add(nextDirection === "asc" ? "sort-asc" : "sort-desc");
+            }
+        });
+
+        filterVendorRows();
+    }
+
+    function filterVendorRows() {
+        const query = vendorSearchField.value.trim().toLowerCase();
+        let visibleCount = 0;
+
+        vendorRows.forEach((row) => {
+            const name = row.dataset.vendorName || "";
+            const matches = !query || name.includes(query);
+            row.style.display = matches ? "" : "none";
+            if (matches) {
+                visibleCount += 1;
+            }
+        });
+
+        vendorSearchEmpty.style.display = visibleCount ? "none" : "block";
+    }
+
+    vendorSearchField.addEventListener("input", filterVendorRows);
+    vendorSortableHeaders.forEach((header) => {
+        header.addEventListener("click", () => sortVendorRows(header.dataset.sortKey));
+    });
+</script>
+{% endblock %}

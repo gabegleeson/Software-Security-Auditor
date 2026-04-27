@@ -1,0 +1,441 @@
+{% extends "base.html" %}
+
+{% block title %}{{ form_title }}{% endblock %}
+
+{% block head_extra %}
+<style>
+    .vendor-search-wrap {
+        position: relative;
+    }
+
+    .vendor-field-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .vendor-field-row input {
+        flex: 1;
+    }
+
+    .vendor-match-indicator {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 34px;
+        height: 34px;
+        border-radius: 999px;
+        background: #d1e7dd;
+        color: #0f5132;
+        font-size: 1.1rem;
+        font-weight: 700;
+        visibility: hidden;
+        flex: 0 0 auto;
+    }
+
+    .vendor-match-indicator.is-visible {
+        visibility: visible;
+    }
+
+    .vendor-suggestions {
+        position: absolute;
+        top: calc(100% + 6px);
+        left: 0;
+        right: 0;
+        z-index: 20;
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 14px;
+        box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+        overflow: hidden;
+        display: none;
+    }
+
+    .vendor-suggestions.is-visible {
+        display: block;
+    }
+
+    .vendor-suggestion {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        text-align: left;
+        padding: 12px 14px;
+        display: block;
+    }
+
+    .vendor-suggestion:hover,
+    .vendor-suggestion:focus,
+    .vendor-suggestion.active {
+        background: #eef5fb;
+        outline: none;
+    }
+
+    .vendor-suggestion-name {
+        font-weight: 700;
+        color: #16324f;
+    }
+
+    .vendor-suggestion-meta {
+        display: block;
+        color: #6c757d;
+        font-size: 0.9rem;
+        margin-top: 2px;
+    }
+
+    .vendor-empty-state {
+        padding: 12px 14px;
+        color: #6c757d;
+        font-size: 0.95rem;
+    }
+
+    .checkbox-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 8px 16px;
+    }
+
+    .checkbox-grid.is-scrollable {
+        max-height: 320px;
+        overflow: auto;
+        padding: 12px;
+        border: 1px solid rgba(0, 0, 0, 0.12);
+        border-radius: 8px;
+        background: #fff;
+    }
+
+    .checkbox-grid label {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        margin: 0;
+    }
+
+    .checkbox-grid input {
+        margin-top: 4px;
+        flex: 0 0 auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 align-items-lg-center">
+        <div>
+            <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Software</span>
+            <h1 class="display-6 fw-semibold mb-2">{{ form_title }}</h1>
+            <p class="text-secondary mb-0">
+                {% if is_new %}
+                Add a software title and link it to a vendor.
+                {% else %}
+                Update the shared software and vendor details used across this software title.
+                {% endif %}
+            </p>
+        </div>
+        {% if not is_new %}
+        <form method="POST" action="{{ url_for('delete_software', software_name=software.software_name) }}" onsubmit="return confirm('Delete this software and all of its assessments?');">
+            <button class="btn btn-outline-danger rounded-pill px-4" type="submit">Delete Software</button>
+        </form>
+        {% endif %}
+    </div>
+</section>
+
+<section class="table-panel p-4 p-md-5">
+    <form method="POST" style="max-width: 760px;">
+        <div class="row g-3">
+            <div class="col-md-6">
+                <label for="software_name" class="form-label fw-semibold">Software Name</label>
+                <input class="form-control" type="text" id="software_name" name="software_name" value="{{ software.software_name }}" required>
+            </div>
+            <div class="col-md-6">
+                <label for="vendor_name" class="form-label fw-semibold">Vendor Name</label>
+                <div class="vendor-search-wrap">
+                    <div class="vendor-field-row">
+                        <input class="form-control" type="search" id="vendor_name" name="vendor_name" value="{{ software.vendor_name }}" autocomplete="off" required>
+                        <span id="vendor_match_indicator" class="vendor-match-indicator" aria-hidden="true">&#10003;</span>
+                    </div>
+                    <div id="vendor_suggestions" class="vendor-suggestions" role="listbox" aria-label="Suggested vendors"></div>
+                </div>
+                <div id="vendor_match_status" class="form-text">
+                    Start typing to match an existing vendor, or keep the new name to add it later.
+                </div>
+            </div>
+            <div class="col-12">
+                <label for="software_description" class="form-label fw-semibold">Short Description</label>
+                <textarea class="form-control" id="software_description" name="software_description" rows="3">{{ software.software_description }}</textarea>
+            </div>
+            <div class="col-md-6">
+                <label for="software_website" class="form-label fw-semibold">Software Website</label>
+                <input class="form-control" type="url" id="software_website" name="software_website" value="{{ software.software_website }}">
+            </div>
+            <div class="col-md-6">
+                <label for="terms_conditions_link" class="form-label fw-semibold">Terms and Conditions Link</label>
+                <input class="form-control" type="url" id="terms_conditions_link" name="terms_conditions_link" value="{{ software.terms_conditions_link }}">
+            </div>
+            <div class="col-md-6">
+                <label for="license_agreement_link" class="form-label fw-semibold">License Agreement Link</label>
+                <input class="form-control" type="url" id="license_agreement_link" name="license_agreement_link" value="{{ software.license_agreement_link }}">
+            </div>
+            <div class="col-md-6">
+                <label for="purchase_link" class="form-label fw-semibold">Purchase Link</label>
+                <input class="form-control" type="url" id="purchase_link" name="purchase_link" value="{{ software.purchase_link }}">
+            </div>
+            <div class="col-md-6">
+                <label for="license_type" class="form-label fw-semibold">License Type</label>
+                <select class="form-select" id="license_type" name="license_type">
+                    <option value="">Select one</option>
+                    <option value="Perpetual" {% if software.license_type == "Perpetual" %}selected{% endif %}>Perpetual</option>
+                    <option value="Subscription" {% if software.license_type == "Subscription" %}selected{% endif %}>Subscription</option>
+                    <option value="Other" {% if software.license_type == "Other" %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+            <div class="col-md-6" id="license_renewal_date_field" {% if software.license_type == "Perpetual" %}style="display: none;"{% endif %}>
+                <label for="license_renewal_date" class="form-label fw-semibold">License Renewal Date</label>
+                <input class="form-control" type="date" id="license_renewal_date" name="license_renewal_date" value="{{ software.license_renewal_date }}">
+            </div>
+            <div class="col-md-6">
+                <label for="audit_reminder_frequency" class="form-label fw-semibold">Audit Reminder Schedule</label>
+                <select class="form-select" id="audit_reminder_frequency" name="audit_reminder_frequency">
+                    <option value="6_months" {% if software.audit_reminder_frequency == "6_months" %}selected{% endif %}>Every 6 months</option>
+                    <option value="1_year" {% if software.audit_reminder_frequency == "1_year" or not software.audit_reminder_frequency %}selected{% endif %}>Every 1 year</option>
+                    <option value="2_years" {% if software.audit_reminder_frequency == "2_years" %}selected{% endif %}>Every 2 years</option>
+                </select>
+            </div>
+            <div class="col-md-6">
+                <label for="next_audit_date" class="form-label fw-semibold">Next Audit Date</label>
+                <input class="form-control" type="date" id="next_audit_date" name="next_audit_date" value="{{ software.next_audit_date }}">
+            </div>
+            <div class="col-md-6">
+                <label for="deployment_date" class="form-label fw-semibold">Deployment Date</label>
+                <input class="form-control" type="date" id="deployment_date" name="deployment_date" value="{{ software.deployment_date }}">
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Duplicates existing capability?</label>
+                <div class="d-flex gap-3 pt-2">
+                    <label><input type="radio" name="duplicates_existing" value="Yes" {% if software.duplicates_existing == "Yes" %}checked{% endif %}> Yes</label>
+                    <label><input type="radio" name="duplicates_existing" value="No" {% if software.duplicates_existing == "No" %}checked{% endif %}> No</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <label for="genuine_need_notes" class="form-label fw-semibold">Genuine Need Notes</label>
+                <textarea class="form-control" id="genuine_need_notes" name="genuine_need_notes" rows="4">{{ software.genuine_need_notes }}</textarea>
+            </div>
+            <div class="col-12">
+                <label for="product_security_assessment" class="form-label fw-semibold">Product Security Assessment</label>
+                <textarea class="form-control" id="product_security_assessment" name="product_security_assessment" rows="5">{{ software.product_security_assessment }}</textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-semibold">Support & Maintenance</label>
+                <div class="d-flex flex-wrap gap-3 pt-2">
+                    <label><input type="checkbox" name="product_updates" {% if software.product_updates %}checked{% endif %}> Product Updates</label>
+                    <label><input type="checkbox" name="security_updates" {% if software.security_updates %}checked{% endif %}> Security Updates</label>
+                    <label><input type="checkbox" name="vendor_support" {% if software.vendor_support %}checked{% endif %}> Vendor Support</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <label for="support_notes" class="form-label fw-semibold">Support Notes</label>
+                <textarea class="form-control" id="support_notes" name="support_notes" rows="4">{{ software.support_notes }}</textarea>
+            </div>
+            <div class="col-12">
+                <label for="software_license_details" class="form-label fw-semibold">Software License Details</label>
+                <textarea class="form-control" id="software_license_details" name="software_license_details" rows="4">{{ software.software_license_details }}</textarea>
+            </div>
+            <div class="col-md-6">
+                <label class="form-label fw-semibold">Deployment Status</label>
+                <div class="d-flex flex-wrap gap-3 pt-2">
+                    <label><input type="checkbox" name="tested" {% if software.tested %}checked{% endif %}> Tested</label>
+                    <label><input type="checkbox" name="deployed" {% if software.deployed %}checked{% endif %}> Deployed</label>
+                </div>
+            </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2 mt-4">
+            <button type="submit" class="btn btn-primary rounded-pill px-4">{{ submit_label }}</button>
+            {% if is_new %}
+            <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('software_list') }}">Cancel</a>
+            {% else %}
+            <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('software_detail', software_name=software.software_name) }}">Cancel</a>
+            {% endif %}
+        </div>
+    </form>
+</section>
+<script>
+    const vendorNameField = document.getElementById("vendor_name");
+    const vendorMatchIndicator = document.getElementById("vendor_match_indicator");
+    const vendorMatchStatus = document.getElementById("vendor_match_status");
+    const vendorSuggestions = document.getElementById("vendor_suggestions");
+    const licenseTypeField = document.getElementById("license_type");
+    const licenseRenewalDateFieldWrap = document.getElementById("license_renewal_date_field");
+    const licenseRenewalDateField = document.getElementById("license_renewal_date");
+    let latestVendorResults = [];
+    let activeSuggestionIndex = -1;
+
+    function updateLicenseRenewalDateVisibility() {
+        if (!licenseTypeField || !licenseRenewalDateFieldWrap || !licenseRenewalDateField) {
+            return;
+        }
+
+        const shouldHide = licenseTypeField.value === "Perpetual";
+        licenseRenewalDateFieldWrap.style.display = shouldHide ? "none" : "";
+        if (shouldHide) {
+            licenseRenewalDateField.value = "";
+        }
+    }
+
+    function hideVendorSuggestions() {
+        vendorSuggestions.classList.remove("is-visible");
+    }
+
+    function showVendorSuggestions() {
+        if (vendorSuggestions.childElementCount && vendorNameField.value.trim()) {
+            vendorSuggestions.classList.add("is-visible");
+        }
+    }
+
+    function selectVendor(vendor) {
+        vendorNameField.value = vendor.vendor_name;
+        vendorMatchIndicator.classList.add("is-visible");
+        vendorMatchStatus.textContent = "Existing vendor found.";
+        hideVendorSuggestions();
+    }
+
+    function renderVendorOptions(vendors, query) {
+        vendorSuggestions.innerHTML = "";
+        activeSuggestionIndex = -1;
+
+        if (!vendors.length && query.trim()) {
+            const emptyState = document.createElement("div");
+            emptyState.className = "vendor-empty-state";
+            emptyState.textContent = `No existing vendor match for "${query}".`;
+            vendorSuggestions.appendChild(emptyState);
+            showVendorSuggestions();
+            return;
+        }
+
+        vendors.forEach((vendor, index) => {
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "vendor-suggestion";
+            button.setAttribute("role", "option");
+            button.dataset.index = index;
+            button.innerHTML = `
+                <span class="vendor-suggestion-name">${vendor.vendor_name}</span>
+                <span class="vendor-suggestion-meta">${[vendor.vendor_country, vendor.vendor_website].filter(Boolean).join(" | ")}</span>
+            `;
+            button.addEventListener("mousedown", (event) => {
+                event.preventDefault();
+                selectVendor(vendor);
+            });
+            vendorSuggestions.appendChild(button);
+        });
+
+        if (vendors.length) {
+            showVendorSuggestions();
+        } else {
+            hideVendorSuggestions();
+        }
+    }
+
+    function updateActiveSuggestion(nextIndex) {
+        const buttons = vendorSuggestions.querySelectorAll(".vendor-suggestion");
+        if (!buttons.length) {
+            activeSuggestionIndex = -1;
+            return;
+        }
+
+        activeSuggestionIndex = (nextIndex + buttons.length) % buttons.length;
+        buttons.forEach((button, index) => {
+            button.classList.toggle("active", index === activeSuggestionIndex);
+        });
+    }
+
+    function applyVendorMatch(vendorName) {
+        const match = latestVendorResults.find(
+            (vendor) => vendor.vendor_name.toLowerCase() === vendorName.trim().toLowerCase()
+        );
+
+        if (!match) {
+            vendorMatchIndicator.classList.remove("is-visible");
+            vendorMatchStatus.textContent = vendorName.trim()
+                ? "No exact match found yet."
+                : "Start typing to match an existing vendor, or keep the new name to add it later.";
+            return;
+        }
+
+        vendorMatchIndicator.classList.add("is-visible");
+        vendorMatchStatus.textContent = "Existing vendor found.";
+    }
+
+    async function searchVendors(query) {
+        if (!query.trim()) {
+            latestVendorResults = [];
+            vendorSuggestions.innerHTML = "";
+            hideVendorSuggestions();
+            applyVendorMatch("");
+            return;
+        }
+
+        const response = await fetch(`/api/vendors/search?q=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+            return;
+        }
+
+        latestVendorResults = await response.json();
+        renderVendorOptions(latestVendorResults, query);
+        applyVendorMatch(vendorNameField.value);
+    }
+
+    vendorNameField.addEventListener("input", () => {
+        searchVendors(vendorNameField.value);
+    });
+
+    vendorNameField.addEventListener("change", () => {
+        applyVendorMatch(vendorNameField.value);
+    });
+
+    vendorNameField.addEventListener("focus", () => {
+        if (vendorNameField.value.trim() && latestVendorResults.length) {
+            showVendorSuggestions();
+        }
+    });
+
+    vendorNameField.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown") {
+            event.preventDefault();
+            updateActiveSuggestion(activeSuggestionIndex + 1);
+            return;
+        }
+
+        if (event.key === "ArrowUp") {
+            event.preventDefault();
+            updateActiveSuggestion(activeSuggestionIndex - 1);
+            return;
+        }
+
+        if (event.key === "Enter" && activeSuggestionIndex >= 0) {
+            event.preventDefault();
+            const selectedVendor = latestVendorResults[activeSuggestionIndex];
+            if (selectedVendor) {
+                selectVendor(selectedVendor);
+            }
+            return;
+        }
+
+        if (event.key === "Escape") {
+            hideVendorSuggestions();
+        }
+    });
+
+    document.addEventListener("click", (event) => {
+        if (!event.target.closest(".vendor-search-wrap")) {
+            hideVendorSuggestions();
+        }
+    });
+
+    searchVendors(vendorNameField.value);
+    if (licenseTypeField) {
+        licenseTypeField.addEventListener("change", updateLicenseRenewalDateVisibility);
+        updateLicenseRenewalDateVisibility();
+    }
+</script>
+{% endblock %}

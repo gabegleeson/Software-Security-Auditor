@@ -158,9 +158,9 @@
                         <div id="data_storage_location_wrap">
                             <label class="form-label fw-semibold">Data Storage Location</label>
                             {% set selected_storage_locations = (assessment.data_storage_location or "").split(", ") %}
-                            {% if assessment.data_storage_location %}
-                            <div class="form-text mb-2">Selected: {{ assessment.data_storage_location }}</div>
-                            {% endif %}
+                            <div class="form-text mb-2" id="selected_data_storage_locations_text" {% if not assessment.data_storage_location %}style="display: none;"{% endif %}>
+                                Selected: <span id="selected_data_storage_locations_value">{{ assessment.data_storage_location }}</span>
+                            </div>
                             <div class="data-location-group">
                                 <div class="fw-semibold mb-1">European Union Countries</div>
                                 <label class="data-location-group-check">
@@ -168,6 +168,14 @@
                                     <span class="form-check-label">Select all EU countries</span>
                                 </label>
                                 <div class="form-text">Selects each EU member country below as individual data storage locations.</div>
+                            </div>
+                            <div class="data-location-group">
+                                <div class="fw-semibold mb-1">European Economic Area Countries</div>
+                                <label class="data-location-group-check">
+                                    <input class="form-check-input m-0" type="checkbox" id="eea_data_storage_group" data-eea-countries="{{ eea_country_options|join('|') }}">
+                                    <span class="form-check-label">Select all EEA countries</span>
+                                </label>
+                                <div class="form-text">Selects all EU member countries plus Iceland, Liechtenstein, and Norway.</div>
                             </div>
                             <div class="checkbox-grid is-scrollable">
                                 {% for country in country_options %}
@@ -308,9 +316,12 @@
     const dataProcessingAgreementField = document.getElementById("data_processing_agreement_in_place");
     const dataStorageLocationWrap = document.getElementById("data_storage_location_wrap");
     const dataStorageLocationInputs = document.querySelectorAll('input[name="data_storage_location"]');
+    const selectedDataStorageLocationsText = document.getElementById("selected_data_storage_locations_text");
+    const selectedDataStorageLocationsValue = document.getElementById("selected_data_storage_locations_value");
     const storageLocationNotesWrap = document.getElementById("storage_location_notes_wrap");
     const storageLocationNotesField = document.getElementById("storage_location_notes");
     const euDataStorageGroupField = document.getElementById("eu_data_storage_group");
+    const eeaDataStorageGroupField = document.getElementById("eea_data_storage_group");
     const homeCountryField = document.getElementById("home_country");
     const cloudHostedDataField = document.getElementById("cloud_hosted_data");
     const hostedDataPanel = document.getElementById("hosted_data_panel");
@@ -324,16 +335,69 @@
             .map((country) => country.trim())
             .filter(Boolean)
     );
+    const eeaDataStorageCountries = new Set(
+        (eeaDataStorageGroupField?.dataset.eeaCountries || "")
+            .split("|")
+            .map((country) => country.trim())
+            .filter(Boolean)
+    );
 
-    function syncEuDataStorageGroupState() {
-        if (!euDataStorageGroupField || !euDataStorageCountries.size) {
+    function getGroupedDataStorageInputs(countries) {
+        return Array.from(dataStorageLocationInputs).filter((input) => countries.has(input.value));
+    }
+
+    function areAllGroupedInputsSelected(countries) {
+        const groupedInputs = getGroupedDataStorageInputs(countries);
+        return groupedInputs.length > 0 && groupedInputs.every((input) => input.checked);
+    }
+
+    function setGroupedInputsChecked(countries, checked) {
+        getGroupedDataStorageInputs(countries).forEach((input) => {
+            input.checked = checked;
+        });
+    }
+
+    function updateSelectedDataStorageLocationsText() {
+        if (!selectedDataStorageLocationsText || !selectedDataStorageLocationsValue) {
             return;
         }
 
-        const euInputs = Array.from(dataStorageLocationInputs).filter((input) => euDataStorageCountries.has(input.value));
-        const selectedCount = euInputs.filter((input) => input.checked).length;
-        euDataStorageGroupField.checked = selectedCount === euInputs.length && euInputs.length > 0;
-        euDataStorageGroupField.indeterminate = selectedCount > 0 && selectedCount < euInputs.length;
+        const selectedValues = Array.from(dataStorageLocationInputs)
+            .filter((input) => input.checked)
+            .map((input) => input.value);
+
+        selectedDataStorageLocationsValue.textContent = selectedValues.join(", ");
+        selectedDataStorageLocationsText.style.display = selectedValues.length ? "" : "none";
+    }
+
+    function syncDataStorageGroupState(groupField, countries) {
+        if (!groupField || !countries.size) {
+            return;
+        }
+
+        const groupedInputs = getGroupedDataStorageInputs(countries);
+        const selectedCount = groupedInputs.filter((input) => input.checked).length;
+        groupField.checked = selectedCount === groupedInputs.length && groupedInputs.length > 0;
+        groupField.indeterminate = selectedCount > 0 && selectedCount < groupedInputs.length;
+    }
+
+    function syncDataStorageGroupStates() {
+        syncDataStorageGroupState(euDataStorageGroupField, euDataStorageCountries);
+        syncDataStorageGroupState(eeaDataStorageGroupField, eeaDataStorageCountries);
+    }
+
+    function updateEuSelectionLock() {
+        if (!eeaDataStorageGroupField) {
+            return;
+        }
+
+        const hasCloudHostedData = cloudHostedDataField?.value === "Yes";
+        const hasDataProcessingAgreement = !!dataProcessingAgreementField?.checked;
+        const baseDisabled = !hasCloudHostedData || hasDataProcessingAgreement;
+        const lockEuSelection = areAllGroupedInputsSelected(eeaDataStorageCountries) && !baseDisabled;
+        if (euDataStorageGroupField) {
+            euDataStorageGroupField.disabled = baseDisabled || lockEuSelection;
+        }
     }
 
     function updateDataStorageLocationVisibility() {
@@ -355,6 +419,9 @@
         if (euDataStorageGroupField) {
             euDataStorageGroupField.disabled = !hasCloudHostedData || hasDataProcessingAgreement;
         }
+        if (eeaDataStorageGroupField) {
+            eeaDataStorageGroupField.disabled = !hasCloudHostedData || hasDataProcessingAgreement;
+        }
         if (storageLocationNotesWrap && storageLocationNotesField) {
             storageLocationNotesWrap.style.display = hasCloudHostedData ? "" : "none";
             storageLocationNotesField.disabled = !hasCloudHostedData;
@@ -370,7 +437,9 @@
                 input.checked = input.value === homeCountry;
             }
         });
-        syncEuDataStorageGroupState();
+        updateSelectedDataStorageLocationsText();
+        syncDataStorageGroupStates();
+        updateEuSelectionLock();
     }
 
     function updateDataTypesHostedVisibility() {
@@ -502,19 +571,32 @@
         updateDataStorageLocationVisibility();
     }
 
-    if (euDataStorageGroupField) {
-        euDataStorageGroupField.addEventListener("change", () => {
-            dataStorageLocationInputs.forEach((input) => {
-                if (euDataStorageCountries.has(input.value)) {
-                    input.checked = euDataStorageGroupField.checked;
-                }
-            });
-            syncEuDataStorageGroupState();
+    function bindDataStorageGroupToggle(groupField, countries) {
+        if (!groupField) {
+            return;
+        }
+
+        groupField.addEventListener("change", () => {
+            setGroupedInputsChecked(countries, groupField.checked);
+            updateSelectedDataStorageLocationsText();
+            syncDataStorageGroupStates();
+            updateEuSelectionLock();
         });
+    }
+
+    bindDataStorageGroupToggle(euDataStorageGroupField, euDataStorageCountries);
+    bindDataStorageGroupToggle(eeaDataStorageGroupField, eeaDataStorageCountries);
+    if (euDataStorageGroupField || eeaDataStorageGroupField) {
         dataStorageLocationInputs.forEach((input) => {
-            input.addEventListener("change", syncEuDataStorageGroupState);
+            input.addEventListener("change", () => {
+                updateSelectedDataStorageLocationsText();
+                syncDataStorageGroupStates();
+                updateEuSelectionLock();
+            });
         });
-        syncEuDataStorageGroupState();
+        updateSelectedDataStorageLocationsText();
+        syncDataStorageGroupStates();
+        updateEuSelectionLock();
     }
 </script>
 {% endblock %}

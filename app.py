@@ -129,8 +129,11 @@ VENDOR_ASSESSMENT_FIELDS = (
 DATA_TYPE_OPTIONS = (
     "Organisation name",
     "User legal names",
+    "Username",
     "Date of birth",
     "User email addresses",
+    "User role",
+    "Account preferences",
     "Phone number",
     "Physical or mailing address",
     "User IDs",
@@ -163,6 +166,8 @@ PRIVACY_LAW_OPTIONS = (
 )
 INTERNATIONAL_PRIVACY_LAW_OPTIONS = (
     "APPI (Japan)",
+    "PIPEDA (Canada)",
+    "LGPD (Brazil)",
 )
 SECURITY_PRIVACY_STANDARD_OPTIONS = (
     "ISO/IEC 27001",
@@ -192,6 +197,7 @@ CROSS_BORDER_DATA_TRANSFER_MECHANISM_OPTIONS = (
     "EU Standard Contractual Clauses (SCCs)",
     "EU Adequacy Decisions",
     "EU-US Data Privacy Framework (DPF)",
+    "International Data Transfer Agreement (UK)",
     "Binding Corporate Rules (BCRs)",
 )
 US_SPECIFIC_LAW_OPTIONS = (
@@ -201,6 +207,7 @@ US_SPECIFIC_LAW_OPTIONS = (
     "CTDPA (Connecticut)",
 )
 COUNTRY_OPTIONS = (
+    "Overseas (Unspecified)",
     "Afghanistan",
     "Albania",
     "Algeria",
@@ -770,6 +777,10 @@ EEA_COUNTRY_OPTIONS = (
     "Liechtenstein",
     "Norway",
 )
+DATA_STORAGE_COUNTRY_GROUPS = (
+    ("EU", EU_COUNTRY_OPTIONS),
+    ("EEA", EEA_COUNTRY_OPTIONS),
+)
 
 SOFTWARE_DETAIL_FIELDS = (
     "software_name",
@@ -1125,6 +1136,10 @@ def get_country_risk_level(country_name):
     return get_country_risk_assignments().get(str(country_name).strip(), "")
 
 
+def is_dark_mode_enabled():
+    return str(APP_SETTINGS.get("dark_mode", "false")).strip().lower() == "true"
+
+
 def normalize_privacy_laws_adhered_to(value):
     return unique_values(value, mapper=lambda item: PRIVACY_LAW_LEGACY_MAP.get(item, item))
 
@@ -1430,6 +1445,7 @@ DEFAULT_APP_SETTINGS = {
     "reminder_email": "it-audits@example.com",
     "home_country": "Australia",
     "country_risk_assignments": "{}",
+    "dark_mode": "false",
 }
 SOFTWARE_ITEMS = []
 SOFTWARE_ASSESSMENT_RECORDS = []
@@ -1504,10 +1520,58 @@ def init_db():
         )
         connection.execute(
             """
+            CREATE TABLE IF NOT EXISTS vendor_entities (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                country_of_origin TEXT NOT NULL DEFAULT '',
+                data TEXT NOT NULL DEFAULT '{}'
+            )
+            """
+        )
+        connection.execute(
+            """
             CREATE TABLE IF NOT EXISTS vendor_assessments (
                 id INTEGER PRIMARY KEY,
                 vendor_name TEXT NOT NULL,
                 data TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS data_storage_countries (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS data_storage_country_groups (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS data_storage_country_group_memberships (
+                group_id INTEGER NOT NULL,
+                country_id INTEGER NOT NULL,
+                PRIMARY KEY (group_id, country_id),
+                FOREIGN KEY (group_id) REFERENCES data_storage_country_groups (id),
+                FOREIGN KEY (country_id) REFERENCES data_storage_countries (id)
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS vendor_data_storage_countries (
+                vendor_id INTEGER NOT NULL,
+                country_id INTEGER NOT NULL,
+                PRIMARY KEY (vendor_id, country_id),
+                FOREIGN KEY (vendor_id) REFERENCES vendor_entities (id),
+                FOREIGN KEY (country_id) REFERENCES data_storage_countries (id)
             )
             """
         )
@@ -1518,6 +1582,156 @@ def init_db():
                 value TEXT NOT NULL
             )
             """
+        )
+
+
+def sync_data_storage_reference_tables():
+    with get_db_connection() as connection:
+        connection.executemany(
+            "INSERT OR IGNORE INTO data_storage_countries (name) VALUES (?)",
+            [(country,) for country in COUNTRY_OPTIONS],
+        )
+        connection.executemany(
+            "INSERT OR IGNORE INTO data_storage_country_groups (name) VALUES (?)",
+            [(group_name,) for group_name, _ in DATA_STORAGE_COUNTRY_GROUPS],
+        )
+
+        country_id_by_name = {
+            row["name"]: row["id"]
+            for row in connection.execute("SELECT id, name FROM data_storage_countries").fetchall()
+        }
+        group_id_by_name = {
+            row["name"]: row["id"]
+            for row in connection.execute("SELECT id, name FROM data_storage_country_groups").fetchall()
+        }
+
+        connection.execute("DELETE FROM data_storage_country_group_memberships")
+        membership_rows = []
+        for group_name, country_names in DATA_STORAGE_COUNTRY_GROUPS:
+            group_id = group_id_by_name.get(group_name)
+            if group_id is None:
+                continue
+            for country_name in country_names:
+                country_id = country_id_by_name.get(country_name)
+                if country_id is not None:
+                    membership_rows.append((group_id, country_id))
+        connection.executemany(
+            """
+            INSERT INTO data_storage_country_group_memberships (group_id, country_id)
+            VALUES (?, ?)
+            """,
+            membership_rows,
+        )
+
+
+def build_vendor_catalog_for_sync():
+    vendors_by_name = {}
+
+    for vendor in globals().get("VENDOR_RECORDS", []):
+        vendor_name = vendor.get("vendor_name", "").strip()
+        if not vendor_name:
+            continue
+        vendors_by_name[normalized_name(vendor_name)] = {
+            field: vendor.get(field, "")
+            for field in VENDOR_PROFILE_FIELDS
+        }
+        vendors_by_name[normalized_name(vendor_name)]["vendor_name"] = vendor_name
+
+    for software in globals().get("SOFTWARE_ITEMS", []):
+        vendor_name = software.get("vendor_name", "").strip()
+        if not vendor_name:
+            continue
+        vendor_key = normalized_name(vendor_name)
+        vendor_record = vendors_by_name.setdefault(
+            vendor_key,
+            {field: "" for field in VENDOR_PROFILE_FIELDS},
+        )
+        vendor_record["vendor_name"] = vendor_record.get("vendor_name") or vendor_name
+        if not vendor_record.get("vendor_country"):
+            vendor_record["vendor_country"] = software.get("vendor_country", "").strip()
+
+    return sorted(
+        vendors_by_name.values(),
+        key=lambda vendor: normalized_name(vendor.get("vendor_name", "")),
+    )
+
+
+def sync_vendor_entity_tables():
+    vendor_catalog = build_vendor_catalog_for_sync()
+    vendor_names = [vendor.get("vendor_name", "").strip() for vendor in vendor_catalog if vendor.get("vendor_name", "").strip()]
+    latest_submitted_assessments = {}
+    for assessment in globals().get("VENDOR_ASSESSMENT_RECORDS", []):
+        if not is_submitted_vendor_assessment(assessment):
+            continue
+        vendor_key = normalized_name(assessment.get("vendor_name", ""))
+        if not vendor_key:
+            continue
+        existing = latest_submitted_assessments.get(vendor_key)
+        if existing is None or (
+            (assessment.get("vendor_assessment_date", ""), assessment.get("submitted_date", ""), assessment.get("id", 0))
+            > (existing.get("vendor_assessment_date", ""), existing.get("submitted_date", ""), existing.get("id", 0))
+        ):
+            latest_submitted_assessments[vendor_key] = assessment
+
+    with get_db_connection() as connection:
+        for vendor in vendor_catalog:
+            vendor_name = vendor.get("vendor_name", "").strip()
+            if not vendor_name:
+                continue
+            connection.execute(
+                """
+                INSERT INTO vendor_entities (name, country_of_origin, data)
+                VALUES (?, ?, ?)
+                ON CONFLICT(name) DO UPDATE SET
+                    country_of_origin = excluded.country_of_origin,
+                    data = excluded.data
+                """,
+                (
+                    vendor_name,
+                    vendor.get("vendor_country", "").strip(),
+                    json.dumps({field: vendor.get(field, "") for field in VENDOR_PROFILE_FIELDS}),
+                ),
+            )
+
+        if vendor_names:
+            placeholders = ", ".join("?" for _ in vendor_names)
+            connection.execute(
+                f"DELETE FROM vendor_entities WHERE name NOT IN ({placeholders})",
+                vendor_names,
+            )
+        else:
+            connection.execute("DELETE FROM vendor_entities")
+
+        vendor_rows = connection.execute("SELECT id, name FROM vendor_entities").fetchall()
+        vendor_id_by_name = {
+            normalized_name(row["name"]): row["id"]
+            for row in vendor_rows
+        }
+        country_id_by_name = {
+            row["name"]: row["id"]
+            for row in connection.execute("SELECT id, name FROM data_storage_countries").fetchall()
+        }
+
+        connection.execute("DELETE FROM vendor_data_storage_countries")
+        vendor_country_rows = []
+        for vendor in vendor_catalog:
+            vendor_key = normalized_name(vendor.get("vendor_name", ""))
+            vendor_id = vendor_id_by_name.get(vendor_key)
+            latest_assessment = latest_submitted_assessments.get(vendor_key)
+            if vendor_id is None or latest_assessment is None:
+                continue
+
+            for country_name in get_selected_values(latest_assessment.get("data_storage_location", "")):
+                country_id = country_id_by_name.get(country_name)
+                if country_id is not None:
+                    vendor_country_rows.append((vendor_id, country_id))
+
+        connection.executemany(
+            """
+            INSERT INTO vendor_data_storage_countries (vendor_id, country_id)
+            VALUES (?, ?)
+            """,
+            vendor_country_rows,
         )
 
 
@@ -1728,6 +1942,8 @@ def persist_software_records():
     persist_software_items()
     persist_software_assessment_records()
     persist_legacy_assessment_records()
+    sync_data_storage_reference_tables()
+    sync_vendor_entity_tables()
 
 
 def migrate_legacy_software_records_if_needed():
@@ -1824,6 +2040,7 @@ def persist_vendor_records():
                 if vendor.get("vendor_name")
             ],
         )
+    sync_vendor_entity_tables()
 
 
 def blank_vendor_assessment(vendor_name=""):
@@ -1901,6 +2118,8 @@ def persist_vendor_assessment_records():
                 if record.get("id") and record.get("vendor_name")
             ],
         )
+    sync_data_storage_reference_tables()
+    sync_vendor_entity_tables()
 
 
 def load_app_settings():
@@ -1923,6 +2142,13 @@ def persist_app_settings():
             "INSERT INTO settings (key, value) VALUES (?, ?)",
             [(key, str(value)) for key, value in APP_SETTINGS.items()],
         )
+
+
+@app.context_processor
+def inject_app_theme_settings():
+    return {
+        "dark_mode_enabled": is_dark_mode_enabled(),
+    }
 
 
 def migrate_privacy_fields_to_vendor_assessment_records():
@@ -2042,6 +2268,8 @@ def refresh_runtime_state():
         persist_software_records()
         persist_vendor_records()
         persist_vendor_assessment_records()
+    sync_data_storage_reference_tables()
+    sync_vendor_entity_tables()
     NEXT_SOFTWARE_ID = max((record["id"] for record in SOFTWARE_ITEMS), default=0) + 1
     NEXT_ASSESSMENT_ID = max((record["id"] for record in SOFTWARE_ASSESSMENT_RECORDS), default=0) + 1
     NEXT_VENDOR_ASSESSMENT_ID = max((record.get("id", 0) for record in VENDOR_ASSESSMENT_RECORDS), default=0) + 1
@@ -2503,6 +2731,13 @@ def get_latest_vendor_assessment(vendor_name):
     return assessments[0] if assessments else None
 
 
+def get_latest_submitted_vendor_assessment(vendor_name):
+    for assessment in get_vendor_assessments(vendor_name):
+        if is_submitted_vendor_assessment(assessment):
+            return assessment
+    return None
+
+
 def sync_vendor_schedule_from_assessment(assessment):
     if assessment.get("submission_status") == "draft":
         return
@@ -2698,6 +2933,41 @@ def save_vendor_terms_conditions_link(vendor_name, terms_conditions_link):
     return True
 
 
+def save_vendor_website_link(vendor_name, website_link):
+    normalized = normalized_name(vendor_name)
+    cleaned_link = website_link.strip()
+    if not normalized:
+        return False
+
+    for record in SOFTWARE_RECORDS:
+        if normalized_name(record.get("vendor_name", "")) == normalized:
+            record["vendor_website"] = cleaned_link
+
+    updated_manual_vendor = False
+    for vendor in VENDOR_RECORDS:
+        if normalized_name(vendor.get("vendor_name", "")) == normalized:
+            vendor["vendor_website"] = cleaned_link
+            updated_manual_vendor = True
+
+    if not updated_manual_vendor:
+        existing_vendor = get_vendor_by_name(vendor_name)
+        if existing_vendor is not None:
+            VENDOR_RECORDS.append(
+                {
+                    "vendor_name": existing_vendor.get("vendor_name", vendor_name).strip(),
+                    "vendor_country": existing_vendor.get("vendor_country", ""),
+                    "vendor_website": cleaned_link,
+                    "vendor_terms_conditions_link": existing_vendor.get("vendor_terms_conditions_link", ""),
+                    "vendor_privacy_policy_link": existing_vendor.get("vendor_privacy_policy_link", ""),
+                    "online_support": existing_vendor.get("online_support", ""),
+                }
+            )
+
+    persist_software_records()
+    persist_vendor_records()
+    return True
+
+
 def save_vendor_privacy_policy_link(vendor_name, privacy_policy_link):
     normalized = normalized_name(vendor_name)
     cleaned_link = privacy_policy_link.strip()
@@ -2725,6 +2995,41 @@ def save_vendor_privacy_policy_link(vendor_name, privacy_policy_link):
                     "vendor_terms_conditions_link": existing_vendor.get("vendor_terms_conditions_link", ""),
                     "vendor_privacy_policy_link": cleaned_link,
                     "online_support": existing_vendor.get("online_support", ""),
+                }
+            )
+
+    persist_software_records()
+    persist_vendor_records()
+    return True
+
+
+def save_vendor_online_support_link(vendor_name, support_link):
+    normalized = normalized_name(vendor_name)
+    cleaned_link = support_link.strip()
+    if not normalized:
+        return False
+
+    for record in SOFTWARE_RECORDS:
+        if normalized_name(record.get("vendor_name", "")) == normalized:
+            record["online_support"] = cleaned_link
+
+    updated_manual_vendor = False
+    for vendor in VENDOR_RECORDS:
+        if normalized_name(vendor.get("vendor_name", "")) == normalized:
+            vendor["online_support"] = cleaned_link
+            updated_manual_vendor = True
+
+    if not updated_manual_vendor:
+        existing_vendor = get_vendor_by_name(vendor_name)
+        if existing_vendor is not None:
+            VENDOR_RECORDS.append(
+                {
+                    "vendor_name": existing_vendor.get("vendor_name", vendor_name).strip(),
+                    "vendor_country": existing_vendor.get("vendor_country", ""),
+                    "vendor_website": existing_vendor.get("vendor_website", ""),
+                    "vendor_terms_conditions_link": existing_vendor.get("vendor_terms_conditions_link", ""),
+                    "vendor_privacy_policy_link": existing_vendor.get("vendor_privacy_policy_link", ""),
+                    "online_support": cleaned_link,
                 }
             )
 
@@ -2979,6 +3284,85 @@ def build_data_hosting_heatmap():
     }
 
 
+def build_vendors_without_hosting_locations_report():
+    vendors_without_locations = []
+
+    for vendor in build_vendor_list():
+        latest_assessment = get_latest_submitted_vendor_assessment(vendor.get("vendor_name", ""))
+        if latest_assessment is None:
+            continue
+
+        locations = get_selected_values(latest_assessment.get("data_storage_location", ""))
+        if locations:
+            continue
+
+        if latest_assessment.get("cloud_hosted_data") == "No":
+            reason = "Cloud-hosted data marked as No"
+        elif latest_assessment.get("data_processing_agreement_in_place"):
+            reason = "No listed storage country recorded"
+        else:
+            reason = "No listed storage countries"
+
+        vendors_without_locations.append(
+            {
+                "vendor_name": vendor.get("vendor_name", ""),
+                "vendor_country": vendor.get("vendor_country", ""),
+                "vendor_assessment_date": latest_assessment.get("vendor_assessment_date", ""),
+                "reason": reason,
+            }
+        )
+
+    return sorted(
+        vendors_without_locations,
+        key=lambda item: (
+            item.get("vendor_assessment_date", ""),
+            normalized_name(item.get("vendor_name", "")),
+        ),
+        reverse=True,
+    )
+
+
+def build_vendor_data_storage_map(vendor_name):
+    latest_assessment = get_latest_submitted_vendor_assessment(vendor_name)
+    if latest_assessment is None:
+        return {
+            "has_audit": False,
+            "has_locations": False,
+            "locations": [],
+            "map_locations": [],
+            "vendor_assessment_date": "",
+        }
+
+    locations = sorted(set(get_selected_values(latest_assessment.get("data_storage_location", ""))))
+    map_locations = []
+    country_risk_assignments = get_country_risk_assignments()
+    for location in locations:
+        coordinates = COUNTRY_MAP_COORDINATES.get(location)
+        if coordinates is None:
+            continue
+
+        map_locations.append(
+            {
+                "location": location,
+                "latitude": coordinates[0],
+                "longitude": coordinates[1],
+                "risk_level": country_risk_assignments.get(location, ""),
+                "marker_color": RISK_CATEGORY_MAP_COLORS.get(
+                    country_risk_assignments.get(location, ""),
+                    DEFAULT_MAP_RISK_COLOR,
+                ),
+            }
+        )
+
+    return {
+        "has_audit": True,
+        "has_locations": bool(locations),
+        "locations": locations,
+        "map_locations": map_locations,
+        "vendor_assessment_date": latest_assessment.get("vendor_assessment_date", ""),
+    }
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("authenticated"):
@@ -3054,6 +3438,7 @@ def reports():
     return render_template(
         "reports.html",
         data_hosting_heatmap=build_data_hosting_heatmap(),
+        vendors_without_hosting_locations=build_vendors_without_hosting_locations_report(),
     )
 
 
@@ -3195,6 +3580,7 @@ def vendor_detail(vendor_name):
         vendor=vendor,
         linked_software=linked_software,
         vendor_assessments=get_vendor_assessments(vendor_name),
+        vendor_data_storage_map=build_vendor_data_storage_map(vendor_name),
     )
 
 
@@ -3208,6 +3594,7 @@ def settings():
         APP_SETTINGS["country_risk_assignments"] = json.dumps(
             normalize_country_risk_assignments(request.form.get("country_risk_assignments", "{}"))
         )
+        APP_SETTINGS["dark_mode"] = "true" if request.form.get("dark_mode") == "true" else "false"
         persist_app_settings()
         saved = True
 
@@ -3330,6 +3717,16 @@ def save_vendor_privacy_policy(vendor_name):
     return jsonify({"ok": True, "vendor_privacy_policy_link": privacy_policy_link})
 
 
+@app.route("/vendors/<path:vendor_name>/website", methods=["POST"])
+def save_vendor_website(vendor_name):
+    if get_vendor_by_name(vendor_name) is None:
+        return jsonify({"ok": False, "error": "Vendor not found"}), 404
+
+    website_link = request.form.get("vendor_website", "").strip()
+    save_vendor_website_link(vendor_name, website_link)
+    return jsonify({"ok": True, "vendor_website": website_link})
+
+
 @app.route("/vendors/<path:vendor_name>/terms-conditions", methods=["POST"])
 def save_vendor_terms_conditions(vendor_name):
     if get_vendor_by_name(vendor_name) is None:
@@ -3338,6 +3735,16 @@ def save_vendor_terms_conditions(vendor_name):
     terms_conditions_link = request.form.get("vendor_terms_conditions_link", "").strip()
     save_vendor_terms_conditions_link(vendor_name, terms_conditions_link)
     return jsonify({"ok": True, "vendor_terms_conditions_link": terms_conditions_link})
+
+
+@app.route("/vendors/<path:vendor_name>/online-support", methods=["POST"])
+def save_vendor_online_support(vendor_name):
+    if get_vendor_by_name(vendor_name) is None:
+        return jsonify({"ok": False, "error": "Vendor not found"}), 404
+
+    support_link = request.form.get("online_support", "").strip()
+    save_vendor_online_support_link(vendor_name, support_link)
+    return jsonify({"ok": True, "online_support": support_link})
 
 
 @app.route("/api/vendors/search")
@@ -3552,4 +3959,4 @@ def delete_assessment(assessment_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, use_reloader=False)

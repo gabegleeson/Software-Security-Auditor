@@ -2,6 +2,147 @@
 
 {% block title %}{{ vendor.vendor_name }}{% endblock %}
 
+{% block head_extra %}
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQd9LOQ9crLNfkL4bIwSlezC1wT2Cpk="
+    crossorigin=""
+>
+<style>
+    .vendor-map-stack {
+        display: grid;
+        gap: 14px;
+    }
+
+    .vendor-hosting-map {
+        min-height: 420px;
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--surface-subtle);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+    }
+
+    .vendor-hosting-map .leaflet-pane,
+    .vendor-hosting-map .leaflet-map-pane {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+
+    .vendor-hosting-map .leaflet-tile,
+    .vendor-hosting-map .leaflet-marker-icon,
+    .vendor-hosting-map .leaflet-marker-shadow,
+    .vendor-hosting-map .leaflet-tile-container,
+    .vendor-hosting-map .leaflet-pane > svg,
+    .vendor-hosting-map .leaflet-pane > canvas,
+    .vendor-hosting-map .leaflet-zoom-box,
+    .vendor-hosting-map .leaflet-image-layer,
+    .vendor-hosting-map .leaflet-layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+
+    .vendor-hosting-map .leaflet-tile {
+        width: 256px !important;
+        height: 256px !important;
+        max-width: none !important;
+        max-height: none !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    body.dark-mode .vendor-hosting-map .leaflet-tile {
+        filter: grayscale(1) brightness(0.48) contrast(1.18);
+    }
+
+    .vendor-hosting-map .leaflet-control-container {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1100;
+    }
+
+    .vendor-hosting-map .leaflet-control {
+        pointer-events: auto;
+    }
+
+    .vendor-hosting-map .leaflet-control-zoom {
+        border: 0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+        width: auto;
+        display: inline-flex;
+        flex-direction: column;
+    }
+
+    .vendor-hosting-map .leaflet-control-zoom a {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--surface-field);
+        color: var(--page-text);
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1;
+        text-indent: 0;
+    }
+
+    .vendor-hosting-map .leaflet-control-zoom a:first-child {
+        border-bottom: 1px solid var(--border-soft);
+    }
+
+    .vendor-hosting-map .leaflet-control-zoom a:hover,
+    .vendor-hosting-map .leaflet-control-zoom a:focus {
+        background: var(--surface-subtle);
+        color: var(--page-text);
+    }
+
+    .vendor-hosting-map .leaflet-right {
+        right: 16px;
+    }
+
+    .vendor-hosting-map .leaflet-bottom {
+        bottom: 16px;
+    }
+
+    .vendor-map-marker {
+        border: 2px solid #ffffff;
+        border-radius: 999px;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
+        opacity: 0.92;
+    }
+
+    .vendor-location-breakdown {
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        padding: 14px;
+        background: var(--surface-subtle-strong);
+    }
+
+    .vendor-location-breakdown ul {
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    .vendor-location-breakdown li + li {
+        margin-top: 6px;
+    }
+
+    @media (max-width: 620px) {
+        .vendor-hosting-map {
+            min-height: 320px;
+        }
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
@@ -22,6 +163,26 @@
             <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('vendor_list') }}">Back to Vendors</a>
         </div>
     </div>
+</section>
+
+<section class="table-panel p-4 mb-4">
+    <div class="mb-3">
+        <h2 class="h5 mb-1">Data Storage Map</h2>
+        <p class="text-secondary mb-0">Locations from the latest submitted vendor audit{% if vendor_data_storage_map.vendor_assessment_date %} dated {{ vendor_data_storage_map.vendor_assessment_date }}{% endif %}.</p>
+    </div>
+    {% if vendor_data_storage_map.has_audit and vendor_data_storage_map.has_locations %}
+    <div class="vendor-map-stack">
+        <div id="vendor_hosting_map" class="vendor-hosting-map"></div>
+        <div class="vendor-location-breakdown">
+            <div class="fw-semibold mb-2">Listed Data Storage Countries</div>
+            <div>{{ vendor_data_storage_map.locations|join(", ") }}</div>
+        </div>
+    </div>
+    {% elif vendor_data_storage_map.has_audit %}
+    <div class="text-secondary">The latest submitted vendor audit does not list any data storage countries.</div>
+    {% else %}
+    <div class="text-secondary">No submitted vendor audit is available yet for mapping data storage locations.</div>
+    {% endif %}
 </section>
 
 <section class="table-panel p-4 mb-4">
@@ -101,7 +262,6 @@
             <thead>
                 <tr>
                     <th>Audit Date</th>
-                    <th>Data Storage Location</th>
                     <th>Next Audit Date</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -111,7 +271,6 @@
                 {% for assessment in vendor_assessments %}
                 <tr>
                     <td>{{ assessment.vendor_assessment_date or "Not provided" }}</td>
-                    <td>{{ assessment.data_storage_location or "Not provided" }}</td>
                     <td>{{ assessment.vendor_next_audit_date or "Not scheduled" }}</td>
                     <td>
                         {% if assessment.submission_status == "draft" %}
@@ -168,4 +327,78 @@
     <div class="text-secondary">No software is linked to this vendor yet.</div>
     {% endif %}
 </section>
+
+{% if vendor_data_storage_map.has_audit and vendor_data_storage_map.map_locations %}
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
+<script type="application/json" id="vendor_hosting_map_data">{{ vendor_data_storage_map.map_locations|tojson }}</script>
+<script>
+    const vendorHostingMapDataScript = document.getElementById("vendor_hosting_map_data");
+    const vendorHostingMapLocations = vendorHostingMapDataScript ? JSON.parse(vendorHostingMapDataScript.textContent) : [];
+    const vendorHostingMap = L.map("vendor_hosting_map", {
+        attributionControl: false,
+        minZoom: 2,
+        zoomControl: false,
+        worldCopyJump: true,
+        scrollWheelZoom: false,
+    }).setView([18, 20], 2);
+
+    L.control.zoom({ position: "bottomright" }).addTo(vendorHostingMap);
+    L.control.attribution({
+        position: "bottomright",
+        prefix: false,
+    }).addTo(vendorHostingMap);
+
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        minZoom: 2,
+        maxZoom: 8,
+        subdomains: "abcd",
+        errorTileUrl: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
+    }).addTo(vendorHostingMap);
+
+    const vendorMarkerBounds = [];
+    function getVendorRiskMarkerSize(riskLevel) {
+        return {
+            "Low": 12,
+            "Moderate": 18,
+            "High": 24,
+            "Very High": 30,
+        }[riskLevel] || 16;
+    }
+
+    vendorHostingMapLocations.forEach((item) => {
+        const markerSize = getVendorRiskMarkerSize(item.risk_level);
+        const marker = L.marker([item.latitude, item.longitude], {
+            icon: L.divIcon({
+                className: "",
+                html: `<span class="vendor-map-marker" style="display:block;width:${markerSize}px;height:${markerSize}px;background:${item.marker_color || "#2563eb"};"></span>`,
+                iconSize: [markerSize, markerSize],
+                iconAnchor: [markerSize / 2, markerSize / 2],
+            }),
+            title: item.location,
+        }).addTo(vendorHostingMap);
+
+        marker.bindTooltip(item.location, {
+            direction: "top",
+            offset: [0, -8],
+        });
+        vendorMarkerBounds.push([item.latitude, item.longitude]);
+    });
+
+    if (vendorMarkerBounds.length) {
+        vendorHostingMap.fitBounds(vendorMarkerBounds, { padding: [32, 32], maxZoom: 3 });
+    }
+
+    window.requestAnimationFrame(() => {
+        vendorHostingMap.invalidateSize();
+    });
+
+    window.addEventListener("load", () => {
+        vendorHostingMap.invalidateSize();
+    });
+</script>
+{% endif %}
 {% endblock %}

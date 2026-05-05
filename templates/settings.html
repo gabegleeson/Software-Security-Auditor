@@ -9,9 +9,9 @@
     }
 
     .settings-section {
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-soft);
         border-radius: 8px;
-        background: rgba(248, 250, 252, 0.88);
+        background: var(--surface-subtle);
         padding: 20px;
         margin-bottom: 20px;
     }
@@ -22,7 +22,7 @@
 
     .settings-section-title {
         font-weight: 700;
-        color: #16324f;
+        color: var(--page-text);
         margin-bottom: 4px;
     }
 
@@ -34,9 +34,9 @@
     }
 
     .assignment-pane {
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-soft);
         border-radius: 8px;
-        background: #fff;
+        background: var(--surface-subtle-strong);
         height: 360px;
         display: flex;
         flex-direction: column;
@@ -45,7 +45,7 @@
 
     .assignment-pane-header {
         padding: 12px 14px 10px;
-        border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+        border-bottom: 1px solid var(--border-soft);
     }
 
     .assignment-pane-body {
@@ -66,9 +66,9 @@
         align-items: center;
         gap: 10px;
         padding: 8px 10px;
-        border: 1px solid rgba(0, 0, 0, 0.08);
+        border: 1px solid var(--border-soft);
         border-radius: 8px;
-        background: #fff;
+        background: var(--surface-field);
     }
 
     .assignment-item input {
@@ -155,6 +155,12 @@
                     {% endfor %}
                 </select>
                 <div class="form-text">Used as the data storage location when a Data Processing Agreement is in place.</div>
+            </div>
+
+            <div class="form-check form-switch mt-4 pt-1">
+                <input class="form-check-input" type="checkbox" role="switch" id="dark_mode" name="dark_mode" value="true" {% if settings.dark_mode == "true" %}checked{% endif %}>
+                <label class="form-check-label fw-semibold ms-2" for="dark_mode">Dark mode</label>
+                <div class="form-text mt-1">Use a darker colour theme across the application.</div>
             </div>
         </div>
 

@@ -764,6 +764,12 @@ EU_COUNTRY_OPTIONS = (
     "Spain",
     "Sweden",
 )
+EEA_COUNTRY_OPTIONS = (
+    *EU_COUNTRY_OPTIONS,
+    "Iceland",
+    "Liechtenstein",
+    "Norway",
+)
 
 SOFTWARE_DETAIL_FIELDS = (
     "software_name",
@@ -795,6 +801,7 @@ SOFTWARE_DETAIL_FIELDS = (
 FORM_OPTION_CONTEXT = {
     "country_options": COUNTRY_OPTIONS,
     "eu_country_options": EU_COUNTRY_OPTIONS,
+    "eea_country_options": EEA_COUNTRY_OPTIONS,
     "data_type_options": DATA_TYPE_OPTIONS,
     "privacy_law_options": PRIVACY_LAW_OPTIONS,
     "international_privacy_law_options": INTERNATIONAL_PRIVACY_LAW_OPTIONS,

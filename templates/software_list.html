@@ -25,6 +25,46 @@
         content: " \2193";
         color: #16324f;
     }
+
+    .status-filter {
+        display: inline-flex;
+        background: var(--surface-subtle);
+        border: 1px solid var(--border-soft);
+        border-radius: 999px;
+        padding: 3px;
+        gap: 2px;
+    }
+
+    .status-filter input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .status-filter label {
+        padding: 5px 16px;
+        border-radius: 999px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--muted-text);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+        white-space: nowrap;
+        user-select: none;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .status-filter input[type="radio"]:checked + label {
+        background: var(--surface-subtle-strong);
+        color: var(--navy);
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+    }
+
+    .status-filter label:hover {
+        color: var(--navy);
+    }
 </style>
 {% endblock %}
 
@@ -41,14 +81,23 @@
 </section>
 
 <section class="table-panel p-4">
-    <div class="mb-4" style="max-width: 360px;">
-            <input
-                class="form-control"
-                type="search"
-                id="software_search"
-                placeholder="Search software"
-                aria-label="Search software"
-            >
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <input
+            class="form-control"
+            type="search"
+            id="software_search"
+            placeholder="Search software"
+            aria-label="Search software"
+            style="max-width: 360px;"
+        >
+        <div class="status-filter" role="group" aria-label="Filter by status">
+            <input type="radio" name="active_filter" id="filter_active" value="active" checked>
+            <label for="filter_active">Active</label>
+            <input type="radio" name="active_filter" id="filter_inactive" value="inactive">
+            <label for="filter_inactive">Inactive</label>
+            <input type="radio" name="active_filter" id="filter_all" value="all">
+            <label for="filter_all">All</label>
+        </div>
     </div>
     <div class="table-responsive">
         <table class="table align-middle mb-0">
@@ -56,12 +105,14 @@
                 <tr>
                     <th class="sortable-header" data-sort-key="software">Software</th>
                     <th class="sortable-header" data-sort-key="vendor">Vendor</th>
+                    <th class="sortable-header" data-sort-key="licenseStart">License Date</th>
+                    <th class="sortable-header" data-sort-key="nextAudit">Next Audit Date</th>
                     <th>Actions</th>
                 </tr>
             </thead>
             <tbody id="software_table_body">
                 {% for record in software_records %}
-                <tr data-software-name="{{ record.software_name|lower }}" data-vendor-name="{{ record.vendor_name|lower }}">
+                <tr data-software-name="{{ record.software_name|lower }}" data-vendor-name="{{ record.vendor_name|lower }}" data-license-start-name="{{ record.license_start_date or '9999-12-31' }}" data-next-audit-name="{{ record.next_audit_date or record.review_date or '9999-12-31' }}" data-active="{{ 'true' if record.deployed else 'false' }}">
                     <td data-title-cell>
                         <div class="fw-semibold">
                             <a class="link-dark text-decoration-none" href="{{ url_for('software_detail', software_name=record.software_name) }}">
@@ -78,6 +129,8 @@
                         Not provided
                         {% endif %}
                     </td>
+                    <td>{{ record.license_start_date or "—" }}</td>
+                    <td>{{ record.next_audit_date or record.review_date or "Not scheduled" }}</td>
                     <td>
                         <a class="btn btn-sm btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" href="{{ url_for('edit_software', software_name=record.software_name) }}" aria-label="Edit software" title="Edit software">
                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
@@ -102,6 +155,7 @@
     const softwareRows = Array.from(document.querySelectorAll("#software_table_body tr"));
     const softwareSearchEmpty = document.getElementById("software_search_empty");
     const softwareSortableHeaders = Array.from(document.querySelectorAll(".sortable-header"));
+    const activeFilterInputs = Array.from(document.querySelectorAll("input[name='active_filter']"));
     let softwareSortState = { key: "", direction: "asc" };
 
     function sortSoftwareRows(sortKey) {
@@ -130,23 +184,30 @@
 
     function filterSoftwareRows() {
         const query = softwareSearchField.value.trim().toLowerCase();
+        const activeFilter = activeFilterInputs.find((input) => input.checked)?.value || "active";
         let visibleCount = 0;
 
         softwareRows.forEach((row) => {
             const title = row.dataset.softwareName || "";
-            const matches = !query || title.includes(query);
-            row.style.display = matches ? "" : "none";
-            if (matches) {
-                visibleCount += 1;
-            }
+            const isActive = row.dataset.active === "true";
+            const matchesSearch = !query || title.includes(query);
+            const matchesFilter =
+                activeFilter === "all" ||
+                (activeFilter === "active" && isActive) ||
+                (activeFilter === "inactive" && !isActive);
+            const visible = matchesSearch && matchesFilter;
+            row.style.display = visible ? "" : "none";
+            if (visible) visibleCount += 1;
         });
 
         softwareSearchEmpty.style.display = visibleCount ? "none" : "block";
     }
 
     softwareSearchField.addEventListener("input", filterSoftwareRows);
+    activeFilterInputs.forEach((input) => input.addEventListener("change", filterSoftwareRows));
     softwareSortableHeaders.forEach((header) => {
         header.addEventListener("click", () => sortSoftwareRows(header.dataset.sortKey));
     });
+    filterSoftwareRows();
 </script>
 {% endblock %}

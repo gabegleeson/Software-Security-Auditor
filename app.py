@@ -43,11 +43,6 @@ ASSESSMENT_FIELDS = (
     "duplicates_existing",
     "genuine_need_notes",
     "vendor_security_assessment",
-    "product_security_assessment",
-    "product_updates",
-    "security_updates",
-    "vendor_support",
-    "support_notes",
     "age_restrictions",
     "allows_acceptance_on_behalf_of_entity",
     "terms_compliance_notes",
@@ -66,11 +61,9 @@ ASSESSMENT_FIELDS = (
     "approver_date",
     "signed",
     "software_license_details",
+    "license_start_date",
     "license_renewal_date",
     "deployment_groups",
-    "deployment_type",
-    "tested",
-    "deployed",
     "deployment_date",
     "audit_reminder_frequency",
     "review_date",
@@ -84,12 +77,7 @@ ASSESSMENT_FIELDS = (
 
 CHECKBOX_FIELDS = {
     "free_software",
-    "product_updates",
-    "security_updates",
-    "vendor_support",
     "allows_acceptance_on_behalf_of_entity",
-    "tested",
-    "deployed",
 }
 VENDOR_PRIVACY_FIELDS = (
     "data_processing_agreement_in_place",
@@ -133,6 +121,7 @@ DATA_TYPE_OPTIONS = (
     "Date of birth",
     "User email addresses",
     "User role",
+    "Academic Records",
     "Account preferences",
     "Phone number",
     "Physical or mailing address",
@@ -153,6 +142,7 @@ DATA_TYPE_LEGACY_MAP = {
     "Student email addresses": "User email addresses",
     "Staff email addresses": "User email addresses",
     "Student IDs": "User IDs",
+    "Academic records": "Academic Records",
     "Account credentials (stored securely and encrypted)": "Account credentials",
 }
 PRIVACY_LAW_LEGACY_MAP = {
@@ -168,6 +158,7 @@ INTERNATIONAL_PRIVACY_LAW_OPTIONS = (
     "APPI (Japan)",
     "PIPEDA (Canada)",
     "LGPD (Brazil)",
+    "Swiss Federal Data Protection Act (FADP)",
 )
 SECURITY_PRIVACY_STANDARD_OPTIONS = (
     "ISO/IEC 27001",
@@ -616,7 +607,6 @@ PDF_FIELD_LABELS = {
     "purchase_link": "Purchase Link",
     "duplicates_existing": "Duplicates Existing Capability",
     "genuine_need_notes": "Genuine Need Notes",
-    "data_processing_agreement_in_place": "Data Processing Agreement in Place",
     "data_storage_location": "Data Storage Location",
     "storage_location_notes": "Storage Location Notes",
     "cloud_hosted_data": "Cloud-Hosted Data",
@@ -630,13 +620,11 @@ PDF_FIELD_LABELS = {
     "data_storage_notes": "Data Storage Notes",
     "privacy_notes": "Privacy Standards Notes",
     "vendor_security_assessment": "Vendor Security Assessment",
-    "product_security_assessment": "Product Security Assessment",
     "product_updates": "Product Updates",
     "security_updates": "Security Updates",
-    "vendor_support": "Vendor Support",
     "support_notes": "Support Notes",
     "age_restrictions": "Age Restrictions",
-    "allows_acceptance_on_behalf_of_entity": "Allows Acceptance on Behalf of an Entity",
+    "allows_acceptance_on_behalf_of_entity": "Terms Permit Acceptance by an Organisation on Behalf of End Users",
     "terms_compliance_notes": "Terms Compliance Notes",
     "compatible_end_user_devices": "Compatible End-user Devices",
     "end_user_device_notes": "End-user Device Notes",
@@ -653,10 +641,11 @@ PDF_FIELD_LABELS = {
     "approver_date": "Approver Date",
     "signed": "Signed",
     "software_license_details": "Software License Details",
+    "license_start_date": "License Date",
     "license_renewal_date": "License Renewal Date",
     "deployment_type": "Deployment Type",
     "tested": "Tested",
-    "deployed": "Deployed",
+    "deployed": "Active",
     "deployment_date": "Deployment Date",
     "audit_reminder_frequency": "Audit Reminder Schedule",
     "review_date": "Review Date",
@@ -672,7 +661,6 @@ PDF_SECTION_FIELDS = [
         "vendor_terms_conditions_link",
         "vendor_privacy_policy_link",
         "vendor_security_assessment",
-        "data_processing_agreement_in_place",
         "data_storage_location",
         "storage_location_notes",
         "cloud_hosted_data",
@@ -690,27 +678,23 @@ PDF_SECTION_FIELDS = [
         "software_name",
         "software_description",
         "software_website",
-        "terms_conditions_link",
-        "license_agreement_link",
-        "license_type",
         "version",
         "free_software",
         "license_cost",
         "purchase_link",
         "duplicates_existing",
         "genuine_need_notes",
-        "product_security_assessment",
         "product_updates",
         "security_updates",
-        "vendor_support",
         "support_notes",
-        "software_license_details",
+        "license_start_date",
         "license_renewal_date",
         "deployment_date",
         "next_audit_date",
     ]),
     ("Assessment Responses", [
         "assessment_date",
+        "license_type",
         "age_restrictions",
         "allows_acceptance_on_behalf_of_entity",
         "terms_compliance_notes",
@@ -720,12 +704,12 @@ PDF_SECTION_FIELDS = [
         "infrastructure_notes",
         "supports_m365_sso",
         "integration_notes",
-        "deployment_type",
-        "tested",
-        "deployed",
         "risk_level",
     ]),
 ]
+PDF_HIDDEN_FIELDS = {
+    "data_processing_agreement_in_place",
+}
 
 REMINDER_MONTHS = {
     "6_months": 6,
@@ -777,6 +761,8 @@ EEA_COUNTRY_OPTIONS = (
     "Liechtenstein",
     "Norway",
 )
+OTHER_DATA_STORAGE_LOCATION = "Other countries (unspecified)"
+DATA_STORAGE_LOCATION_OPTIONS = COUNTRY_OPTIONS + (OTHER_DATA_STORAGE_LOCATION,)
 DATA_STORAGE_COUNTRY_GROUPS = (
     ("EU", EU_COUNTRY_OPTIONS),
     ("EEA", EEA_COUNTRY_OPTIONS),
@@ -788,20 +774,16 @@ SOFTWARE_DETAIL_FIELDS = (
     "software_description",
     "vendor_country",
     "software_website",
-    "terms_conditions_link",
-    "license_agreement_link",
-    "license_type",
     "purchase_link",
     "duplicates_existing",
     "genuine_need_notes",
-    "product_security_assessment",
     "product_updates",
     "security_updates",
-    "vendor_support",
     "support_notes",
-    "software_license_details",
+    "license_start_date",
     "license_renewal_date",
     "deployment_groups",
+    "deployment_type",
     "tested",
     "deployed",
     "deployment_date",
@@ -864,14 +846,13 @@ def collect_software_form_data(form):
         "purchase_link": form.get("purchase_link", "").strip(),
         "duplicates_existing": form.get("duplicates_existing", "").strip(),
         "genuine_need_notes": form.get("genuine_need_notes", "").strip(),
-        "product_security_assessment": form.get("product_security_assessment", "").strip(),
         "product_updates": "product_updates" in form,
         "security_updates": "security_updates" in form,
-        "vendor_support": "vendor_support" in form,
         "support_notes": form.get("support_notes", "").strip(),
-        "software_license_details": form.get("software_license_details", "").strip(),
+        "license_start_date": form.get("license_start_date", "").strip(),
         "license_renewal_date": license_renewal_date,
         "deployment_groups": form.get("deployment_groups", "").strip(),
+        "deployment_type": form.get("deployment_type", "").strip(),
         "tested": "tested" in form,
         "deployed": "deployed" in form,
         "deployment_date": form.get("deployment_date", "").strip(),
@@ -884,9 +865,6 @@ def determine_assessment_date(record, fallback_date=None):
     candidate_dates = [
         record.get("submitted_date", ""),
         record.get("assessment_date", ""),
-        record.get("approval_date", ""),
-        record.get("deployment_date", ""),
-        fallback_date or "",
     ]
     for candidate in candidate_dates:
         try:
@@ -1094,7 +1072,7 @@ def unique_values(value, mapper=None, allowed_values=None):
 
 
 def normalize_data_storage_locations(value):
-    return unique_values(value, allowed_values=COUNTRY_OPTIONS)
+    return unique_values(value, allowed_values=(*COUNTRY_OPTIONS, OTHER_DATA_STORAGE_LOCATION))
 
 
 def get_home_country():
@@ -1359,6 +1337,8 @@ def build_assessment_pdf(record):
     for section_title, fields in PDF_SECTION_FIELDS:
         table_rows = []
         for field in fields:
+            if field in PDF_HIDDEN_FIELDS:
+                continue
             if field == "license_renewal_date" and record.get("license_type") == "Perpetual":
                 continue
             label = PDF_FIELD_LABELS.get(field, field.replace("_", " ").title())
@@ -2544,8 +2524,11 @@ def collect_assessment_form_data(form, assessment_id=None):
             record[field] = form.get(field, "").strip()
 
     if record.get("free_software"):
+        record["license_type"] = ""
         record["currency_type"] = ""
         record["license_cost"] = ""
+    if record.get("license_type") == "Perpetual":
+        record["license_renewal_date"] = ""
 
     record["vendor_terms_conditions_link"] = form.get("vendor_terms_conditions_link", "").strip()
     record["vendor_privacy_policy_link"] = form.get("vendor_privacy_policy_link", "").strip()
@@ -2563,10 +2546,7 @@ def collect_assessment_form_data(form, assessment_id=None):
             "license_type",
             "purchase_link",
             "duplicates_existing",
-            "genuine_need_notes",
-            "product_security_assessment",
-            "support_notes",
-            "software_license_details",
+            "license_start_date",
             "license_renewal_date",
             "deployment_groups",
             "deployment_date",
@@ -2575,12 +2555,9 @@ def collect_assessment_form_data(form, assessment_id=None):
         ):
             if not record.get(field):
                 record[field] = linked_software.get(field, "")
-        for field in ("product_updates", "security_updates", "vendor_support"):
-            if not record.get(field):
-                record[field] = linked_software.get(field, False)
 
     record["software_id"] = record.get("software_id") or find_software_id(record.get("software_name", ""))
-    record["assessment_date"] = form.get("assessment_date", "").strip() or determine_assessment_date(record)
+    record["assessment_date"] = ""
     return enrich_assessment(record)
 
 
@@ -2889,6 +2866,74 @@ def save_software_purchase_link(software_name, purchase_link):
         for record in SOFTWARE_ITEMS:
             if record.get("id") == software_id:
                 record["purchase_link"] = cleaned_link
+                if record not in SOFTWARE_RECORDS:
+                    SOFTWARE_RECORDS.append(record)
+                updated = True
+                break
+
+    persist_software_records()
+    return updated
+
+
+def save_software_website(software_name, software_website):
+    normalized = normalized_name(software_name)
+    cleaned_link = software_website.strip()
+    if not normalized:
+        return False
+
+    updated = False
+    for record in SOFTWARE_RECORDS:
+        if normalized_name(record.get("software_name", "")) == normalized:
+            record["software_website"] = cleaned_link
+            updated = True
+
+    for record in SOFTWARE_ITEMS:
+        if normalized_name(record.get("software_name", "")) == normalized:
+            record["software_website"] = cleaned_link
+            updated = True
+
+    if not updated:
+        source_record = get_latest_software_record(software_name)
+        software_id = ensure_software_item_for_record(
+            source_record or {"software_name": software_name, "software_website": cleaned_link}
+        )
+        for record in SOFTWARE_ITEMS:
+            if record.get("id") == software_id:
+                record["software_website"] = cleaned_link
+                if record not in SOFTWARE_RECORDS:
+                    SOFTWARE_RECORDS.append(record)
+                updated = True
+                break
+
+    persist_software_records()
+    return updated
+
+
+def save_software_license_agreement_link(software_name, license_agreement_link):
+    normalized = normalized_name(software_name)
+    cleaned_link = license_agreement_link.strip()
+    if not normalized:
+        return False
+
+    updated = False
+    for record in SOFTWARE_RECORDS:
+        if normalized_name(record.get("software_name", "")) == normalized:
+            record["license_agreement_link"] = cleaned_link
+            updated = True
+
+    for record in SOFTWARE_ITEMS:
+        if normalized_name(record.get("software_name", "")) == normalized:
+            record["license_agreement_link"] = cleaned_link
+            updated = True
+
+    if not updated:
+        source_record = get_latest_software_record(software_name)
+        software_id = ensure_software_item_for_record(
+            source_record or {"software_name": software_name, "license_agreement_link": cleaned_link}
+        )
+        for record in SOFTWARE_ITEMS:
+            if record.get("id") == software_id:
+                record["license_agreement_link"] = cleaned_link
                 if record not in SOFTWARE_RECORDS:
                     SOFTWARE_RECORDS.append(record)
                 updated = True
@@ -3322,6 +3367,38 @@ def build_vendors_without_hosting_locations_report():
     )
 
 
+def build_vendors_with_unspecified_hosting_locations_report():
+    vendors_with_unspecified_locations = []
+
+    for vendor in build_vendor_list():
+        latest_assessment = get_latest_vendor_assessment(vendor.get("vendor_name", ""))
+        if latest_assessment is None:
+            continue
+
+        locations = get_selected_values(latest_assessment.get("data_storage_location", ""))
+        if OTHER_DATA_STORAGE_LOCATION not in locations:
+            continue
+
+        listed_countries = sorted(location for location in locations if location != OTHER_DATA_STORAGE_LOCATION)
+        vendors_with_unspecified_locations.append(
+            {
+                "vendor_name": vendor.get("vendor_name", ""),
+                "vendor_country": vendor.get("vendor_country", ""),
+                "vendor_assessment_date": latest_assessment.get("vendor_assessment_date", ""),
+                "listed_countries": ", ".join(listed_countries),
+            }
+        )
+
+    return sorted(
+        vendors_with_unspecified_locations,
+        key=lambda item: (
+            item.get("vendor_assessment_date", ""),
+            normalized_name(item.get("vendor_name", "")),
+        ),
+        reverse=True,
+    )
+
+
 def build_vendor_data_storage_map(vendor_name):
     latest_assessment = get_latest_submitted_vendor_assessment(vendor_name)
     if latest_assessment is None:
@@ -3420,12 +3497,26 @@ def update_software_audit_date_from_dashboard(software_name):
 
 @app.route("/software/<path:software_name>/purchase-link", methods=["POST"])
 def save_software_purchase_link_route(software_name):
-    if get_latest_software_record(software_name) is None:
-        return jsonify({"ok": False, "error": "Software not found"}), 404
-
     purchase_link = request.form.get("purchase_link", "").strip()
-    save_software_purchase_link(software_name, purchase_link)
+    if not save_software_purchase_link(software_name, purchase_link):
+        return jsonify({"ok": False, "error": "Software name is required"}), 400
     return jsonify({"ok": True, "purchase_link": purchase_link})
+
+
+@app.route("/software/<path:software_name>/website", methods=["POST"])
+def save_software_website_route(software_name):
+    software_website = request.form.get("software_website", "").strip()
+    if not save_software_website(software_name, software_website):
+        return jsonify({"ok": False, "error": "Software name is required"}), 400
+    return jsonify({"ok": True, "software_website": software_website})
+
+
+@app.route("/software/<path:software_name>/license-agreement", methods=["POST"])
+def save_software_license_agreement_link_route(software_name):
+    license_agreement_link = request.form.get("license_agreement_link", "").strip()
+    if not save_software_license_agreement_link(software_name, license_agreement_link):
+        return jsonify({"ok": False, "error": "Software name is required"}), 400
+    return jsonify({"ok": True, "license_agreement_link": license_agreement_link})
 
 
 @app.route("/software")
@@ -3438,6 +3529,7 @@ def reports():
     return render_template(
         "reports.html",
         data_hosting_heatmap=build_data_hosting_heatmap(),
+        vendors_with_unspecified_hosting_locations=build_vendors_with_unspecified_hosting_locations_report(),
         vendors_without_hosting_locations=build_vendors_without_hosting_locations_report(),
     )
 
@@ -3824,7 +3916,8 @@ def new_assessment():
     draft_record["id"] = NEXT_ASSESSMENT_ID
     draft_record["is_assessment"] = True
     draft_record["submission_status"] = "draft"
-    draft_record["assessment_date"] = date.today().isoformat()
+    draft_record["assessment_date"] = ""
+    draft_record["submitted_date"] = ""
     enriched_draft = enrich_assessment(draft_record)
     SOFTWARE_RECORDS.append(enriched_draft)
     persist_software_records()
@@ -3924,6 +4017,8 @@ def download_assessment_pdf(assessment_id):
     vendor = get_latest_vendor_assessment(record.get("vendor_name", "")) or {}
     for field in VENDOR_PRIVACY_FIELDS:
         pdf_record[field] = vendor.get(field, "")
+    for field in PDF_HIDDEN_FIELDS:
+        pdf_record.pop(field, None)
     pdf_record["vendor_security_assessment"] = vendor.get(
         "vendor_security_assessment",
         record.get("vendor_security_assessment", ""),

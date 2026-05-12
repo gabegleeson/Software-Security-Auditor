@@ -14,12 +14,12 @@
         }
 
         .section {
-            border: 1px solid rgba(0, 0, 0, 0.08);
+            border: 1px solid var(--border-soft);
             padding: 20px;
             margin-bottom: 24px;
             border-radius: 16px;
-            background: rgba(255, 255, 255, 0.92);
-            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            background: var(--surface-panel);
+            box-shadow: var(--shadow-panel);
         }
 
         .field {
@@ -42,6 +42,41 @@
             width: 100%;
             padding: 10px;
             box-sizing: border-box;
+            border: 1px solid var(--border-soft);
+            border-radius: 0.85rem;
+            background: var(--surface-field);
+            color: var(--page-text);
+        }
+
+        input[type="text"]::placeholder,
+        input[type="url"]::placeholder,
+        input[type="date"]::placeholder,
+        input[type="number"]::placeholder,
+        input[type="search"]::placeholder,
+        textarea::placeholder {
+            color: var(--muted-text);
+        }
+
+        input[type="text"]:focus,
+        input[type="url"]:focus,
+        input[type="date"]:focus,
+        input[type="number"]:focus,
+        input[type="search"]:focus,
+        textarea:focus,
+        select:focus {
+            background: var(--surface-field);
+            color: var(--page-text);
+            border-color: rgba(59, 130, 246, 0.55);
+            box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.18);
+            outline: none;
+        }
+
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            opacity: 0.72;
+        }
+
+        body.dark-mode input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
         }
 
         textarea {
@@ -72,10 +107,10 @@
             left: 0;
             right: 0;
             z-index: 20;
-            background: #fff;
-            border: 1px solid rgba(0, 0, 0, 0.08);
+            background: var(--surface-subtle-strong);
+            border: 1px solid var(--border-soft);
             border-radius: 14px;
-            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.12);
+            box-shadow: var(--shadow-panel);
             overflow: hidden;
             display: none;
         }
@@ -125,26 +160,60 @@
         .vendor-suggestion:hover,
         .vendor-suggestion:focus,
         .vendor-suggestion.active {
-            background: #eef5fb;
+            background: var(--surface-subtle);
             outline: none;
         }
 
         .vendor-suggestion-name {
             font-weight: 700;
-            color: #16324f;
+            color: var(--page-text);
         }
 
         .vendor-suggestion-meta {
             display: block;
-            color: #6c757d;
+            color: var(--muted-text);
             font-size: 0.9rem;
             margin-top: 2px;
         }
 
         .vendor-empty-state {
             padding: 12px 14px;
-            color: #6c757d;
+            color: var(--muted-text);
             font-size: 0.95rem;
+        }
+
+        body.dark-mode #assessment_form .bg-light {
+            background: var(--surface-field) !important;
+            color: var(--page-text);
+            border-color: var(--border-soft);
+        }
+
+        .icon-action-button {
+            width: 40px;
+            height: 40px;
+            padding: 0;
+            border-radius: 999px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto;
+        }
+
+        .icon-action-button svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .link-field-display {
+            margin-top: 2px;
+        }
+
+        .link-field-display .d-flex {
+            row-gap: 8px;
+        }
+
+        .link-field-display a {
+            line-height: 1.35;
         }
 
         .page-header-row {
@@ -193,18 +262,11 @@
 
     <div class="table-panel p-4 p-md-5">
     <form method="POST" id="assessment_form" data-autosave-enabled="{{ 'true' if autosave_enabled else 'false' }}">
-        <div class="section">
-            <div class="field">
-                <label for="assessment_date">Assessment Date</label>
-                <input type="date" id="assessment_date" name="assessment_date" value="{{ assessment_date }}">
-            </div>
-        </div>
         {% if assessment_id %}
         <input type="hidden" name="assessment_id" value="{{ assessment_id }}">
         {% endif %}
         <input type="hidden" name="next_audit_date" value="{{ assessment.next_audit_date }}">
         <input type="hidden" name="terms_conditions_link" value="{{ assessment.terms_conditions_link }}">
-        <input type="hidden" name="license_agreement_link" value="{{ assessment.license_agreement_link }}">
         <div class="section">
             <h2>Software and Online Subscriptions</h2>
             {% if software_details_editable %}
@@ -242,38 +304,40 @@
             </div>
 
             <input type="hidden" name="vendor_country" value="{{ assessment.vendor_country }}">
-            <input type="hidden" name="software_website" value="{{ assessment.software_website }}">
             <input type="hidden" name="vendor_website" value="{{ assessment.vendor_website }}">
-            <input type="hidden" name="license_agreement_link" value="{{ assessment.license_agreement_link }}">
-            <input type="hidden" name="license_type" value="{{ assessment.license_type }}">
             <input type="hidden" name="duplicates_existing" value="{{ assessment.duplicates_existing }}">
-            <input type="hidden" name="genuine_need_notes" value="{{ assessment.genuine_need_notes }}">
-            <input type="hidden" name="product_security_assessment" value="{{ assessment.product_security_assessment }}">
-            <input type="hidden" name="product_updates" value="{{ assessment.product_updates }}">
-            <input type="hidden" name="security_updates" value="{{ assessment.security_updates }}">
-            <input type="hidden" name="vendor_support" value="{{ assessment.vendor_support }}">
-            <input type="hidden" name="support_notes" value="{{ assessment.support_notes }}">
-            <input type="hidden" name="software_license_details" value="{{ assessment.software_license_details }}">
+            <input type="hidden" name="license_start_date" value="{{ assessment.license_start_date }}">
             <input type="hidden" name="license_renewal_date" value="{{ assessment.license_renewal_date }}">
             <input type="hidden" id="deployment_date" name="deployment_date" value="{{ assessment.deployment_date }}">
             <input type="hidden" id="audit_reminder_frequency" name="audit_reminder_frequency" value="{{ assessment.audit_reminder_frequency }}">
             <input type="hidden" name="vendor_security_assessment" value="{{ assessment.vendor_security_assessment }}">
+
+            <div class="field">
+                <label for="software_website">Software Website</label>
+                <div id="software_website_input_wrap" {% if assessment.software_website %}style="display: none;"{% endif %}>
+                    <input type="url" id="software_website" name="software_website" value="{{ assessment.software_website }}" placeholder="https://example.com">
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="software_website_add_button">Add</button>
+                    </div>
+                    <div class="form-text mt-2">If there is no software website yet, add it here and then press Add.</div>
+                </div>
+                <div class="link-field-display" id="software_website_display_wrap" {% if not assessment.software_website %}style="display: none;"{% endif %}>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <a id="software_website_open_link" href="{{ assessment.software_website or '#' }}" target="_blank" rel="noopener noreferrer">
+                            {{ assessment.software_website }}
+                        </a>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="software_website_copy_button" aria-label="Copy link" title="Copy link"></button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="software_website_edit_button" aria-label="Edit link" title="Edit link"></button>
+                    </div>
+                </div>
+            </div>
             {% else %}
             <input type="hidden" name="software_name" value="{{ assessment.software_name }}">
             <input type="hidden" name="vendor_name" value="{{ assessment.vendor_name }}">
             <input type="hidden" name="vendor_country" value="{{ assessment.vendor_country }}">
-            <input type="hidden" name="software_website" value="{{ assessment.software_website }}">
             <input type="hidden" name="vendor_website" value="{{ assessment.vendor_website }}">
-            <input type="hidden" name="license_agreement_link" value="{{ assessment.license_agreement_link }}">
-            <input type="hidden" name="license_type" value="{{ assessment.license_type }}">
             <input type="hidden" name="duplicates_existing" value="{{ assessment.duplicates_existing }}">
-            <input type="hidden" name="genuine_need_notes" value="{{ assessment.genuine_need_notes }}">
-            <input type="hidden" name="product_security_assessment" value="{{ assessment.product_security_assessment }}">
-            <input type="hidden" name="product_updates" value="{{ assessment.product_updates }}">
-            <input type="hidden" name="security_updates" value="{{ assessment.security_updates }}">
-            <input type="hidden" name="vendor_support" value="{{ assessment.vendor_support }}">
-            <input type="hidden" name="support_notes" value="{{ assessment.support_notes }}">
-            <input type="hidden" name="software_license_details" value="{{ assessment.software_license_details }}">
+            <input type="hidden" name="license_start_date" value="{{ assessment.license_start_date }}">
             <input type="hidden" name="license_renewal_date" value="{{ assessment.license_renewal_date }}">
             <input type="hidden" id="deployment_date" name="deployment_date" value="{{ assessment.deployment_date }}">
             <input type="hidden" id="audit_reminder_frequency" name="audit_reminder_frequency" value="{{ assessment.audit_reminder_frequency }}">
@@ -305,6 +369,25 @@
                     </div>
                 </div>
             </div>
+            <div class="field mt-3">
+                <label for="software_website">Software Website</label>
+                <div id="software_website_input_wrap" {% if assessment.software_website %}style="display: none;"{% endif %}>
+                    <input type="url" id="software_website" name="software_website" value="{{ assessment.software_website }}" placeholder="https://example.com">
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="software_website_add_button">Add</button>
+                    </div>
+                    <div class="form-text mt-2">If there is no software website yet, add it here and then press Add.</div>
+                </div>
+                <div class="link-field-display" id="software_website_display_wrap" {% if not assessment.software_website %}style="display: none;"{% endif %}>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <a id="software_website_open_link" href="{{ assessment.software_website or '#' }}" target="_blank" rel="noopener noreferrer">
+                            {{ assessment.software_website }}
+                        </a>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="software_website_copy_button" aria-label="Copy link" title="Copy link"></button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="software_website_edit_button" aria-label="Edit link" title="Edit link"></button>
+                    </div>
+                </div>
+            </div>
             {% endif %}
 
             <div class="field">
@@ -314,6 +397,41 @@
 
             <div class="field">
                 <label><input type="checkbox" id="free_software" name="free_software" value="true"> Free software</label>
+            </div>
+
+            <div class="field" id="license_type_field">
+                <label for="license_type">License Type</label>
+                <select id="license_type" name="license_type">
+                    <option value="">Select one</option>
+                    <option value="Perpetual">Perpetual</option>
+                    <option value="Subscription">Subscription</option>
+                    <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="field" id="license_start_date_field">
+                <label for="license_start_date">License Date</label>
+                <input type="date" id="license_start_date" name="license_start_date" value="{{ assessment.license_start_date }}">
+            </div>
+
+            <div class="field">
+                <label for="license_agreement_link">License Agreement Link</label>
+                <div id="license_agreement_link_input_wrap" {% if assessment.license_agreement_link %}style="display: none;"{% endif %}>
+                    <input type="url" id="license_agreement_link" name="license_agreement_link" value="{{ assessment.license_agreement_link }}" placeholder="https://example.com/license">
+                    <div class="d-flex align-items-center gap-2 mt-2">
+                        <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="license_agreement_link_add_button">Add</button>
+                    </div>
+                    <div class="form-text mt-2">If there is no license agreement link yet, add it here and then press Add.</div>
+                </div>
+                <div class="link-field-display" id="license_agreement_link_display_wrap" {% if not assessment.license_agreement_link %}style="display: none;"{% endif %}>
+                    <div class="d-flex align-items-center gap-2 flex-wrap">
+                        <a id="license_agreement_link_open_link" href="{{ assessment.license_agreement_link or '#' }}" target="_blank" rel="noopener noreferrer">
+                            {{ assessment.license_agreement_link }}
+                        </a>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="license_agreement_link_copy_button" aria-label="Copy link" title="Copy link"></button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="license_agreement_link_edit_button" aria-label="Edit link" title="Edit link"></button>
+                    </div>
+                </div>
             </div>
 
             <div class="field" id="currency_type_field">
@@ -334,33 +452,44 @@
             </div>
 
             <div class="field">
-                <label for="purchase_link">Purchase Link</label>
+                <label for="purchase_link" id="purchase_link_label">{% if assessment.free_software %}Download Link{% else %}Purchase Link{% endif %}</label>
                 <div id="purchase_link_input_wrap" {% if software_purchase_link %}style="display: none;"{% endif %}>
                     <input
                         type="url"
                         id="purchase_link"
                         name="purchase_link"
                         value="{{ software_purchase_link }}"
-                        placeholder="https://example.com/purchase"
+                        placeholder="{% if assessment.free_software %}https://example.com/download{% else %}https://example.com/purchase{% endif %}"
                     >
                     <div class="d-flex align-items-center gap-2 mt-2">
-                        <button type="button" id="purchase_link_add_button">Add</button>
+                        <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="purchase_link_add_button">Add</button>
                     </div>
-                    <div class="form-text mt-2">If there is no purchase link yet, add it here and then press Add.</div>
+                    <div class="form-text mt-2" id="purchase_link_help">
+                        {% if assessment.free_software %}
+                        If there is no download link yet, add it here and then press Add.
+                        {% else %}
+                        If there is no purchase link yet, add it here and then press Add.
+                        {% endif %}
+                    </div>
                 </div>
-                <div id="purchase_link_display_wrap" {% if not software_purchase_link %}style="display: none;"{% endif %}>
+                <div class="link-field-display" id="purchase_link_display_wrap" {% if not software_purchase_link %}style="display: none;"{% endif %}>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <a id="purchase_link_open_link" href="{{ software_purchase_link or '#' }}" target="_blank" rel="noopener noreferrer">
                             {{ software_purchase_link }}
                         </a>
-                        <button type="button" id="purchase_link_edit_button">Edit</button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="purchase_link_copy_button" aria-label="Copy link" title="Copy link"></button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="purchase_link_edit_button" aria-label="Edit link" title="Edit link"></button>
                     </div>
                 </div>
+            </div>
+
+            <div class="field">
+                <label for="software_license_details">Software License Details</label>
+                <textarea id="software_license_details" name="software_license_details">{{ assessment.software_license_details }}</textarea>
             </div>
         </div>
 
         <input type="hidden" name="vendor_privacy_policy_link" value="{{ vendor_privacy_policy_link }}">
-
 
         <div class="section">
             <h2>Terms of Use / License Agreement Compliance</h2>
@@ -375,16 +504,17 @@
                         value="{{ vendor_terms_conditions_link }}"
                     >
                     <div class="d-flex align-items-center gap-2 mt-2">
-                        <button type="button" id="vendor_terms_conditions_add_button">Add</button>
+                        <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_terms_conditions_add_button">Add</button>
                     </div>
                     <div class="form-text mt-2">If there is no vendor terms link yet, add it here and then press Add.</div>
                 </div>
-                <div id="vendor_terms_conditions_display_wrap" {% if not vendor_terms_conditions_link %}style="display: none;"{% endif %}>
+                <div class="link-field-display" id="vendor_terms_conditions_display_wrap" {% if not vendor_terms_conditions_link %}style="display: none;"{% endif %}>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
                         <a id="vendor_terms_conditions_open_link" href="{{ vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer">
                             {{ vendor_terms_conditions_link }}
                         </a>
-                        <button type="button" id="vendor_terms_conditions_edit_button">Edit</button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_copy_button" aria-label="Copy link" title="Copy link"></button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_edit_button" aria-label="Edit link" title="Edit link"></button>
                     </div>
                 </div>
             </div>
@@ -395,12 +525,13 @@
                     <option value="">Select an option</option>
                     <option value="None">None</option>
                     <option value="13+">13+</option>
+                    <option value="16+">16+</option>
                     <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf">Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
                 </select>
             </div>
 
             <div class="field">
-                <label><input type="checkbox" name="allows_acceptance_on_behalf_of_entity" value="true"> Allows acceptance on behalf of an entity</label>
+                <label><input type="checkbox" name="allows_acceptance_on_behalf_of_entity" value="true"> Terms permit acceptance by an organisation on behalf of end users</label>
             </div>
 
             <div class="field">
@@ -459,24 +590,6 @@
 
         <input type="hidden" id="review_date" name="review_date">
 
-        <div class="section">
-            <h2>Deployment</h2>
-            <div class="field">
-                <label for="deployment_type">Deployment Type</label>
-                <select id="deployment_type" name="deployment_type">
-                    <option value="">Select deployment type</option>
-                    <option value="Remote deployment">Remote deployment</option>
-                    <option value="Manual deployment">Manual deployment</option>
-                    <option value="Other">Other</option>
-                </select>
-            </div>
-            <div class="field">
-                <label><input type="checkbox" name="tested" value="true"> Tested</label>
-            </div>
-            <div class="field">
-                <label><input type="checkbox" name="deployed" value="true"> Deployed</label>
-            </div>
-        </div>
 
         <div class="section">
             <h2>Risk Level</h2>
@@ -506,6 +619,23 @@
     </form>
     <script type="application/json" id="assessment_data">{{ assessment|tojson }}</script>
     <script>
+        const copyLinkIconMarkup = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="9" y="9" width="11" height="11" rx="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        `;
+        const copiedCheckIconMarkup = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5"></path>
+            </svg>
+        `;
+        const editLinkIconMarkup = `
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M12 20h9"></path>
+                <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+            </svg>
+        `;
         const assessmentForm = document.getElementById("assessment_form");
         const assessmentDataScript = document.getElementById("assessment_data");
         const assessment = assessmentDataScript ? JSON.parse(assessmentDataScript.textContent) : {};
@@ -535,21 +665,43 @@
         const assessmentVendorNameField = document.querySelector('input[name="vendor_name"]');
         const assessmentIdField = document.querySelector('input[name="assessment_id"]');
         const draftStatusText = document.getElementById("draft_status_text");
+        const softwareWebsiteInput = document.getElementById("software_website");
+        const softwareWebsiteInputWrap = document.getElementById("software_website_input_wrap");
+        const softwareWebsiteDisplayWrap = document.getElementById("software_website_display_wrap");
+        const softwareWebsiteAddButton = document.getElementById("software_website_add_button");
+        const softwareWebsiteCopyButton = document.getElementById("software_website_copy_button");
+        const softwareWebsiteEditButton = document.getElementById("software_website_edit_button");
+        const softwareWebsiteOpenLink = document.getElementById("software_website_open_link");
+        const licenseAgreementInput = document.getElementById("license_agreement_link");
+        const licenseAgreementInputWrap = document.getElementById("license_agreement_link_input_wrap");
+        const licenseAgreementDisplayWrap = document.getElementById("license_agreement_link_display_wrap");
+        const licenseAgreementAddButton = document.getElementById("license_agreement_link_add_button");
+        const licenseAgreementCopyButton = document.getElementById("license_agreement_link_copy_button");
+        const licenseAgreementEditButton = document.getElementById("license_agreement_link_edit_button");
+        const licenseAgreementOpenLink = document.getElementById("license_agreement_link_open_link");
         const freeSoftwareField = document.getElementById("free_software");
+        const licenseTypeFieldWrap = document.getElementById("license_type_field");
+        const licenseTypeField = document.getElementById("license_type");
+        const licenseStartDateFieldWrap = document.getElementById("license_start_date_field");
+        const licenseStartDateField = document.getElementById("license_start_date");
         const currencyTypeFieldWrap = document.getElementById("currency_type_field");
         const currencyTypeField = document.getElementById("currency_type");
         const licenseCostFieldWrap = document.getElementById("license_cost_field");
         const licenseCostField = document.getElementById("license_cost");
+        const purchaseLinkLabel = document.getElementById("purchase_link_label");
         const purchaseLinkInput = document.getElementById("purchase_link");
         const purchaseLinkInputWrap = document.getElementById("purchase_link_input_wrap");
         const purchaseLinkDisplayWrap = document.getElementById("purchase_link_display_wrap");
+        const purchaseLinkHelp = document.getElementById("purchase_link_help");
         const purchaseLinkAddButton = document.getElementById("purchase_link_add_button");
+        const purchaseLinkCopyButton = document.getElementById("purchase_link_copy_button");
         const purchaseLinkEditButton = document.getElementById("purchase_link_edit_button");
         const purchaseLinkOpenLink = document.getElementById("purchase_link_open_link");
         const vendorTermsConditionsInput = document.getElementById("vendor_terms_conditions_link");
         const vendorTermsConditionsInputWrap = document.getElementById("vendor_terms_conditions_input_wrap");
         const vendorTermsConditionsDisplayWrap = document.getElementById("vendor_terms_conditions_display_wrap");
         const vendorTermsConditionsAddButton = document.getElementById("vendor_terms_conditions_add_button");
+        const vendorTermsConditionsCopyButton = document.getElementById("vendor_terms_conditions_copy_button");
         const vendorTermsConditionsEditButton = document.getElementById("vendor_terms_conditions_edit_button");
         const vendorTermsConditionsOpenLink = document.getElementById("vendor_terms_conditions_open_link");
         const vendorMatchStatus = document.getElementById("vendor_match_status");
@@ -786,19 +938,37 @@
         }
 
         function updateFreeSoftwareFields() {
-            if (!freeSoftwareField || !currencyTypeFieldWrap || !currencyTypeField || !licenseCostFieldWrap || !licenseCostField) {
+            if (!freeSoftwareField || !licenseTypeFieldWrap || !licenseTypeField || !currencyTypeFieldWrap || !currencyTypeField || !licenseCostFieldWrap || !licenseCostField) {
                 return;
             }
 
             const isFreeSoftware = freeSoftwareField.checked;
+            licenseTypeFieldWrap.style.display = isFreeSoftware ? "none" : "";
             currencyTypeFieldWrap.style.display = isFreeSoftware ? "none" : "";
             licenseCostFieldWrap.style.display = isFreeSoftware ? "none" : "";
+            if (licenseStartDateFieldWrap) licenseStartDateFieldWrap.style.display = isFreeSoftware ? "none" : "";
+            licenseTypeField.disabled = isFreeSoftware;
             currencyTypeField.disabled = isFreeSoftware;
             licenseCostField.disabled = isFreeSoftware;
+            if (licenseStartDateField) licenseStartDateField.disabled = isFreeSoftware;
 
             if (isFreeSoftware) {
+                licenseTypeField.value = "";
                 currencyTypeField.value = "";
                 licenseCostField.value = "";
+                if (licenseStartDateField) licenseStartDateField.value = "";
+            }
+
+            if (purchaseLinkLabel) {
+                purchaseLinkLabel.textContent = isFreeSoftware ? "Download Link" : "Purchase Link";
+            }
+            if (purchaseLinkInput) {
+                purchaseLinkInput.placeholder = isFreeSoftware ? "https://example.com/download" : "https://example.com/purchase";
+            }
+            if (purchaseLinkHelp) {
+                purchaseLinkHelp.textContent = isFreeSoftware
+                    ? "If there is no download link yet, add it here and then press Add."
+                    : "If there is no purchase link yet, add it here and then press Add.";
             }
         }
 
@@ -829,6 +999,60 @@
             purchaseLinkInput.select();
         }
 
+        function setSoftwareWebsiteMode(mode) {
+            if (!softwareWebsiteInput || !softwareWebsiteInputWrap || !softwareWebsiteDisplayWrap) {
+                return;
+            }
+
+            if (mode === "display") {
+                const currentValue = softwareWebsiteInput.value.trim();
+                if (!currentValue) {
+                    softwareWebsiteInput.focus();
+                    return;
+                }
+
+                if (softwareWebsiteOpenLink) {
+                    softwareWebsiteOpenLink.href = currentValue;
+                    softwareWebsiteOpenLink.textContent = currentValue;
+                }
+                softwareWebsiteInputWrap.style.display = "none";
+                softwareWebsiteDisplayWrap.style.display = "";
+                return;
+            }
+
+            softwareWebsiteInputWrap.style.display = "";
+            softwareWebsiteDisplayWrap.style.display = "none";
+            softwareWebsiteInput.focus();
+            softwareWebsiteInput.select();
+        }
+
+        function setLicenseAgreementMode(mode) {
+            if (!licenseAgreementInput || !licenseAgreementInputWrap || !licenseAgreementDisplayWrap) {
+                return;
+            }
+
+            if (mode === "display") {
+                const currentValue = licenseAgreementInput.value.trim();
+                if (!currentValue) {
+                    licenseAgreementInput.focus();
+                    return;
+                }
+
+                if (licenseAgreementOpenLink) {
+                    licenseAgreementOpenLink.href = currentValue;
+                    licenseAgreementOpenLink.textContent = currentValue;
+                }
+                licenseAgreementInputWrap.style.display = "none";
+                licenseAgreementDisplayWrap.style.display = "";
+                return;
+            }
+
+            licenseAgreementInputWrap.style.display = "";
+            licenseAgreementDisplayWrap.style.display = "none";
+            licenseAgreementInput.focus();
+            licenseAgreementInput.select();
+        }
+
         async function persistPurchaseLink() {
             const softwareNameField = document.querySelector('input[name="software_name"]');
             if (!softwareNameField || !purchaseLinkInput) {
@@ -848,6 +1072,68 @@
                 },
                 body: new URLSearchParams({
                     purchase_link: purchaseLink,
+                }),
+            });
+
+            return response.ok;
+        }
+
+        async function persistSoftwareWebsite() {
+            const softwareNameField = document.querySelector('input[name="software_name"]');
+            if (!softwareNameField || !softwareWebsiteInput) {
+                return true;
+            }
+
+            const softwareName = softwareNameField.value.trim();
+            const softwareWebsite = softwareWebsiteInput.value.trim();
+            if (!softwareName) {
+                return true;
+            }
+
+            try {
+                const response = await fetch(`/software/${encodeURIComponent(softwareName)}/website`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                    },
+                    body: new URLSearchParams({
+                        software_website: softwareWebsite,
+                    }),
+                });
+
+                if (response.ok) {
+                    return true;
+                }
+            } catch (error) {
+                // Keep the entered link in the assessment even if the immediate save endpoint is unavailable.
+            }
+
+            scheduleDraftAutosave();
+            if (draftStatusText) {
+                draftStatusText.textContent = "Software website will be saved with the assessment.";
+            }
+            return true;
+        }
+
+        async function persistLicenseAgreementLink() {
+            const softwareNameField = document.querySelector('input[name="software_name"]');
+            if (!softwareNameField || !licenseAgreementInput) {
+                return true;
+            }
+
+            const softwareName = softwareNameField.value.trim();
+            const licenseAgreementLink = licenseAgreementInput.value.trim();
+            if (!softwareName) {
+                return true;
+            }
+
+            const response = await fetch(`/software/${encodeURIComponent(softwareName)}/license-agreement`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
+                },
+                body: new URLSearchParams({
+                    license_agreement_link: licenseAgreementLink,
                 }),
             });
 
@@ -905,6 +1191,29 @@
             return response.ok;
         }
 
+        function initializeIconButton(button, iconMarkup) {
+            if (button) {
+                button.innerHTML = iconMarkup;
+            }
+        }
+
+        async function copyAssessmentLink(input, button) {
+            if (!input || !button) {
+                return;
+            }
+
+            const linkValue = input.value.trim();
+            if (!linkValue) {
+                return;
+            }
+
+            await navigator.clipboard.writeText(linkValue);
+            button.innerHTML = copiedCheckIconMarkup;
+            window.setTimeout(() => {
+                button.innerHTML = copyLinkIconMarkup;
+            }, 1600);
+        }
+
         async function autosaveDraft() {
             if (!autosaveEnabled || !assessmentForm || !assessmentIdField || autosaveRequestInFlight) {
                 return;
@@ -956,6 +1265,59 @@
             updateFreeSoftwareFields();
         }
 
+        initializeIconButton(softwareWebsiteCopyButton, copyLinkIconMarkup);
+        initializeIconButton(softwareWebsiteEditButton, editLinkIconMarkup);
+        initializeIconButton(licenseAgreementCopyButton, copyLinkIconMarkup);
+        initializeIconButton(licenseAgreementEditButton, editLinkIconMarkup);
+        initializeIconButton(purchaseLinkCopyButton, copyLinkIconMarkup);
+        initializeIconButton(purchaseLinkEditButton, editLinkIconMarkup);
+        initializeIconButton(vendorTermsConditionsCopyButton, copyLinkIconMarkup);
+        initializeIconButton(vendorTermsConditionsEditButton, editLinkIconMarkup);
+
+        if (softwareWebsiteAddButton) {
+            softwareWebsiteAddButton.addEventListener("click", async () => {
+                const saved = await persistSoftwareWebsite();
+                if (!saved) {
+                    return;
+                }
+                setSoftwareWebsiteMode("display");
+            });
+        }
+
+        if (softwareWebsiteCopyButton) {
+            softwareWebsiteCopyButton.addEventListener("click", () => {
+                copyAssessmentLink(softwareWebsiteInput, softwareWebsiteCopyButton);
+            });
+        }
+
+        if (softwareWebsiteEditButton) {
+            softwareWebsiteEditButton.addEventListener("click", () => {
+                setSoftwareWebsiteMode("edit");
+            });
+        }
+
+        if (licenseAgreementAddButton) {
+            licenseAgreementAddButton.addEventListener("click", async () => {
+                const saved = await persistLicenseAgreementLink();
+                if (!saved) {
+                    return;
+                }
+                setLicenseAgreementMode("display");
+            });
+        }
+
+        if (licenseAgreementCopyButton) {
+            licenseAgreementCopyButton.addEventListener("click", () => {
+                copyAssessmentLink(licenseAgreementInput, licenseAgreementCopyButton);
+            });
+        }
+
+        if (licenseAgreementEditButton) {
+            licenseAgreementEditButton.addEventListener("click", () => {
+                setLicenseAgreementMode("edit");
+            });
+        }
+
         if (purchaseLinkAddButton) {
             purchaseLinkAddButton.addEventListener("click", async () => {
                 const saved = await persistPurchaseLink();
@@ -963,6 +1325,12 @@
                     return;
                 }
                 setPurchaseLinkMode("display");
+            });
+        }
+
+        if (purchaseLinkCopyButton) {
+            purchaseLinkCopyButton.addEventListener("click", () => {
+                copyAssessmentLink(purchaseLinkInput, purchaseLinkCopyButton);
             });
         }
 
@@ -979,6 +1347,12 @@
                     return;
                 }
                 setVendorTermsConditionsMode("display");
+            });
+        }
+
+        if (vendorTermsConditionsCopyButton) {
+            vendorTermsConditionsCopyButton.addEventListener("click", () => {
+                copyAssessmentLink(vendorTermsConditionsInput, vendorTermsConditionsCopyButton);
             });
         }
 

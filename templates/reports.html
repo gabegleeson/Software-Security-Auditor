@@ -253,6 +253,65 @@
 
 <section class="table-panel p-4 mb-4">
     <div class="mb-3">
+        <h2 class="h4 fw-semibold mb-2">Vendors Hosting Data in Unspecified Countries</h2>
+        <p class="text-secondary mb-0">Vendors whose latest vendor audit includes Other countries (unspecified) as a data storage location.</p>
+    </div>
+
+    {% set unspecified_location = namespace(item=None) %}
+    {% for item in data_hosting_heatmap.locations %}
+        {% if item.location == "Other countries (unspecified)" %}
+            {% set unspecified_location.item = item %}
+        {% endif %}
+    {% endfor %}
+    {% if vendors_with_unspecified_hosting_locations or (unspecified_location.item and unspecified_location.item.vendors) %}
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Vendor</th>
+                    <th>Country</th>
+                    <th>Latest Audit</th>
+                    <th>Other Listed Countries</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if vendors_with_unspecified_hosting_locations %}
+                {% for vendor in vendors_with_unspecified_hosting_locations %}
+                <tr>
+                    <td>
+                        <a class="link-dark text-decoration-none fw-semibold" href="{{ url_for('vendor_detail', vendor_name=vendor.vendor_name) }}">
+                            {{ vendor.vendor_name }}
+                        </a>
+                    </td>
+                    <td>{{ vendor.vendor_country or "-" }}</td>
+                    <td>{{ vendor.vendor_assessment_date or "-" }}</td>
+                    <td>{{ vendor.listed_countries or "-" }}</td>
+                </tr>
+                {% endfor %}
+                {% elif unspecified_location.item %}
+                {% for vendor in unspecified_location.item.vendors %}
+                <tr>
+                    <td>
+                        <a class="link-dark text-decoration-none fw-semibold" href="{{ url_for('vendor_detail', vendor_name=vendor.vendor_name) }}">
+                            {{ vendor.vendor_name }}
+                        </a>
+                    </td>
+                    <td>-</td>
+                    <td>{{ vendor.vendor_assessment_date or "-" }}</td>
+                    <td>-</td>
+                </tr>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="text-secondary">No vendors currently list data hosting in unspecified countries.</div>
+    {% endif %}
+</section>
+
+<section class="table-panel p-4 mb-4">
+    <div class="mb-3">
         <h2 class="h4 fw-semibold mb-2">Vendors Without Listed Data Storage Countries</h2>
         <p class="text-secondary mb-0">Vendors whose latest vendor audit does not include any recorded data storage locations.</p>
     </div>

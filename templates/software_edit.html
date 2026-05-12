@@ -169,27 +169,14 @@
                 <input class="form-control" type="url" id="software_website" name="software_website" value="{{ software.software_website }}">
             </div>
             <div class="col-md-6">
-                <label for="terms_conditions_link" class="form-label fw-semibold">Terms and Conditions Link</label>
-                <input class="form-control" type="url" id="terms_conditions_link" name="terms_conditions_link" value="{{ software.terms_conditions_link }}">
-            </div>
-            <div class="col-md-6">
-                <label for="license_agreement_link" class="form-label fw-semibold">License Agreement Link</label>
-                <input class="form-control" type="url" id="license_agreement_link" name="license_agreement_link" value="{{ software.license_agreement_link }}">
-            </div>
-            <div class="col-md-6">
                 <label for="purchase_link" class="form-label fw-semibold">Purchase Link</label>
                 <input class="form-control" type="url" id="purchase_link" name="purchase_link" value="{{ software.purchase_link }}">
             </div>
             <div class="col-md-6">
-                <label for="license_type" class="form-label fw-semibold">License Type</label>
-                <select class="form-select" id="license_type" name="license_type">
-                    <option value="">Select one</option>
-                    <option value="Perpetual" {% if software.license_type == "Perpetual" %}selected{% endif %}>Perpetual</option>
-                    <option value="Subscription" {% if software.license_type == "Subscription" %}selected{% endif %}>Subscription</option>
-                    <option value="Other" {% if software.license_type == "Other" %}selected{% endif %}>Other</option>
-                </select>
+                <label for="license_start_date" class="form-label fw-semibold">License Date</label>
+                <input class="form-control" type="date" id="license_start_date" name="license_start_date" value="{{ software.license_start_date }}">
             </div>
-            <div class="col-md-6" id="license_renewal_date_field" {% if software.license_type == "Perpetual" %}style="display: none;"{% endif %}>
+            <div class="col-md-6" id="license_renewal_date_field">
                 <label for="license_renewal_date" class="form-label fw-semibold">License Renewal Date</label>
                 <input class="form-control" type="date" id="license_renewal_date" name="license_renewal_date" value="{{ software.license_renewal_date }}">
             </div>
@@ -220,32 +207,37 @@
                 <label for="genuine_need_notes" class="form-label fw-semibold">Genuine Need Notes</label>
                 <textarea class="form-control" id="genuine_need_notes" name="genuine_need_notes" rows="4">{{ software.genuine_need_notes }}</textarea>
             </div>
-            <div class="col-12">
-                <label for="product_security_assessment" class="form-label fw-semibold">Product Security Assessment</label>
-                <textarea class="form-control" id="product_security_assessment" name="product_security_assessment" rows="5">{{ software.product_security_assessment }}</textarea>
-            </div>
-            <div class="col-12">
-                <label class="form-label fw-semibold">Support & Maintenance</label>
-                <div class="d-flex flex-wrap gap-3 pt-2">
-                    <label><input type="checkbox" name="product_updates" {% if software.product_updates %}checked{% endif %}> Product Updates</label>
-                    <label><input type="checkbox" name="security_updates" {% if software.security_updates %}checked{% endif %}> Security Updates</label>
-                    <label><input type="checkbox" name="vendor_support" {% if software.vendor_support %}checked{% endif %}> Vendor Support</label>
-                </div>
-            </div>
-            <div class="col-12">
-                <label for="support_notes" class="form-label fw-semibold">Support Notes</label>
-                <textarea class="form-control" id="support_notes" name="support_notes" rows="4">{{ software.support_notes }}</textarea>
-            </div>
-            <div class="col-12">
-                <label for="software_license_details" class="form-label fw-semibold">Software License Details</label>
-                <textarea class="form-control" id="software_license_details" name="software_license_details" rows="4">{{ software.software_license_details }}</textarea>
+            <div class="col-md-6">
+                <label for="deployment_type" class="form-label fw-semibold">Deployment Type</label>
+                <select class="form-select" id="deployment_type" name="deployment_type">
+                    <option value="">Select deployment type</option>
+                    <option value="Remote deployment" {% if software.deployment_type == "Remote deployment" %}selected{% endif %}>Remote deployment</option>
+                    <option value="Manual deployment" {% if software.deployment_type == "Manual deployment" %}selected{% endif %}>Manual deployment</option>
+                    <option value="Other" {% if software.deployment_type == "Other" %}selected{% endif %}>Other</option>
+                </select>
             </div>
             <div class="col-md-6">
                 <label class="form-label fw-semibold">Deployment Status</label>
                 <div class="d-flex flex-wrap gap-3 pt-2">
                     <label><input type="checkbox" name="tested" {% if software.tested %}checked{% endif %}> Tested</label>
-                    <label><input type="checkbox" name="deployed" {% if software.deployed %}checked{% endif %}> Deployed</label>
+                    <label><input type="checkbox" name="deployed" {% if software.deployed %}checked{% endif %}> Active</label>
                 </div>
+            </div>
+        </div>
+
+        <hr class="my-4">
+        <h2 class="h5 fw-semibold mb-3">Maintenance</h2>
+        <div class="row g-3">
+            <div class="col-12">
+                <label class="form-label fw-semibold d-block">Software Updates</label>
+                <div class="d-flex flex-wrap gap-3 pt-1">
+                    <label><input type="checkbox" name="product_updates" {% if software.product_updates %}checked{% endif %}> Product Updates Available</label>
+                    <label><input type="checkbox" name="security_updates" {% if software.security_updates %}checked{% endif %}> Security Updates Available</label>
+                </div>
+            </div>
+            <div class="col-12">
+                <label for="support_notes" class="form-label fw-semibold">Support Notes</label>
+                <textarea class="form-control" id="support_notes" name="support_notes" rows="4">{{ software.support_notes }}</textarea>
             </div>
         </div>
 
@@ -264,23 +256,8 @@
     const vendorMatchIndicator = document.getElementById("vendor_match_indicator");
     const vendorMatchStatus = document.getElementById("vendor_match_status");
     const vendorSuggestions = document.getElementById("vendor_suggestions");
-    const licenseTypeField = document.getElementById("license_type");
-    const licenseRenewalDateFieldWrap = document.getElementById("license_renewal_date_field");
-    const licenseRenewalDateField = document.getElementById("license_renewal_date");
     let latestVendorResults = [];
     let activeSuggestionIndex = -1;
-
-    function updateLicenseRenewalDateVisibility() {
-        if (!licenseTypeField || !licenseRenewalDateFieldWrap || !licenseRenewalDateField) {
-            return;
-        }
-
-        const shouldHide = licenseTypeField.value === "Perpetual";
-        licenseRenewalDateFieldWrap.style.display = shouldHide ? "none" : "";
-        if (shouldHide) {
-            licenseRenewalDateField.value = "";
-        }
-    }
 
     function hideVendorSuggestions() {
         vendorSuggestions.classList.remove("is-visible");
@@ -433,9 +410,5 @@
     });
 
     searchVendors(vendorNameField.value);
-    if (licenseTypeField) {
-        licenseTypeField.addEventListener("change", updateLicenseRenewalDateVisibility);
-        updateLicenseRenewalDateVisibility();
-    }
 </script>
 {% endblock %}

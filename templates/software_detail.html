@@ -4,23 +4,40 @@
 
 {% block content %}
 <section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
-    <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
-        <div>
-            <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Software History</span>
-            <h1 class="display-6 fw-semibold mb-2">{{ software_name }}</h1>
-            {% if software.software_website %}
-            <div class="mb-2">
-                <a class="text-decoration-none fw-semibold" href="{{ software.software_website }}" target="_blank" rel="noopener noreferrer">
-                    {{ software.software_website }}
-                </a>
-            </div>
-            {% endif %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0"
+           style="width: 32px; height: 32px;"
+           href="{{ url_for('software_list') }}"
+           aria-label="Back to software list"
+           title="Back to software list">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+            </svg>
+        </a>
+        <div class="d-flex gap-2 align-items-center">
+            <a class="btn btn-sm btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center"
+               style="width: 36px; height: 36px;"
+               href="{{ url_for('edit_software', software_name=software_name) }}"
+               aria-label="Edit software"
+               title="Edit software">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M15.502 1.94a.5.5 0 0 1 0 .706l-1.793 1.793-2.647-2.647L12.855 0a.5.5 0 0 1 .707 0z"/>
+                    <path d="M1 13.5V16h2.5l7.372-7.372-2.647-2.647z"/>
+                </svg>
+            </a>
+            <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_assessment', source_assessment_id=software.id) }}">Add Assessment</a>
         </div>
-        <div class="d-flex flex-wrap gap-2">
-            <a class="btn btn-success rounded-pill px-4" href="{{ url_for('new_assessment', source_assessment_id=software.id) }}">Add Assessment</a>
-            <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('edit_software', software_name=software_name) }}">Edit Software</a>
-            <a class="btn btn-outline-primary rounded-pill px-4" href="{{ url_for('software_list') }}">Back to Software</a>
+    </div>
+    <div>
+        <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Software History</span>
+        <h1 class="display-6 fw-semibold mb-2">{{ software_name }}</h1>
+        {% if software.software_website %}
+        <div class="mb-2">
+            <a class="text-decoration-none fw-semibold" href="{{ software.software_website }}" target="_blank" rel="noopener noreferrer">
+                {{ software.software_website }}
+            </a>
         </div>
+        {% endif %}
     </div>
 </section>
 
@@ -48,27 +65,10 @@
             <div>{{ software.vendor_country }}</div>
         </div>
         {% endif %}
-        {% if software.license_type %}
-        <div class="col-md-6">
-            <div class="small text-secondary mb-1">License Type</div>
-            <div>{{ software.license_type }}</div>
-        </div>
-        {% endif %}
         {% if software.deployment_date %}
         <div class="col-md-6">
             <div class="small text-secondary mb-1">Deployment Date</div>
             <div>{{ software.deployment_date }}</div>
-        </div>
-        {% endif %}
-    </div>
-</section>
-
-<section class="table-panel p-4 mb-4">
-    <div class="row g-3">
-        {% if software.duplicates_existing %}
-        <div class="col-md-6">
-            <div class="small text-secondary mb-1">Duplicates Existing Capability</div>
-            <div>{{ software.duplicates_existing }}</div>
         </div>
         {% endif %}
         {% if software.genuine_need_notes %}
@@ -77,39 +77,15 @@
             <div>{{ software.genuine_need_notes }}</div>
         </div>
         {% endif %}
-        {% if software.product_security_assessment %}
-        <div class="col-12">
-            <div class="small text-secondary mb-1">Product Security Assessment</div>
-            <div>{{ software.product_security_assessment }}</div>
-        </div>
-        {% endif %}
-        <div class="col-md-4">
-            <div class="small text-secondary mb-1">Product Updates</div>
-            <div>{{ "Yes" if software.product_updates else "No" }}</div>
-        </div>
-        <div class="col-md-4">
-            <div class="small text-secondary mb-1">Security Updates</div>
-            <div>{{ "Yes" if software.security_updates else "No" }}</div>
-        </div>
-        <div class="col-md-4">
-            <div class="small text-secondary mb-1">Vendor Support</div>
-            <div>{{ "Yes" if software.vendor_support else "No" }}</div>
-        </div>
-        {% if software.support_notes %}
-        <div class="col-12">
-            <div class="small text-secondary mb-1">Support Notes</div>
-            <div>{{ software.support_notes }}</div>
-        </div>
-        {% endif %}
     </div>
 </section>
 
 <section class="table-panel p-4 mb-4">
     <div class="row g-3">
-        {% if software.software_license_details %}
-        <div class="col-12">
-            <div class="small text-secondary mb-1">Software License Details</div>
-            <div>{{ software.software_license_details }}</div>
+        {% if software.license_start_date %}
+        <div class="col-md-6">
+            <div class="small text-secondary mb-1">License Date</div>
+            <div>{{ software.license_start_date }}</div>
         </div>
         {% endif %}
         {% if software.license_type != "Perpetual" and software.license_renewal_date %}
@@ -123,31 +99,38 @@
             <div>{{ "Yes" if software.tested else "No" }}</div>
         </div>
         <div class="col-md-6">
-            <div class="small text-secondary mb-1">Deployed</div>
+            <div class="small text-secondary mb-1">Active</div>
             <div>{{ "Yes" if software.deployed else "No" }}</div>
         </div>
     </div>
 </section>
 
-{% if software.terms_conditions_link or software.license_agreement_link or software.purchase_link %}
+{% if software.product_updates or software.security_updates or software.support_notes %}
+<section class="table-panel p-4 mb-4">
+    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Maintenance</h2>
+    <div class="row g-3">
+        {% if software.product_updates or software.security_updates %}
+        <div class="col-12">
+            <div class="small text-secondary mb-1">Software Updates</div>
+            <div class="d-flex flex-wrap gap-3">
+                {% if software.product_updates %}<span class="badge text-bg-secondary rounded-pill px-3 py-2">Product Updates Available</span>{% endif %}
+                {% if software.security_updates %}<span class="badge text-bg-secondary rounded-pill px-3 py-2">Security Updates Available</span>{% endif %}
+            </div>
+        </div>
+        {% endif %}
+        {% if software.support_notes %}
+        <div class="col-12">
+            <div class="small text-secondary mb-1">Support Notes</div>
+            <div>{{ software.support_notes }}</div>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+
+{% if software.purchase_link %}
 <section class="table-panel p-4 mb-4">
     <div class="row g-3">
-        {% if software.terms_conditions_link %}
-        <div class="col-md-6">
-            <div class="fw-semibold mb-2">Terms and Conditions</div>
-            <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ software.terms_conditions_link }}" target="_blank" rel="noopener noreferrer">
-                Open terms
-            </a>
-        </div>
-        {% endif %}
-        {% if software.license_agreement_link %}
-        <div class="col-md-6">
-            <div class="fw-semibold mb-2">License Agreement</div>
-            <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ software.license_agreement_link }}" target="_blank" rel="noopener noreferrer">
-                Open license agreement
-            </a>
-        </div>
-        {% endif %}
         {% if software.purchase_link %}
         <div class="col-md-6">
             <div class="fw-semibold mb-2">Purchase Link</div>

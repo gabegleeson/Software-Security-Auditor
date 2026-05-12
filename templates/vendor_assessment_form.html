@@ -65,6 +65,18 @@
         font-weight: 400;
     }
 
+    .other-data-location-option {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        background: var(--surface-field);
+        padding: 12px;
+        margin: 12px 0 0;
+        font-weight: 600;
+    }
+
     .privacy-subsection {
         border: 1px solid var(--border-soft);
         border-radius: 8px;
@@ -226,13 +238,6 @@
                             <option value="Yes" {% if assessment.cloud_hosted_data == "Yes" %}selected{% endif %}>Yes</option>
                             <option value="No" {% if assessment.cloud_hosted_data == "No" %}selected{% endif %}>No</option>
                         </select>
-                        <div id="data_processing_agreement_wrap">
-                            <label class="form-label fw-semibold d-flex align-items-start gap-2">
-                                <input type="checkbox" id="data_processing_agreement_in_place" name="data_processing_agreement_in_place" value="true" {% if assessment.data_processing_agreement_in_place %}checked{% endif %}>
-                                <span>Data Processing Agreement in place</span>
-                            </label>
-                            <div class="form-text mb-3">When checked, data storage location is set to {{ home_country }}.</div>
-                        </div>
                         <div id="data_storage_location_wrap">
                             <label class="form-label fw-semibold">Data Storage Location</label>
                             {% set selected_storage_locations = (assessment.data_storage_location or "").split(", ") %}
@@ -257,9 +262,23 @@
                             </div>
                             <div class="checkbox-grid is-scrollable">
                                 {% for country in country_options %}
+                                {% if country != "Overseas (Unspecified)" %}
                                 <label><input type="checkbox" name="data_storage_location" value="{{ country }}" {% if country in selected_storage_locations %}checked{% endif %}> {{ country }}</label>
+                                {% endif %}
                                 {% endfor %}
                             </div>
+                            <label class="other-data-location-option">
+                                <input class="form-check-input m-0" type="checkbox" id="other_data_storage_location_unspecified_checkbox" name="data_storage_location" value="Other countries (unspecified)" {% if "Other countries (unspecified)" in selected_storage_locations or "Overseas (Unspecified)" in selected_storage_locations %}checked{% endif %}>
+                                <input type="hidden" id="other_data_storage_location_unspecified" name="other_data_storage_location_unspecified" value="{% if 'Other countries (unspecified)' in selected_storage_locations or 'Overseas (Unspecified)' in selected_storage_locations %}true{% else %}false{% endif %}">
+                                <span>Other countries (unspecified)</span>
+                            </label>
+                        </div>
+                        <div id="data_processing_agreement_wrap" class="mt-3">
+                            <label class="form-label fw-semibold d-flex align-items-start gap-2">
+                                <input type="checkbox" id="data_processing_agreement_in_place" name="data_processing_agreement_in_place" value="true" {% if assessment.data_processing_agreement_in_place %}checked{% endif %}>
+                                <span>Data Processing Agreement in place</span>
+                            </label>
+                            <div class="form-text">When checked, data storage location is set to {{ home_country }}.</div>
                         </div>
                         <input type="hidden" id="home_country" value="{{ home_country }}">
                         <div id="storage_location_notes_wrap">
@@ -279,6 +298,9 @@
                                 {% for data_type in data_type_options %}
                                 <label><input type="checkbox" name="data_types_stored" value="{{ data_type }}" {% if data_type in selected_data_types %}checked{% endif %}> {{ data_type }}</label>
                                 {% endfor %}
+                                {% if "Academic Records" not in data_type_options %}
+                                <label><input type="checkbox" name="data_types_stored" value="Academic Records" {% if "Academic Records" in selected_data_types or "Academic records" in selected_data_types %}checked{% endif %}> Academic Records</label>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
@@ -306,6 +328,9 @@
                             {% for privacy_law in international_privacy_law_options %}
                             <label><input type="checkbox" name="privacy_laws_adhered_to" value="{{ privacy_law }}" {% if privacy_law in selected_privacy_laws %}checked{% endif %}> {{ privacy_law }}</label>
                             {% endfor %}
+                            {% if "Swiss Federal Data Protection Act (FADP)" not in international_privacy_law_options %}
+                            <label><input type="checkbox" name="privacy_laws_adhered_to" value="Swiss Federal Data Protection Act (FADP)" {% if "Swiss Federal Data Protection Act (FADP)" in selected_privacy_laws %}checked{% endif %}> Swiss Federal Data Protection Act (FADP)</label>
+                            {% endif %}
                         </div>
                         <label class="form-label fw-semibold">Sector-Specific or Contextual Laws</label>
                         {% set selected_contextual_laws = (assessment.sector_specific_contextual_laws or "").split(", ") %}
@@ -432,6 +457,8 @@
     const dataProcessingAgreementField = document.getElementById("data_processing_agreement_in_place");
     const dataStorageLocationWrap = document.getElementById("data_storage_location_wrap");
     const dataStorageLocationInputs = document.querySelectorAll('input[name="data_storage_location"]');
+    const otherDataStorageLocationUnspecifiedCheckbox = document.getElementById("other_data_storage_location_unspecified_checkbox");
+    const otherDataStorageLocationUnspecifiedField = document.getElementById("other_data_storage_location_unspecified");
     const selectedDataStorageLocationsText = document.getElementById("selected_data_storage_locations_text");
     const selectedDataStorageLocationsValue = document.getElementById("selected_data_storage_locations_value");
     const storageLocationNotesWrap = document.getElementById("storage_location_notes_wrap");
@@ -511,6 +538,14 @@
         selectedDataStorageLocationsText.style.display = selectedValues.length ? "" : "none";
     }
 
+    function syncOtherDataStorageLocationUnspecifiedField() {
+        if (!otherDataStorageLocationUnspecifiedCheckbox || !otherDataStorageLocationUnspecifiedField) {
+            return;
+        }
+
+        otherDataStorageLocationUnspecifiedField.value = otherDataStorageLocationUnspecifiedCheckbox.checked ? "true" : "false";
+    }
+
     function syncDataStorageGroupState(groupField, countries) {
         if (!groupField || !countries.size) {
             return;
@@ -534,7 +569,7 @@
 
         const hasCloudHostedData = cloudHostedDataField?.value === "Yes";
         const hasDataProcessingAgreement = !!dataProcessingAgreementField?.checked;
-        const baseDisabled = !hasCloudHostedData || hasDataProcessingAgreement;
+        const baseDisabled = !hasCloudHostedData;
         const lockEuSelection = areAllGroupedInputsSelected(eeaDataStorageCountries) && !baseDisabled;
         if (euDataStorageGroupField) {
             euDataStorageGroupField.disabled = baseDisabled || lockEuSelection;
@@ -556,12 +591,12 @@
         if (!hasCloudHostedData) {
             dataProcessingAgreementField.checked = false;
         }
-        dataStorageLocationWrap.style.display = hasCloudHostedData && !hasDataProcessingAgreement ? "" : "none";
+        dataStorageLocationWrap.style.display = hasCloudHostedData ? "" : "none";
         if (euDataStorageGroupField) {
-            euDataStorageGroupField.disabled = !hasCloudHostedData || hasDataProcessingAgreement;
+            euDataStorageGroupField.disabled = !hasCloudHostedData;
         }
         if (eeaDataStorageGroupField) {
-            eeaDataStorageGroupField.disabled = !hasCloudHostedData || hasDataProcessingAgreement;
+            eeaDataStorageGroupField.disabled = !hasCloudHostedData;
         }
         if (storageLocationNotesWrap && storageLocationNotesField) {
             storageLocationNotesWrap.style.display = hasCloudHostedData ? "" : "none";
@@ -571,13 +606,14 @@
             }
         }
         dataStorageLocationInputs.forEach((input) => {
-            input.disabled = !hasCloudHostedData || hasDataProcessingAgreement;
+            input.disabled = !hasCloudHostedData;
             if (!hasCloudHostedData) {
                 input.checked = false;
             } else if (hasDataProcessingAgreement) {
-                input.checked = input.value === homeCountry;
+                input.checked = input.checked || input.value === homeCountry;
             }
         });
+        syncOtherDataStorageLocationUnspecifiedField();
         updateSelectedDataStorageLocationsText();
         syncDataStorageGroupStates();
         updateEuSelectionLock();
@@ -763,8 +799,24 @@
         updateDataTypesHostedVisibility();
     }
 
+    let preDpaCheckedCountries = null;
+
     if (dataProcessingAgreementField) {
-        dataProcessingAgreementField.addEventListener("change", updateDataStorageLocationVisibility);
+        dataProcessingAgreementField.addEventListener("change", () => {
+            if (dataProcessingAgreementField.checked) {
+                preDpaCheckedCountries = new Set(
+                    Array.from(dataStorageLocationInputs)
+                        .filter((input) => input.checked)
+                        .map((input) => input.value)
+                );
+            } else if (preDpaCheckedCountries !== null) {
+                dataStorageLocationInputs.forEach((input) => {
+                    input.checked = preDpaCheckedCountries.has(input.value);
+                });
+                preDpaCheckedCountries = null;
+            }
+            updateDataStorageLocationVisibility();
+        });
         updateDataStorageLocationVisibility();
     }
 
@@ -796,11 +848,13 @@
     if (euDataStorageGroupField || eeaDataStorageGroupField) {
         dataStorageLocationInputs.forEach((input) => {
             input.addEventListener("change", () => {
+                syncOtherDataStorageLocationUnspecifiedField();
                 updateSelectedDataStorageLocationsText();
                 syncDataStorageGroupStates();
                 updateEuSelectionLock();
             });
         });
+        syncOtherDataStorageLocationUnspecifiedField();
         updateSelectedDataStorageLocationsText();
         syncDataStorageGroupStates();
         updateEuSelectionLock();

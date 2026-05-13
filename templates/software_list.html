@@ -65,6 +65,54 @@
     .status-filter label:hover {
         color: var(--navy);
     }
+
+    .row-checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--navy, #16324f);
+    }
+
+    #select_all_checkbox {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--navy, #16324f);
+    }
+
+    th.checkbox-col,
+    td.checkbox-col {
+        width: 40px;
+        padding-right: 4px;
+    }
+
+    #bulk_action_bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 200;
+        background: var(--surface-panel, #fff);
+        border-top: 1px solid var(--border-soft, #e2e8f0);
+        box-shadow: 0 -4px 16px rgba(15, 23, 42, 0.10);
+        padding: 14px 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+        transform: translateY(100%);
+        transition: transform 0.2s ease;
+    }
+
+    #bulk_action_bar.is-visible {
+        transform: translateY(0);
+    }
+
+    #bulk_selected_count {
+        font-weight: 600;
+        font-size: 0.9375rem;
+        margin-right: 4px;
+    }
 </style>
 {% endblock %}
 
@@ -103,6 +151,9 @@
         <table class="table align-middle mb-0">
             <thead>
                 <tr>
+                    <th class="checkbox-col">
+                        <input type="checkbox" id="select_all_checkbox" aria-label="Select all visible rows" title="Select all">
+                    </th>
                     <th class="sortable-header" data-sort-key="software">Software</th>
                     <th class="sortable-header" data-sort-key="vendor">Vendor</th>
                     <th class="sortable-header" data-sort-key="licenseStart">License Date</th>
@@ -112,7 +163,17 @@
             </thead>
             <tbody id="software_table_body">
                 {% for record in software_records %}
-                <tr data-software-name="{{ record.software_name|lower }}" data-vendor-name="{{ record.vendor_name|lower }}" data-license-start-name="{{ record.license_start_date or '9999-12-31' }}" data-next-audit-name="{{ record.next_audit_date or record.review_date or '9999-12-31' }}" data-active="{{ 'true' if record.deployed else 'false' }}">
+                <tr
+                    data-software-name="{{ record.software_name|lower }}"
+                    data-software-key="{{ record.software_name }}"
+                    data-vendor-name="{{ record.vendor_name|lower }}"
+                    data-license-start-name="{{ record.license_start_date or '9999-12-31' }}"
+                    data-next-audit-name="{{ record.next_audit_date or record.review_date or '9999-12-31' }}"
+                    data-active="{{ 'true' if record.deployed else 'false' }}"
+                >
+                    <td class="checkbox-col">
+                        <input type="checkbox" class="row-checkbox" aria-label="Select {{ record.software_name }}">
+                    </td>
                     <td data-title-cell>
                         <div class="fw-semibold">
                             <a class="link-dark text-decoration-none" href="{{ url_for('software_detail', software_name=record.software_name) }}">
@@ -149,6 +210,13 @@
     </div>
 </section>
 
+<div id="bulk_action_bar" role="region" aria-label="Bulk actions" aria-live="polite">
+    <span id="bulk_selected_count"></span>
+    <button id="bulk_set_active" class="btn btn-success rounded-pill px-4" type="button">Set Active</button>
+    <button id="bulk_set_inactive" class="btn btn-outline-secondary rounded-pill px-4" type="button">Set Inactive</button>
+    <button id="bulk_deselect" class="btn btn-link text-secondary px-2" type="button">Deselect all</button>
+</div>
+
 <script>
     const softwareSearchField = document.getElementById("software_search");
     const softwareTableBody = document.getElementById("software_table_body");
@@ -156,6 +224,12 @@
     const softwareSearchEmpty = document.getElementById("software_search_empty");
     const softwareSortableHeaders = Array.from(document.querySelectorAll(".sortable-header"));
     const activeFilterInputs = Array.from(document.querySelectorAll("input[name='active_filter']"));
+    const selectAllCheckbox = document.getElementById("select_all_checkbox");
+    const bulkActionBar = document.getElementById("bulk_action_bar");
+    const bulkSelectedCount = document.getElementById("bulk_selected_count");
+    const bulkSetActiveButton = document.getElementById("bulk_set_active");
+    const bulkSetInactiveButton = document.getElementById("bulk_set_inactive");
+    const bulkDeselectButton = document.getElementById("bulk_deselect");
     let softwareSortState = { key: "", direction: "asc" };
 
     function sortSoftwareRows(sortKey) {
@@ -182,6 +256,40 @@
         filterSoftwareRows();
     }
 
+    function getVisibleRows() {
+        return softwareRows.filter((row) => row.style.display !== "none");
+    }
+
+    function getSelectedRows() {
+        return softwareRows.filter((row) => {
+            const cb = row.querySelector(".row-checkbox");
+            return cb && cb.checked;
+        });
+    }
+
+    function updateBulkBar() {
+        const selected = getSelectedRows();
+        const count = selected.length;
+        if (count > 0) {
+            bulkSelectedCount.textContent = `${count} selected`;
+            bulkActionBar.classList.add("is-visible");
+        } else {
+            bulkActionBar.classList.remove("is-visible");
+        }
+
+        const visibleRows = getVisibleRows();
+        const allVisibleChecked = visibleRows.length > 0 && visibleRows.every((row) => {
+            const cb = row.querySelector(".row-checkbox");
+            return cb && cb.checked;
+        });
+        const someVisibleChecked = visibleRows.some((row) => {
+            const cb = row.querySelector(".row-checkbox");
+            return cb && cb.checked;
+        });
+        selectAllCheckbox.checked = allVisibleChecked;
+        selectAllCheckbox.indeterminate = someVisibleChecked && !allVisibleChecked;
+    }
+
     function filterSoftwareRows() {
         const query = softwareSearchField.value.trim().toLowerCase();
         const activeFilter = activeFilterInputs.find((input) => input.checked)?.value || "active";
@@ -201,7 +309,69 @@
         });
 
         softwareSearchEmpty.style.display = visibleCount ? "none" : "block";
+        updateBulkBar();
     }
+
+    function deselectAll() {
+        softwareRows.forEach((row) => {
+            const cb = row.querySelector(".row-checkbox");
+            if (cb) cb.checked = false;
+        });
+        updateBulkBar();
+    }
+
+    async function applyBulkStatus(status) {
+        const selectedRows = getSelectedRows();
+        if (!selectedRows.length) return;
+
+        const softwareNames = selectedRows.map((row) => row.dataset.softwareKey);
+        const body = new URLSearchParams({ status });
+        softwareNames.forEach((name) => body.append("software_names", name));
+
+        bulkSetActiveButton.disabled = true;
+        bulkSetInactiveButton.disabled = true;
+
+        try {
+            const response = await fetch("/software-bulk-status", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8" },
+                body,
+            });
+
+            if (!response.ok) return;
+
+            const deployed = status === "active";
+            selectedRows.forEach((row) => {
+                row.dataset.active = deployed ? "true" : "false";
+            });
+
+            deselectAll();
+            filterSoftwareRows();
+        } finally {
+            bulkSetActiveButton.disabled = false;
+            bulkSetInactiveButton.disabled = false;
+        }
+    }
+
+    selectAllCheckbox.addEventListener("change", () => {
+        const visible = getVisibleRows();
+        visible.forEach((row) => {
+            const cb = row.querySelector(".row-checkbox");
+            if (cb) cb.checked = selectAllCheckbox.checked;
+        });
+        updateBulkBar();
+    });
+
+    softwareRows.forEach((row) => {
+        const cb = row.querySelector(".row-checkbox");
+        if (cb) {
+            cb.addEventListener("change", updateBulkBar);
+        }
+    });
+
+    bulkSetActiveButton.addEventListener("click", () => applyBulkStatus("active"));
+    bulkSetInactiveButton.addEventListener("click", () => applyBulkStatus("inactive"));
+    bulkDeselectButton.addEventListener("click", deselectAll);
 
     softwareSearchField.addEventListener("input", filterSoftwareRows);
     activeFilterInputs.forEach((input) => input.addEventListener("change", filterSoftwareRows));

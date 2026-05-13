@@ -166,6 +166,29 @@
 </section>
 
 <section class="table-panel p-4 mb-4">
+    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Alerts</h2>
+    {% if vendor_data_storage_map.high_risk_locations %}
+    <div class="alert alert-warning d-flex gap-3 align-items-start mb-0" role="alert">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+        </svg>
+        <div>
+            <strong>High-risk data storage locations detected.</strong>
+            The latest vendor audit lists data stored in
+            {% if vendor_data_storage_map.high_risk_locations|length == 1 %}
+                <strong>{{ vendor_data_storage_map.high_risk_locations[0] }}</strong>, which is classified as high risk.
+            {% else %}
+                {% for loc in vendor_data_storage_map.high_risk_locations %}<strong>{{ loc }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}, which are classified as high risk.
+            {% endif %}
+            Review data transfer mechanisms and ensure appropriate safeguards are in place.
+        </div>
+    </div>
+    {% else %}
+    <p class="text-secondary mb-0">No alerts for this vendor.</p>
+    {% endif %}
+</section>
+
+<section class="table-panel p-4 mb-4">
     <div class="mb-3">
         <h2 class="h5 mb-1">Data Storage Map</h2>
         <p class="text-secondary mb-0">Locations from the latest submitted vendor audit{% if vendor_data_storage_map.vendor_assessment_date %} dated {{ vendor_data_storage_map.vendor_assessment_date }}{% endif %}.</p>

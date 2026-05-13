@@ -43,6 +43,7 @@ ASSESSMENT_FIELDS = (
     "duplicates_existing",
     "genuine_need_notes",
     "vendor_security_assessment",
+    "student_intended_use",
     "age_restrictions",
     "allows_acceptance_on_behalf_of_entity",
     "terms_compliance_notes",
@@ -68,7 +69,6 @@ ASSESSMENT_FIELDS = (
     "audit_reminder_frequency",
     "review_date",
     "next_audit_date",
-    "risk_level",
     "submitted_date",
     "software_id",
     "is_assessment",
@@ -77,7 +77,6 @@ ASSESSMENT_FIELDS = (
 
 CHECKBOX_FIELDS = {
     "free_software",
-    "allows_acceptance_on_behalf_of_entity",
 }
 VENDOR_PRIVACY_FIELDS = (
     "data_processing_agreement_in_place",
@@ -623,8 +622,9 @@ PDF_FIELD_LABELS = {
     "product_updates": "Product Updates",
     "security_updates": "Security Updates",
     "support_notes": "Support Notes",
+    "student_intended_use": "Software Intended for Student Use",
     "age_restrictions": "Age Restrictions",
-    "allows_acceptance_on_behalf_of_entity": "Terms Permit Acceptance by an Organisation on Behalf of End Users",
+    "allows_acceptance_on_behalf_of_entity": "Terms Permit Acceptance by the College on Behalf of Students",
     "terms_compliance_notes": "Terms Compliance Notes",
     "compatible_end_user_devices": "Compatible End-user Devices",
     "end_user_device_notes": "End-user Device Notes",
@@ -695,6 +695,7 @@ PDF_SECTION_FIELDS = [
     ("Assessment Responses", [
         "assessment_date",
         "license_type",
+        "student_intended_use",
         "age_restrictions",
         "allows_acceptance_on_behalf_of_entity",
         "terms_compliance_notes",
@@ -789,6 +790,7 @@ SOFTWARE_DETAIL_FIELDS = (
     "deployment_date",
     "audit_reminder_frequency",
     "next_audit_date",
+    "risk_level",
 )
 
 FORM_OPTION_CONTEXT = {
@@ -858,6 +860,7 @@ def collect_software_form_data(form):
         "deployment_date": form.get("deployment_date", "").strip(),
         "audit_reminder_frequency": form.get("audit_reminder_frequency", "").strip() or "1_year",
         "next_audit_date": form.get("next_audit_date", "").strip(),
+        "risk_level": form.get("risk_level", "").strip(),
     }
 
 
@@ -1305,7 +1308,12 @@ def build_assessment_pdf(record):
         ],
         [
             Paragraph("<b>Risk Level</b>", label_style),
-            pdf_paragraph(format_assessment_value("risk_level", record.get("risk_level", ""), record), value_style),
+            Paragraph(
+                '<font color="#16a34a"><b>✓ Low</b></font>'
+                if record.get("risk_level") == "Low"
+                else escape(clean_pdf_text(format_assessment_value("risk_level", record.get("risk_level", ""), record))),
+                value_style,
+            ),
             Paragraph("<b>Review Date</b>", label_style),
             pdf_paragraph(format_assessment_value("review_date", record.get("review_date", ""), record), value_style),
         ],
@@ -1341,6 +1349,8 @@ def build_assessment_pdf(record):
                 continue
             if field == "license_renewal_date" and record.get("license_type") == "Perpetual":
                 continue
+            if field == "allows_acceptance_on_behalf_of_entity" and record.get("age_restrictions", "") in ("", "None"):
+                continue
             label = PDF_FIELD_LABELS.get(field, field.replace("_", " ").title())
             value = format_assessment_value(field, record.get(field, ""), record)
             if value == "Not provided":
@@ -1375,8 +1385,105 @@ def build_assessment_pdf(record):
         story.append(section_table)
         story.append(Spacer(1, 8))
 
+    if (
+        record.get("student_intended_use") == "Yes"
+        and record.get("age_restrictions", "") not in ("", "None")
+        and record.get("allows_acceptance_on_behalf_of_entity") != "Yes"
+    ):
+        alert_heading_style = ParagraphStyle(
+            "AlertHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        alert_body_style = ParagraphStyle(
+            "AlertBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        age_restriction_value = record.get("age_restrictions", "")
+        alert_cell = [
+            Paragraph("Acceptance terms require individual consent.", alert_heading_style),
+            Paragraph(
+                f"This software is intended for student use and has age restrictions ({age_restriction_value}), "
+                "but the vendor's terms do not permit the college to accept on behalf of students. "
+                "Individual student or parental consent may be required before deployment.",
+                alert_body_style,
+            ),
+        ]
+        alert_table = Table([[alert_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        alert_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(alert_table)
+        story.append(Spacer(1, 10))
+
+    vendor_name = record.get("vendor_name", "")
+    vendor_map = build_vendor_data_storage_map(vendor_name) if vendor_name else {"high_risk_locations": []}
+    vendor_high_risk_locations = vendor_map["high_risk_locations"]
+    if vendor_high_risk_locations:
+        vendor_alert_heading_style = ParagraphStyle(
+            "VendorAlertHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        vendor_alert_body_style = ParagraphStyle(
+            "VendorAlertBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        if len(vendor_high_risk_locations) == 1:
+            locations_text = f"<b>{vendor_high_risk_locations[0]}</b>, which is classified as high risk"
+        else:
+            locations_text = ", ".join(f"<b>{loc}</b>" for loc in vendor_high_risk_locations) + ", which are classified as high risk"
+        vendor_alert_cell = [
+            Paragraph("High-risk data storage locations detected.", vendor_alert_heading_style),
+            Paragraph(
+                f"The latest audit for {vendor_name} lists data stored in {locations_text}. "
+                "Review data transfer mechanisms and ensure appropriate safeguards are in place.",
+                vendor_alert_body_style,
+            ),
+        ]
+        vendor_alert_table = Table([[vendor_alert_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        vendor_alert_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(vendor_alert_table)
+        story.append(Spacer(1, 10))
+
     signature_roles = ["IT Director", "Line Manager"]
-    if record.get("allows_acceptance_on_behalf_of_entity"):
+    if record.get("allows_acceptance_on_behalf_of_entity") == "Yes":
         signature_roles.append("Deputy Principal")
 
     story.append(Paragraph("Signatures", section_style))
@@ -1760,6 +1867,9 @@ def load_software_items():
         for field in ASSESSMENT_FIELDS:
             if field in loaded_record:
                 record[field] = loaded_record[field]
+        record["deployed"] = bool(loaded_record["deployed"]) if "deployed" in loaded_record else True
+        record["tested"] = bool(loaded_record.get("tested", False))
+        record["risk_level"] = loaded_record.get("risk_level", "")
         record["id"] = row["id"]
         record["software_id"] = row["id"]
         record["software_name"] = record.get("software_name") or row["software_name"]
@@ -1789,6 +1899,8 @@ def load_software_assessment_records(software_items=None):
         for field in ASSESSMENT_FIELDS:
             if field in loaded_record:
                 record[field] = loaded_record[field]
+        record["deployed"] = bool(loaded_record["deployed"]) if "deployed" in loaded_record else True
+        record["tested"] = bool(loaded_record.get("tested", False))
         record["id"] = row["id"]
         record["software_name"] = record.get("software_name") or row["software_name"]
         record["software_id"] = record.get("software_id") or row["software_id"] or software_id_by_name.get(
@@ -1841,6 +1953,14 @@ def ensure_software_item_for_record(record):
     return next_id
 
 
+def _software_record_to_json(record):
+    data = {key: record.get(key) for key in ASSESSMENT_FIELDS if key != "id"}
+    data["deployed"] = bool(record.get("deployed", False))
+    data["tested"] = bool(record.get("tested", False))
+    data["risk_level"] = record.get("risk_level", "")
+    return json.dumps(data)
+
+
 def persist_software_items():
     with get_db_connection() as connection:
         connection.execute("DELETE FROM software")
@@ -1851,7 +1971,7 @@ def persist_software_items():
                     int(record["id"]),
                     record.get("vendor_name", ""),
                     record.get("software_name", ""),
-                    json.dumps({key: record.get(key) for key in ASSESSMENT_FIELDS if key != "id"}),
+                    _software_record_to_json(record),
                 )
                 for record in SOFTWARE_ITEMS
                 if record.get("id") and record.get("software_name")
@@ -1869,7 +1989,7 @@ def persist_software_assessment_records():
                     int(record["id"]),
                     record.get("software_id") or find_software_id(record.get("software_name", "")),
                     record.get("software_name", ""),
-                    json.dumps({key: record.get(key) for key in ASSESSMENT_FIELDS if key != "id"}),
+                    _software_record_to_json(record),
                 )
                 for record in SOFTWARE_ASSESSMENT_RECORDS
                 if record.get("id") and record.get("software_name")
@@ -2271,10 +2391,10 @@ def require_login():
     return redirect(url_for("login", next=request.path))
 
 
-def build_vendor_list():
+def build_vendor_list(active_only=False):
     vendors_by_name = {}
 
-    for record in build_software_catalog():
+    for record in build_software_catalog(active_only=active_only):
         vendor_name = record.get("vendor_name", "").strip()
         if not vendor_name:
             continue
@@ -2304,6 +2424,8 @@ def build_vendor_list():
     for vendor in VENDOR_RECORDS:
         vendor_name = vendor.get("vendor_name", "").strip()
         if not vendor_name:
+            continue
+        if active_only and vendor_name not in vendors_by_name:
             continue
         existing = vendors_by_name.setdefault(
             vendor_name,
@@ -2405,7 +2527,18 @@ def get_latest_software_record(software_name):
     return records[0] if records else None
 
 
-def build_software_catalog():
+def build_software_catalog(active_only=False):
+    deployed_by_name = {
+        normalized_name(item.get("software_name", "")): bool(item.get("deployed", False))
+        for item in SOFTWARE_ITEMS
+        if item.get("software_name")
+    }
+    risk_level_by_name = {
+        normalized_name(item.get("software_name", "")): item.get("risk_level", "")
+        for item in SOFTWARE_ITEMS
+        if item.get("software_name")
+    }
+
     latest_by_name = {}
 
     for record in SOFTWARE_RECORDS:
@@ -2422,7 +2555,16 @@ def build_software_catalog():
         if record_rank > current_rank:
             latest_by_name[key] = record
 
-    return sorted(latest_by_name.values(), key=lambda record: normalized_name(record.get("software_name", "")))
+    result = []
+    for key, record in latest_by_name.items():
+        is_deployed = deployed_by_name.get(key, True)
+        if active_only and not is_deployed:
+            continue
+        annotated = dict(record)
+        annotated["deployed"] = is_deployed
+        annotated["risk_level"] = risk_level_by_name.get(key, record.get("risk_level", ""))
+        result.append(annotated)
+    return sorted(result, key=lambda record: normalized_name(record.get("software_name", "")))
 
 
 def delete_software_details(software_name):
@@ -3118,7 +3260,7 @@ def sync_vendor_from_assessment(record):
 
 
 def build_dashboard_context(show_all_upcoming_audits=False):
-    software_catalog = build_software_catalog()
+    software_catalog = build_software_catalog(active_only=True)
     risk_counts = Counter(record["risk_level"] for record in software_catalog if is_submitted_assessment(record))
     today = date.today()
     draft_assessments = sorted(
@@ -3150,7 +3292,7 @@ def build_dashboard_context(show_all_upcoming_audits=False):
         if is_submitted_assessment(record) and (record.get("next_audit_date") or record.get("review_date")):
             upcoming_audit_candidates.append(("software", record.get("next_audit_date") or record.get("review_date", ""), record))
 
-    for vendor in build_vendor_list():
+    for vendor in build_vendor_list(active_only=True):
         if vendor.get("vendor_next_audit_date"):
             vendor_record = dict(vendor)
             vendor_record["vendor_assessment_date"] = ""
@@ -3196,7 +3338,7 @@ def build_dashboard_context(show_all_upcoming_audits=False):
         if assessment.get("submission_status") == "draft" and assessment.get("vendor_name", "").strip()
     }
     vendors_needing_assessment = [
-        vendor for vendor in build_vendor_list()
+        vendor for vendor in build_vendor_list(active_only=True)
         if normalized_name(vendor.get("vendor_name", "")) not in vendor_names_with_assessments
         and normalized_name(vendor.get("vendor_name", "")) not in vendor_names_with_drafts
     ]
@@ -3232,7 +3374,7 @@ def build_dashboard_context(show_all_upcoming_audits=False):
 
     return {
         "software_records": software_catalog,
-        "vendors": build_vendor_list(),
+        "vendors": build_vendor_list(active_only=True),
         "draft_assessments": draft_assessment_items,
         "draft_vendor_assessments": vendor_draft_assessment_items,
         "upcoming_audits": upcoming_audit_items if display_limit is None else upcoming_audit_items[:display_limit],
@@ -3254,6 +3396,7 @@ def build_overseas_hosting_report():
     overseas_records = [
         record for record in SOFTWARE_RECORDS
         if is_submitted_assessment(record)
+        and record.get("deployed")
         and any(
             location != "Australia"
             for location in get_selected_values((get_latest_vendor_assessment(record.get("vendor_name", "")) or {}).get("data_storage_location", ""))
@@ -3272,7 +3415,7 @@ def build_data_hosting_heatmap():
     vendor_count = 0
     country_risk_assignments = get_country_risk_assignments()
 
-    for vendor in build_vendor_list():
+    for vendor in build_vendor_list(active_only=True):
         vendor_assessment = get_latest_vendor_assessment(vendor.get("vendor_name", ""))
         locations = set(get_selected_values((vendor_assessment or {}).get("data_storage_location", "")))
         if not locations:
@@ -3332,7 +3475,7 @@ def build_data_hosting_heatmap():
 def build_vendors_without_hosting_locations_report():
     vendors_without_locations = []
 
-    for vendor in build_vendor_list():
+    for vendor in build_vendor_list(active_only=True):
         latest_assessment = get_latest_submitted_vendor_assessment(vendor.get("vendor_name", ""))
         if latest_assessment is None:
             continue
@@ -3370,7 +3513,7 @@ def build_vendors_without_hosting_locations_report():
 def build_vendors_with_unspecified_hosting_locations_report():
     vendors_with_unspecified_locations = []
 
-    for vendor in build_vendor_list():
+    for vendor in build_vendor_list(active_only=True):
         latest_assessment = get_latest_vendor_assessment(vendor.get("vendor_name", ""))
         if latest_assessment is None:
             continue
@@ -3407,6 +3550,7 @@ def build_vendor_data_storage_map(vendor_name):
             "has_locations": False,
             "locations": [],
             "map_locations": [],
+            "high_risk_locations": [],
             "vendor_assessment_date": "",
         }
 
@@ -3431,11 +3575,18 @@ def build_vendor_data_storage_map(vendor_name):
             }
         )
 
+    high_risk_locations = [
+        loc["location"]
+        for loc in map_locations
+        if loc["risk_level"] in ("High", "Very High")
+    ]
+
     return {
         "has_audit": True,
         "has_locations": bool(locations),
         "locations": locations,
         "map_locations": map_locations,
+        "high_risk_locations": high_risk_locations,
         "vendor_assessment_date": latest_assessment.get("vendor_assessment_date", ""),
     }
 
@@ -3524,6 +3675,39 @@ def software_list():
     return render_template("software_list.html", software_records=build_software_catalog())
 
 
+def save_software_deployed_status(software_name, deployed):
+    normalized = normalized_name(software_name)
+    if not normalized:
+        return False
+
+    updated = False
+    for record in SOFTWARE_RECORDS:
+        if normalized_name(record.get("software_name", "")) == normalized:
+            record["deployed"] = deployed
+            record.update(enrich_assessment(record))
+            updated = True
+    for record in SOFTWARE_ITEMS:
+        if normalized_name(record.get("software_name", "")) == normalized:
+            record["deployed"] = deployed
+            record.update(enrich_assessment(record))
+            updated = True
+    return updated
+
+
+@app.route("/software-bulk-status", methods=["POST"])
+def bulk_software_status():
+    software_names = request.form.getlist("software_names")
+    status = request.form.get("status", "").strip()
+    if status not in ("active", "inactive"):
+        return jsonify({"ok": False, "error": "Invalid status"}), 400
+
+    deployed = status == "active"
+    updated_count = sum(1 for name in software_names if save_software_deployed_status(name, deployed))
+    if updated_count:
+        persist_software_records()
+    return jsonify({"ok": True, "updated": updated_count, "status": status})
+
+
 @app.route("/reports")
 def reports():
     return render_template(
@@ -3580,9 +3764,13 @@ def edit_software(software_name):
             update_software_details(software_name, updated_details)
             return redirect(url_for("software_detail", software_name=updated_details["software_name"]))
 
+    software_item = get_software_item_by_name(software_name)
+    form_record = dict(software_record)
+    form_record["risk_level"] = software_item.get("risk_level", "") if software_item else software_record.get("risk_level", "")
+
     return render_template(
         "software_edit.html",
-        software=software_record,
+        software=form_record,
         form_title="Edit Software",
         submit_label="Update Software",
         is_new=False,
@@ -3592,12 +3780,14 @@ def edit_software(software_name):
 
 @app.route("/software/<path:software_name>/delete", methods=["POST"])
 def delete_software(software_name):
-    assessments = get_software_history(software_name)
-    if not assessments:
+    record = get_latest_software_record(software_name)
+    if record is None:
         abort(404)
 
     delete_software_details(software_name)
     return redirect(url_for("software_list"))
+
+
 
 
 @app.route("/software/<path:software_name>")
@@ -3607,11 +3797,20 @@ def software_detail(software_name):
         abort(404)
     assessments = get_software_assessment_records(software_name)
 
+    vendor_name = software_record.get("vendor_name", "")
+    vendor_map = build_vendor_data_storage_map(vendor_name) if vendor_name else {"high_risk_locations": []}
+
+    software_item = get_software_item_by_name(software_name)
+    display_record = dict(software_record)
+    if software_item:
+        display_record["risk_level"] = software_item.get("risk_level", "")
+
     return render_template(
         "software_detail.html",
-        software=software_record,
+        software=display_record,
         software_name=software_record["software_name"],
         assessments=assessments,
+        vendor_high_risk_locations=vendor_map["high_risk_locations"],
     )
 
 
@@ -3875,8 +4074,8 @@ def new_assessment():
             form_data["submitted_date"] = submitted_date
             form_data["assessment_date"] = submitted_date
             normalize_submitted_audit_dates(form_data)
-        form_data = enrich_assessment(form_data)
         existing_record = get_assessment_or_none(assessment_id) if assessment_id is not None else None
+        form_data = enrich_assessment(form_data)
         if existing_record is None:
             SOFTWARE_RECORDS.append(form_data)
             NEXT_ASSESSMENT_ID = max(NEXT_ASSESSMENT_ID, (assessment_id or 0) + 1)
@@ -4023,6 +4222,12 @@ def download_assessment_pdf(assessment_id):
         "vendor_security_assessment",
         record.get("vendor_security_assessment", ""),
     )
+    software_item = next(
+        (item for item in SOFTWARE_ITEMS
+         if normalized_name(item.get("software_name", "")) == normalized_name(record.get("software_name", ""))),
+        None,
+    )
+    pdf_record["risk_level"] = software_item.get("risk_level", "") if software_item else ""
     safe_name = (record.get("software_name") or f"assessment-{assessment_id}").strip().replace(" ", "-")
     audit_date = (
         record.get("assessment_date")

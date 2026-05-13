@@ -223,6 +223,16 @@
                     <label><input type="checkbox" name="deployed" {% if software.deployed %}checked{% endif %}> Active</label>
                 </div>
             </div>
+            <div class="col-md-6">
+                <label for="risk_level" class="form-label fw-semibold">Risk Level</label>
+                <select class="form-select" id="risk_level" name="risk_level">
+                    <option value="">Select risk level</option>
+                    <option value="Low" {% if software.risk_level == "Low" %}selected{% endif %}>Low</option>
+                    <option value="Medium" {% if software.risk_level == "Medium" %}selected{% endif %}>Medium</option>
+                    <option value="High" {% if software.risk_level == "High" %}selected{% endif %}>High</option>
+                    <option value="Critical" {% if software.risk_level == "Critical" %}selected{% endif %}>Critical</option>
+                </select>
+            </div>
         </div>
 
         <hr class="my-4">

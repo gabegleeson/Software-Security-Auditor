@@ -25,6 +25,14 @@
                     <path d="M1 13.5V16h2.5l7.372-7.372-2.647-2.647z"/>
                 </svg>
             </a>
+            <form method="post" action="{{ url_for('delete_software', software_name=software_name) }}" onsubmit="return confirm('Delete {{ software_name|replace("'", "\\'") }} and all its assessments? This cannot be undone.');">
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 36px; height: 36px;" aria-label="Delete software" title="Delete software">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                    </svg>
+                </button>
+            </form>
             <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_assessment', source_assessment_id=software.id) }}">Add Assessment</a>
         </div>
     </div>
@@ -102,6 +110,19 @@
             <div class="small text-secondary mb-1">Active</div>
             <div>{{ "Yes" if software.deployed else "No" }}</div>
         </div>
+        <div class="col-md-6">
+            <div class="small text-secondary mb-1">Risk Level</div>
+            {% if software.risk_level == "Low" %}
+            <span class="fw-semibold text-success d-flex align-items-center gap-1" style="width: fit-content;">
+                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/></svg>
+                Low
+            </span>
+            {% elif software.risk_level %}
+            <div class="fw-semibold">{{ software.risk_level }}</div>
+            {% else %}
+            <div class="text-secondary">Not set</div>
+            {% endif %}
+        </div>
     </div>
 </section>
 
@@ -142,6 +163,53 @@
     </div>
 </section>
 {% endif %}
+
+<section class="table-panel p-4 mb-4">
+    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Alerts</h2>
+    {% set ns = namespace(alerts=[]) %}
+    {% if software.student_intended_use == "Yes"
+          and software.age_restrictions
+          and software.age_restrictions != "None"
+          and software.allows_acceptance_on_behalf_of_entity != "Yes" %}
+        {% set ns.alerts = ns.alerts + ["student_acceptance"] %}
+    {% endif %}
+    {% if vendor_high_risk_locations %}
+        {% set ns.alerts = ns.alerts + ["vendor_high_risk"] %}
+    {% endif %}
+
+    {% if ns.alerts %}
+        {% if "student_acceptance" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>Acceptance terms require individual consent.</strong>
+                This software is intended for student use and has age restrictions ({{ software.age_restrictions }}), but the vendor's terms do not permit the college to accept on behalf of students. Individual student or parental consent may be required before deployment.
+            </div>
+        </div>
+        {% endif %}
+        {% if "vendor_high_risk" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>High-risk data storage locations detected.</strong>
+                The latest audit for {{ software.vendor_name }} lists data stored in
+                {% if vendor_high_risk_locations|length == 1 %}
+                    <strong>{{ vendor_high_risk_locations[0] }}</strong>, which is classified as high risk.
+                {% else %}
+                    {% for loc in vendor_high_risk_locations %}<strong>{{ loc }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}, which are classified as high risk.
+                {% endif %}
+                Review data transfer mechanisms and ensure appropriate safeguards are in place.
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+    <p class="text-secondary mb-0">No alerts for this software.</p>
+    {% endif %}
+</section>
 
 <section class="table-panel p-4">
     {% if assessments %}

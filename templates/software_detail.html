@@ -187,25 +187,26 @@
 <section class="table-panel p-4 mb-4">
     <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Alerts</h2>
     {% set ns = namespace(alerts=[]) %}
-    {% if software.student_intended_use == "Yes"
-          and software.age_restrictions
-          and software.age_restrictions != "None"
-          and software.allows_acceptance_on_behalf_of_entity != "Yes" %}
-        {% set ns.alerts = ns.alerts + ["student_acceptance"] %}
+    {% set effective_age_restrictions = software.age_restrictions if software.terms_conditions_link else (software.age_restrictions or vendor_age_restrictions) %}
+    {% set effective_allows_acceptance = software.allows_acceptance_on_behalf_of_entity if software.terms_conditions_link else (software.allows_acceptance_on_behalf_of_entity or vendor_allows_acceptance) %}
+    {% if effective_age_restrictions
+          and effective_age_restrictions != "None"
+          and effective_allows_acceptance == "No" %}
+        {% set ns.alerts = ns.alerts + ["acceptance_restricted"] %}
     {% endif %}
     {% if vendor_high_risk_locations %}
         {% set ns.alerts = ns.alerts + ["vendor_high_risk"] %}
     {% endif %}
 
     {% if ns.alerts %}
-        {% if "student_acceptance" in ns.alerts %}
+        {% if "acceptance_restricted" in ns.alerts %}
         <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
                 <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
             </svg>
             <div>
                 <strong>Acceptance terms require individual consent.</strong>
-                This software is intended for student use and has age restrictions ({{ software.age_restrictions }}), but the vendor's terms do not permit the college to accept on behalf of students. Individual student or parental consent may be required before deployment.
+                This software has age restrictions ({{ effective_age_restrictions }}) and the vendor's terms do not permit the college to accept on behalf of users. Individual consent may be required before deployment.
             </div>
         </div>
         {% endif %}

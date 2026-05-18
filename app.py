@@ -2150,6 +2150,9 @@ def load_vendor_records():
             "online_support": loaded_vendor.get("online_support", ""),
             "vendor_audit_reminder_frequency": loaded_vendor.get("vendor_audit_reminder_frequency", "") or "1_year",
             "vendor_next_audit_date": loaded_vendor.get("vendor_next_audit_date", ""),
+            "vendor_age_restrictions": loaded_vendor.get("vendor_age_restrictions", ""),
+            "vendor_terms_conditions_notes": loaded_vendor.get("vendor_terms_conditions_notes", ""),
+            "vendor_allows_acceptance_on_behalf_of_entity": loaded_vendor.get("vendor_allows_acceptance_on_behalf_of_entity", ""),
         }
         for field in ("vendor_security_assessment", *VENDOR_PRIVACY_FIELDS):
             if loaded_vendor.get(field):
@@ -3952,6 +3955,8 @@ def software_detail(software_name):
     vendor_map = build_vendor_data_storage_map(vendor_name) if vendor_name else {"high_risk_locations": []}
     vendor_record = get_vendor_by_name(vendor_name) if vendor_name else None
     vendor_terms_conditions_link = (vendor_record or {}).get("vendor_terms_conditions_link", "")
+    vendor_age_restrictions = (vendor_record or {}).get("vendor_age_restrictions", "")
+    vendor_allows_acceptance = (vendor_record or {}).get("vendor_allows_acceptance_on_behalf_of_entity", "")
 
     software_item = get_software_item_by_name(software_name)
     display_record = dict(software_record)
@@ -3965,6 +3970,8 @@ def software_detail(software_name):
         assessments=assessments,
         vendor_high_risk_locations=vendor_map["high_risk_locations"],
         vendor_terms_conditions_link=vendor_terms_conditions_link,
+        vendor_age_restrictions=vendor_age_restrictions,
+        vendor_allows_acceptance=vendor_allows_acceptance,
     )
 
 

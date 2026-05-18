@@ -188,22 +188,6 @@
                     </div>
                 </div>
                 <div class="col-12">
-                    <label class="form-label" for="vendor_terms_conditions_link">Terms and Conditions</label>
-                    <div id="vendor_terms_conditions_link_input_wrap" {% if vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
-                        <input class="form-control" type="url" id="vendor_terms_conditions_link" name="vendor_terms_conditions_link" value="{{ vendor.vendor_terms_conditions_link }}" placeholder="https://example.com/terms">
-                        <div class="d-flex align-items-center gap-2 mt-2">
-                            <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_terms_conditions_link_add_button">Add</button>
-                        </div>
-                    </div>
-                    <div class="link-field-display" id="vendor_terms_conditions_link_display_wrap" {% if not vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
-                        <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <a id="vendor_terms_conditions_link_open_link" href="{{ vendor.vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer" style="word-break: break-all;">{{ vendor.vendor_terms_conditions_link }}</a>
-                            <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_copy_button" aria-label="Copy link" title="Copy link"></button>
-                            <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_edit_button" aria-label="Edit link" title="Edit link"></button>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-12">
                     <label class="form-label" for="vendor_cookie_policy_link">Cookie Policy</label>
                     <div id="vendor_cookie_policy_link_input_wrap" {% if vendor.vendor_cookie_policy_link %}style="display: none;"{% endif %}>
                         <input class="form-control" type="url" id="vendor_cookie_policy_link" name="vendor_cookie_policy_link" value="{{ vendor.vendor_cookie_policy_link }}" placeholder="https://example.com/cookies">
@@ -227,19 +211,18 @@
             <div class="row g-3">
                 <div class="col-12">
                     <div class="privacy-subsection">
-                        <div class="privacy-subsection-title">Vendor Privacy Policy</div>
-                        <div id="vendor_privacy_policy_input_wrap" {% if vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
-                            <input class="form-control" type="url" id="vendor_privacy_policy_link" name="vendor_privacy_policy_link" value="{{ vendor.vendor_privacy_policy_link }}" placeholder="https://example.com/privacy">
+                        <div class="privacy-subsection-title">Terms and Conditions</div>
+                        <div id="vendor_terms_conditions_link_input_wrap" {% if vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
+                            <input class="form-control" type="url" id="vendor_terms_conditions_link" name="vendor_terms_conditions_link" value="{{ vendor.vendor_terms_conditions_link }}" placeholder="https://example.com/terms">
                             <div class="d-flex align-items-center gap-2 mt-2">
-                                <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_privacy_policy_add_button">Add</button>
+                                <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_terms_conditions_link_add_button">Add</button>
                             </div>
-                            <div class="form-text mt-2">If there is no vendor privacy policy yet, add it here and then press Add.</div>
                         </div>
-                        <div class="link-field-display" id="vendor_privacy_policy_display_wrap" {% if not vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
+                        <div class="link-field-display" id="vendor_terms_conditions_link_display_wrap" {% if not vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
                             <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <a id="vendor_privacy_policy_open_link" href="{{ vendor.vendor_privacy_policy_link or '#' }}" target="_blank" rel="noopener noreferrer">{{ vendor.vendor_privacy_policy_link }}</a>
-                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_copy_button" aria-label="Copy link" title="Copy link"></button>
-                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_edit_button" aria-label="Edit link" title="Edit link"></button>
+                                <a id="vendor_terms_conditions_link_open_link" href="{{ vendor.vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer" style="word-break: break-all;">{{ vendor.vendor_terms_conditions_link }}</a>
+                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_copy_button" aria-label="Copy link" title="Copy link"></button>
+                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_edit_button" aria-label="Edit link" title="Edit link"></button>
                             </div>
                         </div>
                     </div>
@@ -274,6 +257,26 @@
                     <div class="privacy-subsection">
                         <div class="privacy-subsection-title">Terms and Conditions Notes</div>
                         <textarea class="form-control" id="vendor_terms_conditions_notes" name="vendor_terms_conditions_notes" rows="3">{{ vendor.vendor_terms_conditions_notes }}</textarea>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="privacy-subsection">
+                        <div class="privacy-subsection-title">Vendor Privacy Policy</div>
+                        <div id="vendor_privacy_policy_input_wrap" {% if vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
+                            <input class="form-control" type="url" id="vendor_privacy_policy_link" name="vendor_privacy_policy_link" value="{{ vendor.vendor_privacy_policy_link }}" placeholder="https://example.com/privacy">
+                            <div class="d-flex align-items-center gap-2 mt-2">
+                                <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_privacy_policy_add_button">Add</button>
+                            </div>
+                            <div class="form-text mt-2">If there is no vendor privacy policy yet, add it here and then press Add.</div>
+                        </div>
+                        <div class="link-field-display" id="vendor_privacy_policy_display_wrap" {% if not vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
+                            <div class="d-flex align-items-center gap-2 flex-wrap">
+                                <a id="vendor_privacy_policy_open_link" href="{{ vendor.vendor_privacy_policy_link or '#' }}" target="_blank" rel="noopener noreferrer">{{ vendor.vendor_privacy_policy_link }}</a>
+                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_copy_button" aria-label="Copy link" title="Copy link"></button>
+                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_edit_button" aria-label="Edit link" title="Edit link"></button>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

@@ -35,6 +35,7 @@ ASSESSMENT_FIELDS = (
     "terms_conditions_link",
     "license_agreement_link",
     "license_type",
+    "subscription_billing_frequency",
     "version",
     "free_software",
     "currency_type",
@@ -98,10 +99,14 @@ VENDOR_PROFILE_FIELDS = (
     "vendor_country",
     "vendor_website",
     "vendor_terms_conditions_link",
+    "vendor_cookie_policy_link",
     "vendor_privacy_policy_link",
     "online_support",
     "vendor_audit_reminder_frequency",
     "vendor_next_audit_date",
+    "vendor_age_restrictions",
+    "vendor_terms_conditions_notes",
+    "vendor_allows_acceptance_on_behalf_of_entity",
 )
 VENDOR_ASSESSMENT_FIELDS = (
     "vendor_name",
@@ -155,6 +160,7 @@ PRIVACY_LAW_OPTIONS = (
 )
 INTERNATIONAL_PRIVACY_LAW_OPTIONS = (
     "APPI (Japan)",
+    "PDPA (Singapore)",
     "PIPEDA (Canada)",
     "LGPD (Brazil)",
     "Swiss Federal Data Protection Act (FADP)",
@@ -600,6 +606,7 @@ PDF_FIELD_LABELS = {
     "vendor_privacy_policy_link": "Vendor Privacy Policy Link",
     "license_agreement_link": "License Agreement Link",
     "license_type": "License Type",
+    "subscription_billing_frequency": "Subscription Billing Frequency",
     "version": "Version",
     "free_software": "Free Software",
     "license_cost": "License Cost",
@@ -658,7 +665,7 @@ PDF_SECTION_FIELDS = [
         "vendor_name",
         "vendor_country",
         "vendor_website",
-        "vendor_terms_conditions_link",
+        "terms_conditions_link",
         "vendor_privacy_policy_link",
         "vendor_security_assessment",
         "data_storage_location",
@@ -695,6 +702,7 @@ PDF_SECTION_FIELDS = [
     ("Assessment Responses", [
         "assessment_date",
         "license_type",
+        "subscription_billing_frequency",
         "student_intended_use",
         "age_restrictions",
         "allows_acceptance_on_behalf_of_entity",
@@ -786,7 +794,6 @@ SOFTWARE_DETAIL_FIELDS = (
     "deployment_groups",
     "deployment_type",
     "tested",
-    "deployed",
     "deployment_date",
     "audit_reminder_frequency",
     "next_audit_date",
@@ -856,7 +863,6 @@ def collect_software_form_data(form):
         "deployment_groups": form.get("deployment_groups", "").strip(),
         "deployment_type": form.get("deployment_type", "").strip(),
         "tested": "tested" in form,
-        "deployed": "deployed" in form,
         "deployment_date": form.get("deployment_date", "").strip(),
         "audit_reminder_frequency": form.get("audit_reminder_frequency", "").strip() or "1_year",
         "next_audit_date": form.get("next_audit_date", "").strip(),
@@ -902,14 +908,6 @@ def get_vendor_backed_value(record, field):
 
 def enrich_assessment(record):
     risk_level = record.get("risk_level", "")
-    if not risk_level:
-        storage_locations = get_selected_values(get_vendor_backed_value(record, "data_storage_location"))
-        if storage_locations == ["Australia"]:
-            risk_level = "Low"
-        elif storage_locations:
-            risk_level = "Medium"
-        else:
-            risk_level = "Medium"
 
     if record.get("deployed"):
         deployment_stage = "Production"
@@ -1198,7 +1196,7 @@ def format_assessment_value(field, value, record=None):
         return reminder_labels.get(value, value or "Not provided")
 
     if field == "license_cost":
-        if (record or {}).get("free_software"):
+        if (record or {}).get("free_software") or (record or {}).get("license_type") == "Free":
             return "Free"
         amount = str(value).strip()
         if not amount:
@@ -1309,19 +1307,17 @@ def build_assessment_pdf(record):
         [
             Paragraph("<b>Risk Level</b>", label_style),
             Paragraph(
-                '<font color="#16a34a"><b>✓ Low</b></font>'
-                if record.get("risk_level") == "Low"
-                else escape(clean_pdf_text(format_assessment_value("risk_level", record.get("risk_level", ""), record))),
+                escape(clean_pdf_text(format_assessment_value("risk_level", record.get("risk_level", ""), record))),
                 value_style,
             ),
-            Paragraph("<b>Review Date</b>", label_style),
-            pdf_paragraph(format_assessment_value("review_date", record.get("review_date", ""), record), value_style),
+            Paragraph("<b>Next Audit Date</b>", label_style),
+            pdf_paragraph(format_assessment_value("next_audit_date", record.get("next_audit_date", ""), record), value_style),
         ],
         [
             Paragraph("<b>Assessment Date</b>", label_style),
             pdf_paragraph(format_assessment_value("assessment_date", record.get("assessment_date", ""), record), value_style),
-            Paragraph("<b>Next Audit Date</b>", label_style),
-            pdf_paragraph(format_assessment_value("next_audit_date", record.get("next_audit_date", ""), record), value_style),
+            Paragraph("<b>Report Generated</b>", label_style),
+            Paragraph(date.today().isoformat(), value_style),
         ],
     ]
     summary_table = Table(summary_rows, colWidths=[34 * mm, 48 * mm, 34 * mm, 48 * mm], hAlign="LEFT")
@@ -1480,6 +1476,40 @@ def build_assessment_pdf(record):
             )
         )
         story.append(vendor_alert_table)
+        story.append(Spacer(1, 10))
+
+    vendor_terms_link = record.get("terms_conditions_link", "") or record.get("vendor_terms_conditions_link", "")
+    if record.get("vendor_name") and not vendor_terms_link:
+        tc_alert_heading_style = ParagraphStyle(
+            "TcAlertHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        tc_alert_cell = [
+            Paragraph(
+                f"{vendor_name or 'This vendor'} does not have a published terms and conditions link on record.",
+                tc_alert_heading_style,
+            ),
+        ]
+        tc_alert_table = Table([[tc_alert_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        tc_alert_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(tc_alert_table)
         story.append(Spacer(1, 10))
 
     signature_roles = ["IT Director", "Line Manager"]
@@ -1949,6 +1979,7 @@ def ensure_software_item_for_record(record):
     software["software_id"] = next_id
     software["is_assessment"] = False
     software["submission_status"] = ""
+    software["deployed"] = True
     SOFTWARE_ITEMS.append(enrich_assessment(software))
     return next_id
 
@@ -2114,6 +2145,7 @@ def load_vendor_records():
             "vendor_country": loaded_vendor.get("vendor_country", ""),
             "vendor_website": loaded_vendor.get("vendor_website", "") or loaded_vendor.get("website", ""),
             "vendor_terms_conditions_link": loaded_vendor.get("vendor_terms_conditions_link", ""),
+            "vendor_cookie_policy_link": loaded_vendor.get("vendor_cookie_policy_link", ""),
             "vendor_privacy_policy_link": loaded_vendor.get("vendor_privacy_policy_link", ""),
             "online_support": loaded_vendor.get("online_support", ""),
             "vendor_audit_reminder_frequency": loaded_vendor.get("vendor_audit_reminder_frequency", "") or "1_year",
@@ -2405,10 +2437,14 @@ def build_vendor_list(active_only=False):
                 "vendor_country": record["vendor_country"],
                 "vendor_website": record.get("vendor_website", ""),
                 "vendor_terms_conditions_link": record.get("vendor_terms_conditions_link", ""),
+                "vendor_cookie_policy_link": "",
                 "vendor_privacy_policy_link": record.get("vendor_privacy_policy_link", ""),
                 "online_support": record.get("online_support", ""),
                 "vendor_audit_reminder_frequency": record.get("vendor_audit_reminder_frequency", "") or "1_year",
                 "vendor_next_audit_date": record.get("vendor_next_audit_date", ""),
+                "vendor_age_restrictions": "",
+                "vendor_terms_conditions_notes": "",
+                "vendor_allows_acceptance_on_behalf_of_entity": "",
                 "product_count": 0,
             },
         )
@@ -2434,20 +2470,28 @@ def build_vendor_list(active_only=False):
                 "vendor_country": vendor["vendor_country"],
                 "vendor_website": vendor.get("vendor_website", ""),
                 "vendor_terms_conditions_link": vendor.get("vendor_terms_conditions_link", ""),
+                "vendor_cookie_policy_link": vendor.get("vendor_cookie_policy_link", ""),
                 "vendor_privacy_policy_link": vendor.get("vendor_privacy_policy_link", ""),
                 "online_support": vendor.get("online_support", ""),
                 "vendor_audit_reminder_frequency": vendor.get("vendor_audit_reminder_frequency", "") or "1_year",
                 "vendor_next_audit_date": vendor.get("vendor_next_audit_date", ""),
+                "vendor_age_restrictions": vendor.get("vendor_age_restrictions", ""),
+                "vendor_terms_conditions_notes": vendor.get("vendor_terms_conditions_notes", ""),
+                "vendor_allows_acceptance_on_behalf_of_entity": vendor.get("vendor_allows_acceptance_on_behalf_of_entity", ""),
                 "product_count": 0,
             },
         )
         existing["vendor_country"] = existing["vendor_country"] or vendor["vendor_country"]
         existing["vendor_website"] = existing["vendor_website"] or vendor.get("vendor_website", "")
         existing["vendor_terms_conditions_link"] = existing["vendor_terms_conditions_link"] or vendor.get("vendor_terms_conditions_link", "")
+        existing["vendor_cookie_policy_link"] = existing.get("vendor_cookie_policy_link") or vendor.get("vendor_cookie_policy_link", "")
         existing["vendor_privacy_policy_link"] = existing["vendor_privacy_policy_link"] or vendor.get("vendor_privacy_policy_link", "")
         existing["online_support"] = existing["online_support"] or vendor.get("online_support", "")
         existing["vendor_audit_reminder_frequency"] = existing.get("vendor_audit_reminder_frequency") or vendor.get("vendor_audit_reminder_frequency", "") or "1_year"
         existing["vendor_next_audit_date"] = existing.get("vendor_next_audit_date") or vendor.get("vendor_next_audit_date", "")
+        existing["vendor_age_restrictions"] = existing.get("vendor_age_restrictions") or vendor.get("vendor_age_restrictions", "")
+        existing["vendor_terms_conditions_notes"] = existing.get("vendor_terms_conditions_notes") or vendor.get("vendor_terms_conditions_notes", "")
+        existing["vendor_allows_acceptance_on_behalf_of_entity"] = existing.get("vendor_allows_acceptance_on_behalf_of_entity") or vendor.get("vendor_allows_acceptance_on_behalf_of_entity", "")
 
     built_vendors = []
     for vendor_name in sorted(vendors_by_name):
@@ -2458,10 +2502,14 @@ def build_vendor_list(active_only=False):
                 "vendor_country": vendor["vendor_country"],
                 "vendor_website": vendor.get("vendor_website", ""),
                 "vendor_terms_conditions_link": vendor.get("vendor_terms_conditions_link", ""),
+                "vendor_cookie_policy_link": vendor.get("vendor_cookie_policy_link", ""),
                 "vendor_privacy_policy_link": vendor.get("vendor_privacy_policy_link", ""),
                 "online_support": vendor.get("online_support", ""),
                 "vendor_audit_reminder_frequency": vendor.get("vendor_audit_reminder_frequency", "") or "1_year",
                 "vendor_next_audit_date": vendor.get("vendor_next_audit_date", ""),
+                "vendor_age_restrictions": vendor.get("vendor_age_restrictions", ""),
+                "vendor_terms_conditions_notes": vendor.get("vendor_terms_conditions_notes", ""),
+                "vendor_allows_acceptance_on_behalf_of_entity": vendor.get("vendor_allows_acceptance_on_behalf_of_entity", ""),
                 "product_count": vendor["product_count"],
             }
         )
@@ -2665,12 +2713,18 @@ def collect_assessment_form_data(form, assessment_id=None):
         else:
             record[field] = form.get(field, "").strip()
 
-    if record.get("free_software"):
-        record["license_type"] = ""
+    if record.get("license_type") == "Free":
+        record["free_software"] = True
+        record["currency_type"] = ""
+        record["license_cost"] = ""
+        record["subscription_billing_frequency"] = ""
+    elif record.get("free_software"):
         record["currency_type"] = ""
         record["license_cost"] = ""
     if record.get("license_type") == "Perpetual":
         record["license_renewal_date"] = ""
+    if record.get("license_type") not in ("Subscription",):
+        record["subscription_billing_frequency"] = ""
 
     record["vendor_terms_conditions_link"] = form.get("vendor_terms_conditions_link", "").strip()
     record["vendor_privacy_policy_link"] = form.get("vendor_privacy_policy_link", "").strip()
@@ -2711,10 +2765,14 @@ def collect_vendor_form_data(form):
         "vendor_country": form.get("vendor_country", "").strip(),
         "vendor_website": form.get("vendor_website", "").strip(),
         "vendor_terms_conditions_link": form.get("vendor_terms_conditions_link", "").strip(),
+        "vendor_cookie_policy_link": form.get("vendor_cookie_policy_link", "").strip(),
         "vendor_privacy_policy_link": form.get("vendor_privacy_policy_link", "").strip(),
         "online_support": form.get("online_support", "").strip(),
         "vendor_audit_reminder_frequency": vendor_audit_reminder_frequency,
         "vendor_next_audit_date": vendor_next_audit_date,
+        "vendor_age_restrictions": form.get("vendor_age_restrictions", "").strip(),
+        "vendor_terms_conditions_notes": form.get("vendor_terms_conditions_notes", "").strip(),
+        "vendor_allows_acceptance_on_behalf_of_entity": form.get("vendor_allows_acceptance_on_behalf_of_entity", "").strip(),
     }
 
 
@@ -2724,10 +2782,14 @@ def blank_vendor():
         "vendor_country": "",
         "vendor_website": "",
         "vendor_terms_conditions_link": "",
+        "vendor_cookie_policy_link": "",
         "vendor_privacy_policy_link": "",
         "online_support": "",
         "vendor_audit_reminder_frequency": "1_year",
         "vendor_next_audit_date": "",
+        "vendor_age_restrictions": "",
+        "vendor_terms_conditions_notes": "",
+        "vendor_allows_acceptance_on_behalf_of_entity": "",
     }
 
 
@@ -2900,9 +2962,7 @@ def update_vendor_details(original_name, updated_vendor):
             vendor.update(updated_vendor)
             updated_manual_vendor = True
 
-    if not updated_manual_vendor and not any(
-        normalized_name(record["vendor_name"]) == normalized_name(updated_name) for record in SOFTWARE_RECORDS
-    ):
+    if not updated_manual_vendor:
         VENDOR_RECORDS.append(dict(updated_vendor))
 
     persist_software_records()
@@ -2963,6 +3023,21 @@ def get_vendor_privacy_policy_link_for_record(record):
     if vendor is None:
         return ""
     return vendor.get("vendor_privacy_policy_link", "")
+
+
+def get_vendor_age_restrictions_for_record(record):
+    vendor = get_vendor_by_name(record.get("vendor_name", ""))
+    return (vendor or {}).get("vendor_age_restrictions", "")
+
+
+def get_vendor_terms_conditions_notes_for_record(record):
+    vendor = get_vendor_by_name(record.get("vendor_name", ""))
+    return (vendor or {}).get("vendor_terms_conditions_notes", "")
+
+
+def get_vendor_allows_acceptance_for_record(record):
+    vendor = get_vendor_by_name(record.get("vendor_name", ""))
+    return (vendor or {}).get("vendor_allows_acceptance_on_behalf_of_entity", "")
 
 
 def get_software_item_by_name(software_name):
@@ -3085,6 +3160,40 @@ def save_software_license_agreement_link(software_name, license_agreement_link):
     return updated
 
 
+def save_software_terms_conditions_link(software_name, terms_conditions_link):
+    normalized = normalized_name(software_name)
+    cleaned_link = terms_conditions_link.strip()
+    if not normalized:
+        return False
+
+    updated = False
+    for record in SOFTWARE_RECORDS:
+        if normalized_name(record.get("software_name", "")) == normalized:
+            record["terms_conditions_link"] = cleaned_link
+            updated = True
+
+    for record in SOFTWARE_ITEMS:
+        if normalized_name(record.get("software_name", "")) == normalized:
+            record["terms_conditions_link"] = cleaned_link
+            updated = True
+
+    if not updated:
+        source_record = get_latest_software_record(software_name)
+        software_id = ensure_software_item_for_record(
+            source_record or {"software_name": software_name, "terms_conditions_link": cleaned_link}
+        )
+        for record in SOFTWARE_ITEMS:
+            if record.get("id") == software_id:
+                record["terms_conditions_link"] = cleaned_link
+                if record not in SOFTWARE_RECORDS:
+                    SOFTWARE_RECORDS.append(record)
+                updated = True
+                break
+
+    persist_software_records()
+    return updated
+
+
 def save_vendor_terms_conditions_link(vendor_name, terms_conditions_link):
     normalized = normalized_name(vendor_name)
     cleaned_link = terms_conditions_link.strip()
@@ -3110,12 +3219,44 @@ def save_vendor_terms_conditions_link(vendor_name, terms_conditions_link):
                     "vendor_country": existing_vendor.get("vendor_country", ""),
                     "vendor_website": existing_vendor.get("vendor_website", ""),
                     "vendor_terms_conditions_link": cleaned_link,
+                    "vendor_cookie_policy_link": existing_vendor.get("vendor_cookie_policy_link", ""),
                     "vendor_privacy_policy_link": existing_vendor.get("vendor_privacy_policy_link", ""),
                     "online_support": existing_vendor.get("online_support", ""),
                 }
             )
 
     persist_software_records()
+    persist_vendor_records()
+    return True
+
+
+def save_vendor_cookie_policy_link(vendor_name, cookie_policy_link):
+    normalized = normalized_name(vendor_name)
+    cleaned_link = cookie_policy_link.strip()
+    if not normalized:
+        return False
+
+    updated_manual_vendor = False
+    for vendor in VENDOR_RECORDS:
+        if normalized_name(vendor.get("vendor_name", "")) == normalized:
+            vendor["vendor_cookie_policy_link"] = cleaned_link
+            updated_manual_vendor = True
+
+    if not updated_manual_vendor:
+        existing_vendor = get_vendor_by_name(vendor_name)
+        if existing_vendor is not None:
+            VENDOR_RECORDS.append(
+                {
+                    "vendor_name": existing_vendor.get("vendor_name", vendor_name).strip(),
+                    "vendor_country": existing_vendor.get("vendor_country", ""),
+                    "vendor_website": existing_vendor.get("vendor_website", ""),
+                    "vendor_terms_conditions_link": existing_vendor.get("vendor_terms_conditions_link", ""),
+                    "vendor_cookie_policy_link": cleaned_link,
+                    "vendor_privacy_policy_link": existing_vendor.get("vendor_privacy_policy_link", ""),
+                    "online_support": existing_vendor.get("online_support", ""),
+                }
+            )
+
     persist_vendor_records()
     return True
 
@@ -3180,6 +3321,7 @@ def save_vendor_privacy_policy_link(vendor_name, privacy_policy_link):
                     "vendor_country": existing_vendor.get("vendor_country", ""),
                     "vendor_website": existing_vendor.get("vendor_website", ""),
                     "vendor_terms_conditions_link": existing_vendor.get("vendor_terms_conditions_link", ""),
+                    "vendor_cookie_policy_link": existing_vendor.get("vendor_cookie_policy_link", ""),
                     "vendor_privacy_policy_link": cleaned_link,
                     "online_support": existing_vendor.get("online_support", ""),
                 }
@@ -3670,6 +3812,14 @@ def save_software_license_agreement_link_route(software_name):
     return jsonify({"ok": True, "license_agreement_link": license_agreement_link})
 
 
+@app.route("/software/<path:software_name>/terms-conditions", methods=["POST"])
+def save_software_terms_conditions_route(software_name):
+    terms_conditions_link = request.form.get("terms_conditions_link", "").strip()
+    if not save_software_terms_conditions_link(software_name, terms_conditions_link):
+        return jsonify({"ok": False, "error": "Software name is required"}), 400
+    return jsonify({"ok": True, "terms_conditions_link": terms_conditions_link})
+
+
 @app.route("/software")
 def software_list():
     return render_template("software_list.html", software_records=build_software_catalog())
@@ -3729,6 +3879,7 @@ def new_software():
             for field in SOFTWARE_DETAIL_FIELDS:
                 if field in software_details:
                     record[field] = software_details[field]
+            record["deployed"] = True
             record["review_date"] = software_details["next_audit_date"]
             record["id"] = NEXT_SOFTWARE_ID
             record["software_id"] = NEXT_SOFTWARE_ID
@@ -3762,7 +3913,7 @@ def edit_software(software_name):
         updated_details["vendor_country"] = software_record.get("vendor_country", "")
         if updated_details["software_name"] and updated_details["vendor_name"]:
             update_software_details(software_name, updated_details)
-            return redirect(url_for("software_detail", software_name=updated_details["software_name"]))
+        return redirect(url_for("software_detail", software_name=updated_details.get("software_name") or software_name))
 
     software_item = get_software_item_by_name(software_name)
     form_record = dict(software_record)
@@ -3799,6 +3950,8 @@ def software_detail(software_name):
 
     vendor_name = software_record.get("vendor_name", "")
     vendor_map = build_vendor_data_storage_map(vendor_name) if vendor_name else {"high_risk_locations": []}
+    vendor_record = get_vendor_by_name(vendor_name) if vendor_name else None
+    vendor_terms_conditions_link = (vendor_record or {}).get("vendor_terms_conditions_link", "")
 
     software_item = get_software_item_by_name(software_name)
     display_record = dict(software_record)
@@ -3811,6 +3964,7 @@ def software_detail(software_name):
         software_name=software_record["software_name"],
         assessments=assessments,
         vendor_high_risk_locations=vendor_map["high_risk_locations"],
+        vendor_terms_conditions_link=vendor_terms_conditions_link,
     )
 
 
@@ -3928,7 +4082,7 @@ def edit_vendor(vendor_name):
         updated_vendor = collect_vendor_form_data(request.form)
         if updated_vendor["vendor_name"]:
             update_vendor_details(vendor_name, updated_vendor)
-        return redirect(url_for("vendor_list"))
+        return redirect(url_for("vendor_detail", vendor_name=updated_vendor.get("vendor_name") or vendor_name))
 
     return render_template(
         "vendor_form.html",
@@ -4028,6 +4182,16 @@ def save_vendor_terms_conditions(vendor_name):
     return jsonify({"ok": True, "vendor_terms_conditions_link": terms_conditions_link})
 
 
+@app.route("/vendors/<path:vendor_name>/cookie-policy", methods=["POST"])
+def save_vendor_cookie_policy(vendor_name):
+    if get_vendor_by_name(vendor_name) is None:
+        return jsonify({"ok": False, "error": "Vendor not found"}), 404
+
+    cookie_policy_link = request.form.get("vendor_cookie_policy_link", "").strip()
+    save_vendor_cookie_policy_link(vendor_name, cookie_policy_link)
+    return jsonify({"ok": True, "vendor_cookie_policy_link": cookie_policy_link})
+
+
 @app.route("/vendors/<path:vendor_name>/online-support", methods=["POST"])
 def save_vendor_online_support(vendor_name):
     if get_vendor_by_name(vendor_name) is None:
@@ -4102,6 +4266,9 @@ def new_assessment():
                 software_purchase_link=get_software_purchase_link_for_record(draft_record),
                 vendor_terms_conditions_link=get_vendor_terms_link_for_record(draft_record),
                 vendor_privacy_policy_link=get_vendor_privacy_policy_link_for_record(draft_record),
+                vendor_age_restrictions=get_vendor_age_restrictions_for_record(draft_record),
+                vendor_terms_conditions_notes=get_vendor_terms_conditions_notes_for_record(draft_record),
+                vendor_allows_acceptance=get_vendor_allows_acceptance_for_record(draft_record),
                 form_title="New Software Assessment",
                 submit_label="Submit Assessment",
                 is_edit=False,
@@ -4166,6 +4333,9 @@ def edit_assessment(assessment_id):
         software_purchase_link=get_software_purchase_link_for_record(record),
         vendor_terms_conditions_link=get_vendor_terms_link_for_record(record),
         vendor_privacy_policy_link=get_vendor_privacy_policy_link_for_record(record),
+        vendor_age_restrictions=get_vendor_age_restrictions_for_record(record),
+        vendor_terms_conditions_notes=get_vendor_terms_conditions_notes_for_record(record),
+        vendor_allows_acceptance=get_vendor_allows_acceptance_for_record(record),
         form_title="Edit Software Assessment",
         submit_label="Submit Assessment",
         is_edit=True,
@@ -4209,10 +4379,19 @@ def download_assessment_pdf(assessment_id):
     pdf_record["vendor_terms_conditions_link"] = (
         record.get("vendor_terms_conditions_link") or get_vendor_terms_link_for_record(record)
     )
+    pdf_record["terms_conditions_link"] = (
+        record.get("terms_conditions_link") or pdf_record["vendor_terms_conditions_link"]
+    )
     pdf_record["vendor_privacy_policy_link"] = (
         record.get("vendor_privacy_policy_link") or get_vendor_privacy_policy_link_for_record(record)
     )
     pdf_record["purchase_link"] = record.get("purchase_link") or get_software_purchase_link_for_record(record)
+    if not record.get("terms_conditions_link"):
+        vendor_record = get_vendor_by_name(record.get("vendor_name", ""))
+        if vendor_record:
+            pdf_record["age_restrictions"] = vendor_record.get("vendor_age_restrictions", "") or record.get("age_restrictions", "")
+            pdf_record["terms_compliance_notes"] = vendor_record.get("vendor_terms_conditions_notes", "") or record.get("terms_compliance_notes", "")
+            pdf_record["allows_acceptance_on_behalf_of_entity"] = vendor_record.get("vendor_allows_acceptance_on_behalf_of_entity", "") or record.get("allows_acceptance_on_behalf_of_entity", "")
     vendor = get_latest_vendor_assessment(record.get("vendor_name", "")) or {}
     for field in VENDOR_PRIVACY_FIELDS:
         pdf_record[field] = vendor.get(field, "")
@@ -4231,7 +4410,6 @@ def download_assessment_pdf(assessment_id):
     safe_name = (record.get("software_name") or f"assessment-{assessment_id}").strip().replace(" ", "-")
     audit_date = (
         record.get("assessment_date")
-        or record.get("review_date")
         or record.get("next_audit_date")
         or f"assessment-{assessment_id}"
     )

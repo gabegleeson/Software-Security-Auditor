@@ -266,26 +266,19 @@
         <input type="hidden" name="assessment_id" value="{{ assessment_id }}">
         {% endif %}
         <input type="hidden" name="next_audit_date" value="{{ assessment.next_audit_date }}">
-        <input type="hidden" name="terms_conditions_link" value="{{ assessment.terms_conditions_link }}">
         <div class="section">
             <h2>Software and Online Subscriptions</h2>
             {% if software_details_editable %}
             <div class="field">
                 <label for="software_name">Software Name</label>
-                <input type="text" id="software_name" name="software_name" required>
+                <input type="text" id="software_name" name="software_name" value="{{ assessment.software_name }}" {% if assessment.software_name %}readonly{% endif %} required>
             </div>
 
             <input type="hidden" id="vendor_name" name="vendor_name" value="{{ assessment.vendor_name }}">
             <div class="field">
                 <label>Vendor Name</label>
                 <div class="form-control bg-light">
-                    {% if assessment.vendor_name %}
-                    <a class="text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=assessment.vendor_name) }}">
-                        {{ assessment.vendor_name }}
-                    </a>
-                    {% else %}
-                    Linked through the selected software
-                    {% endif %}
+                    {{ assessment.vendor_name if assessment.vendor_name else "Linked through the selected software" }}
                 </div>
             </div>
 
@@ -347,25 +340,13 @@
                 <div class="col-md-6">
                     <label>Software Name</label>
                     <div class="form-control bg-light">
-                        {% if assessment.software_name %}
-                        <a class="text-decoration-none" href="{{ url_for('software_detail', software_name=assessment.software_name) }}">
-                            {{ assessment.software_name }}
-                        </a>
-                        {% else %}
-                        Not provided
-                        {% endif %}
+                        {{ assessment.software_name if assessment.software_name else "Not provided" }}
                     </div>
                 </div>
                 <div class="col-md-6">
                     <label>Vendor Name</label>
                     <div class="form-control bg-light">
-                        {% if assessment.vendor_name %}
-                        <a class="text-decoration-none" href="{{ url_for('vendor_detail', vendor_name=assessment.vendor_name) }}">
-                            {{ assessment.vendor_name }}
-                        </a>
-                        {% else %}
-                        Not provided
-                        {% endif %}
+                        {{ assessment.vendor_name if assessment.vendor_name else "Not provided" }}
                     </div>
                 </div>
             </div>
@@ -395,17 +376,23 @@
                 <input type="text" id="version" name="version">
             </div>
 
-            <div class="field">
-                <label><input type="checkbox" id="free_software" name="free_software" value="true"> Free software</label>
-            </div>
-
             <div class="field" id="license_type_field">
                 <label for="license_type">License Type</label>
                 <select id="license_type" name="license_type">
                     <option value="">Select one</option>
+                    <option value="Free">Free</option>
                     <option value="Perpetual">Perpetual</option>
                     <option value="Subscription">Subscription</option>
                     <option value="Other">Other</option>
+                </select>
+            </div>
+
+            <div class="field" id="subscription_billing_frequency_field" {% if assessment.subscription_billing_frequency %}{% else %}style="display: none;"{% endif %}>
+                <label for="subscription_billing_frequency">Billing Frequency</label>
+                <select id="subscription_billing_frequency" name="subscription_billing_frequency">
+                    <option value="">Select one</option>
+                    <option value="Monthly" {% if assessment.subscription_billing_frequency == "Monthly" %}selected{% endif %}>Monthly</option>
+                    <option value="Annually" {% if assessment.subscription_billing_frequency == "Annually" %}selected{% endif %}>Annually</option>
                 </select>
             </div>
 
@@ -451,21 +438,21 @@
                 <input type="number" id="license_cost" name="license_cost" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
             </div>
 
-            <div class="field">
-                <label for="purchase_link" id="purchase_link_label">{% if assessment.free_software %}Download Link{% else %}Purchase Link{% endif %}</label>
+            <div class="field" id="purchase_link_field">
+                <label for="purchase_link" id="purchase_link_label">{% if assessment.license_type == "Free" %}Download Link{% else %}Purchase Link{% endif %}</label>
                 <div id="purchase_link_input_wrap" {% if software_purchase_link %}style="display: none;"{% endif %}>
                     <input
                         type="url"
                         id="purchase_link"
                         name="purchase_link"
                         value="{{ software_purchase_link }}"
-                        placeholder="{% if assessment.free_software %}https://example.com/download{% else %}https://example.com/purchase{% endif %}"
+                        placeholder="{% if assessment.license_type == "Free" %}https://example.com/download{% else %}https://example.com/purchase{% endif %}"
                     >
                     <div class="d-flex align-items-center gap-2 mt-2">
                         <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="purchase_link_add_button">Add</button>
                     </div>
                     <div class="form-text mt-2" id="purchase_link_help">
-                        {% if assessment.free_software %}
+                        {% if assessment.license_type == "Free" %}
                         If there is no download link yet, add it here and then press Add.
                         {% else %}
                         If there is no purchase link yet, add it here and then press Add.
@@ -490,31 +477,44 @@
         </div>
 
         <input type="hidden" name="vendor_privacy_policy_link" value="{{ vendor_privacy_policy_link }}">
+        <input type="hidden" name="vendor_terms_conditions_link" value="{{ vendor_terms_conditions_link }}">
 
         <div class="section">
             <h2>Terms of Use / License Agreement Compliance</h2>
 
             <div class="field">
-                <label>Vendor Terms and Conditions</label>
-                <div id="vendor_terms_conditions_input_wrap" {% if vendor_terms_conditions_link %}style="display: none;"{% endif %}>
+                <label>Terms and Conditions</label>
+                <div id="software_terms_conditions_input_wrap" {% if assessment.terms_conditions_link %}style="display: none;"{% endif %}>
                     <input
                         type="url"
-                        id="vendor_terms_conditions_link"
-                        name="vendor_terms_conditions_link"
-                        value="{{ vendor_terms_conditions_link }}"
+                        id="terms_conditions_link"
+                        name="terms_conditions_link"
+                        value="{{ assessment.terms_conditions_link }}"
+                        placeholder="https://example.com/terms"
                     >
                     <div class="d-flex align-items-center gap-2 mt-2">
-                        <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_terms_conditions_add_button">Add</button>
+                        <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="software_terms_conditions_add_button">Add</button>
                     </div>
-                    <div class="form-text mt-2">If there is no vendor terms link yet, add it here and then press Add.</div>
+                    {% if vendor_terms_conditions_link %}
+                    <div class="form-text mt-2">
+                        Vendor terms on record:
+                        <a href="{{ vendor_terms_conditions_link }}" target="_blank" rel="noopener noreferrer">{{ vendor_terms_conditions_link }}</a>
+                        — add a software-specific link above to override.
+                    </div>
+                    {% else %}
+                    <div class="form-text mt-2">Add the terms and conditions link for this software.</div>
+                    {% endif %}
                 </div>
-                <div class="link-field-display" id="vendor_terms_conditions_display_wrap" {% if not vendor_terms_conditions_link %}style="display: none;"{% endif %}>
+                <div class="link-field-display" id="software_terms_conditions_display_wrap" {% if not assessment.terms_conditions_link %}style="display: none;"{% endif %}>
                     <div class="d-flex align-items-center gap-2 flex-wrap">
-                        <a id="vendor_terms_conditions_open_link" href="{{ vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer">
-                            {{ vendor_terms_conditions_link }}
+                        <a id="software_terms_conditions_open_link" href="{{ assessment.terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer">
+                            {{ assessment.terms_conditions_link }}
                         </a>
-                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_copy_button" aria-label="Copy link" title="Copy link"></button>
-                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_edit_button" aria-label="Edit link" title="Edit link"></button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="software_terms_conditions_copy_button" aria-label="Copy link" title="Copy link"></button>
+                        <button class="btn btn-outline-secondary icon-action-button" type="button" id="software_terms_conditions_edit_button" aria-label="Edit link" title="Edit link"></button>
+                        {% if vendor_terms_conditions_link %}
+                        <button class="btn btn-sm btn-link text-secondary px-2" type="button" id="software_terms_conditions_clear_button">Use vendor terms</button>
+                        {% endif %}
                     </div>
                 </div>
             </div>
@@ -528,29 +528,53 @@
                 </select>
             </div>
 
-            <div class="field" id="age_restrictions_field">
-                <label for="age_restrictions">Age Restrictions</label>
-                <select id="age_restrictions" name="age_restrictions">
-                    <option value="">Select an option</option>
-                    <option value="None">None</option>
-                    <option value="13+">13+</option>
-                    <option value="16+">16+</option>
-                    <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf">Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
-                </select>
+            <div id="vendor_terms_info" {% if assessment.terms_conditions_link %}style="display: none;"{% endif %}>
+                {% if vendor_age_restrictions %}
+                <div class="field">
+                    <label>Age Restrictions <span class="badge text-bg-secondary rounded-pill ms-1" style="font-size: 0.7em; vertical-align: middle;">From vendor</span></label>
+                    <div class="form-text mt-1">{{ vendor_age_restrictions }}</div>
+                </div>
+                {% endif %}
+                {% if vendor_allows_acceptance %}
+                <div class="field">
+                    <label>Terms Permit Acceptance by the College on Behalf of Students <span class="badge text-bg-secondary rounded-pill ms-1" style="font-size: 0.7em; vertical-align: middle;">From vendor</span></label>
+                    <div class="form-text mt-1">{{ vendor_allows_acceptance }}</div>
+                </div>
+                {% endif %}
+                {% if vendor_terms_conditions_notes %}
+                <div class="field">
+                    <label>Terms Notes <span class="badge text-bg-secondary rounded-pill ms-1" style="font-size: 0.7em; vertical-align: middle;">From vendor</span></label>
+                    <div class="form-text mt-1">{{ vendor_terms_conditions_notes }}</div>
+                </div>
+                {% endif %}
             </div>
 
-            <div class="field" id="allows_acceptance_field">
-                <label for="allows_acceptance_on_behalf_of_entity">Terms permit acceptance by the college on behalf of students</label>
-                <select id="allows_acceptance_on_behalf_of_entity" name="allows_acceptance_on_behalf_of_entity">
-                    <option value="">Select an option</option>
-                    <option value="Yes">Yes</option>
-                    <option value="No">No</option>
-                </select>
-            </div>
+            <div id="software_terms_fields" {% if not assessment.terms_conditions_link %}style="display: none;"{% endif %}>
+                <div class="field" id="age_restrictions_field">
+                    <label for="age_restrictions">Age Restrictions</label>
+                    <select id="age_restrictions" name="age_restrictions">
+                        <option value="">Select an option</option>
+                        <option value="None">None</option>
+                        <option value="13+">13+</option>
+                        <option value="16+">16+</option>
+                        <option value="18+">18+</option>
+                        <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf">Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
+                    </select>
+                </div>
 
-            <div class="field">
-                <label for="terms_compliance_notes">Notes</label>
-                <textarea id="terms_compliance_notes" name="terms_compliance_notes"></textarea>
+                <div class="field" id="allows_acceptance_field">
+                    <label for="allows_acceptance_on_behalf_of_entity">Terms permit acceptance by the college on behalf of students</label>
+                    <select id="allows_acceptance_on_behalf_of_entity" name="allows_acceptance_on_behalf_of_entity">
+                        <option value="">Select an option</option>
+                        <option value="Yes">Yes</option>
+                        <option value="No">No</option>
+                    </select>
+                </div>
+
+                <div class="field">
+                    <label for="terms_compliance_notes">Notes</label>
+                    <textarea id="terms_compliance_notes" name="terms_compliance_notes"></textarea>
+                </div>
             </div>
         </div>
 
@@ -679,15 +703,17 @@
         const licenseAgreementCopyButton = document.getElementById("license_agreement_link_copy_button");
         const licenseAgreementEditButton = document.getElementById("license_agreement_link_edit_button");
         const licenseAgreementOpenLink = document.getElementById("license_agreement_link_open_link");
-        const freeSoftwareField = document.getElementById("free_software");
         const licenseTypeFieldWrap = document.getElementById("license_type_field");
         const licenseTypeField = document.getElementById("license_type");
+        const subscriptionBillingFieldWrap = document.getElementById("subscription_billing_frequency_field");
+        const subscriptionBillingField = document.getElementById("subscription_billing_frequency");
         const licenseStartDateFieldWrap = document.getElementById("license_start_date_field");
         const licenseStartDateField = document.getElementById("license_start_date");
         const currencyTypeFieldWrap = document.getElementById("currency_type_field");
         const currencyTypeField = document.getElementById("currency_type");
         const licenseCostFieldWrap = document.getElementById("license_cost_field");
         const licenseCostField = document.getElementById("license_cost");
+        const purchaseLinkFieldWrap = document.getElementById("purchase_link_field");
         const purchaseLinkLabel = document.getElementById("purchase_link_label");
         const purchaseLinkInput = document.getElementById("purchase_link");
         const purchaseLinkInputWrap = document.getElementById("purchase_link_input_wrap");
@@ -697,13 +723,14 @@
         const purchaseLinkCopyButton = document.getElementById("purchase_link_copy_button");
         const purchaseLinkEditButton = document.getElementById("purchase_link_edit_button");
         const purchaseLinkOpenLink = document.getElementById("purchase_link_open_link");
-        const vendorTermsConditionsInput = document.getElementById("vendor_terms_conditions_link");
-        const vendorTermsConditionsInputWrap = document.getElementById("vendor_terms_conditions_input_wrap");
-        const vendorTermsConditionsDisplayWrap = document.getElementById("vendor_terms_conditions_display_wrap");
-        const vendorTermsConditionsAddButton = document.getElementById("vendor_terms_conditions_add_button");
-        const vendorTermsConditionsCopyButton = document.getElementById("vendor_terms_conditions_copy_button");
-        const vendorTermsConditionsEditButton = document.getElementById("vendor_terms_conditions_edit_button");
-        const vendorTermsConditionsOpenLink = document.getElementById("vendor_terms_conditions_open_link");
+        const softwareTermsConditionsInput = document.getElementById("terms_conditions_link");
+        const softwareTermsConditionsInputWrap = document.getElementById("software_terms_conditions_input_wrap");
+        const softwareTermsConditionsDisplayWrap = document.getElementById("software_terms_conditions_display_wrap");
+        const softwareTermsConditionsAddButton = document.getElementById("software_terms_conditions_add_button");
+        const softwareTermsConditionsCopyButton = document.getElementById("software_terms_conditions_copy_button");
+        const softwareTermsConditionsEditButton = document.getElementById("software_terms_conditions_edit_button");
+        const softwareTermsConditionsOpenLink = document.getElementById("software_terms_conditions_open_link");
+        const softwareTermsConditionsClearButton = document.getElementById("software_terms_conditions_clear_button");
         const studentIntendedUseField = document.getElementById("student_intended_use");
         const ageRestrictionsFieldWrap = document.getElementById("age_restrictions_field");
         const ageRestrictionsField = document.getElementById("age_restrictions");
@@ -942,39 +969,35 @@
             reviewDateField.value = addMonthsToDateString(deploymentDateField.value, monthsToAdd);
         }
 
-        function updateFreeSoftwareFields() {
-            if (!freeSoftwareField || !licenseTypeFieldWrap || !licenseTypeField || !currencyTypeFieldWrap || !currencyTypeField || !licenseCostFieldWrap || !licenseCostField) {
-                return;
-            }
+        function updateLicenseTypeFields() {
+            if (!licenseTypeField) return;
+            const licenseType = licenseTypeField.value;
+            const isPaid = licenseType === "Perpetual" || licenseType === "Subscription" || licenseType === "Other";
+            const isFree = licenseType === "Free";
+            const isSubscription = licenseType === "Subscription";
 
-            const isFreeSoftware = freeSoftwareField.checked;
-            licenseTypeFieldWrap.style.display = isFreeSoftware ? "none" : "";
-            currencyTypeFieldWrap.style.display = isFreeSoftware ? "none" : "";
-            licenseCostFieldWrap.style.display = isFreeSoftware ? "none" : "";
-            if (licenseStartDateFieldWrap) licenseStartDateFieldWrap.style.display = isFreeSoftware ? "none" : "";
-            licenseTypeField.disabled = isFreeSoftware;
-            currencyTypeField.disabled = isFreeSoftware;
-            licenseCostField.disabled = isFreeSoftware;
-            if (licenseStartDateField) licenseStartDateField.disabled = isFreeSoftware;
+            if (currencyTypeFieldWrap) currencyTypeFieldWrap.style.display = isPaid ? "" : "none";
+            if (currencyTypeField) currencyTypeField.disabled = !isPaid;
+            if (!isPaid && currencyTypeField) currencyTypeField.value = "";
 
-            if (isFreeSoftware) {
-                licenseTypeField.value = "";
-                currencyTypeField.value = "";
-                licenseCostField.value = "";
-                if (licenseStartDateField) licenseStartDateField.value = "";
-            }
+            if (licenseCostFieldWrap) licenseCostFieldWrap.style.display = isPaid ? "" : "none";
+            if (licenseCostField) licenseCostField.disabled = !isPaid;
+            if (!isPaid && licenseCostField) licenseCostField.value = "";
 
-            if (purchaseLinkLabel) {
-                purchaseLinkLabel.textContent = isFreeSoftware ? "Download Link" : "Purchase Link";
-            }
-            if (purchaseLinkInput) {
-                purchaseLinkInput.placeholder = isFreeSoftware ? "https://example.com/download" : "https://example.com/purchase";
-            }
-            if (purchaseLinkHelp) {
-                purchaseLinkHelp.textContent = isFreeSoftware
-                    ? "If there is no download link yet, add it here and then press Add."
-                    : "If there is no purchase link yet, add it here and then press Add.";
-            }
+            if (licenseStartDateFieldWrap) licenseStartDateFieldWrap.style.display = isPaid ? "" : "none";
+            if (licenseStartDateField) licenseStartDateField.disabled = !isPaid;
+            if (!isPaid && licenseStartDateField) licenseStartDateField.value = "";
+
+            if (subscriptionBillingFieldWrap) subscriptionBillingFieldWrap.style.display = isSubscription ? "" : "none";
+            if (subscriptionBillingField) subscriptionBillingField.disabled = !isSubscription;
+            if (!isSubscription && subscriptionBillingField) subscriptionBillingField.value = "";
+
+            if (purchaseLinkFieldWrap) purchaseLinkFieldWrap.style.display = (isPaid || isFree) ? "" : "none";
+            if (purchaseLinkLabel) purchaseLinkLabel.textContent = isFree ? "Download Link" : "Purchase Link";
+            if (purchaseLinkInput) purchaseLinkInput.placeholder = isFree ? "https://example.com/download" : "https://example.com/purchase";
+            if (purchaseLinkHelp) purchaseLinkHelp.textContent = isFree
+                ? "If there is no download link yet, add it here and then press Add."
+                : "If there is no purchase link yet, add it here and then press Add.";
         }
 
         function updateStudentUseFields() {
@@ -982,9 +1005,10 @@
                 return;
             }
 
+            const hasSoftwareTerms = softwareTermsFields && softwareTermsFields.style.display !== "none";
             const isStudentUse = studentIntendedUseField.value === "Yes";
             ageRestrictionsFieldWrap.style.display = isStudentUse ? "" : "none";
-            ageRestrictionsField.required = isStudentUse;
+            ageRestrictionsField.required = isStudentUse && hasSoftwareTerms;
 
             if (!isStudentUse) {
                 ageRestrictionsField.value = "";
@@ -992,7 +1016,7 @@
             }
 
             const ageValue = ageRestrictionsField.value;
-            const hasAgeRestriction = Boolean(ageValue) && ageValue !== "None";
+            const hasAgeRestriction = hasSoftwareTerms && Boolean(ageValue) && ageValue !== "None";
             allowsAcceptanceFieldWrap.style.display = (isStudentUse && hasAgeRestriction) ? "" : "none";
             if (!hasAgeRestriction && allowsAcceptanceField) {
                 allowsAcceptanceField.value = "";
@@ -1167,51 +1191,70 @@
             return response.ok;
         }
 
-        function setVendorTermsConditionsMode(mode) {
-            if (!vendorTermsConditionsInput || !vendorTermsConditionsInputWrap || !vendorTermsConditionsDisplayWrap) {
+        const vendorTermsInfo = document.getElementById("vendor_terms_info");
+        const softwareTermsFields = document.getElementById("software_terms_fields");
+
+        function updateTermsFieldsVisibility(hasSoftwareTerms) {
+            if (vendorTermsInfo) vendorTermsInfo.style.display = hasSoftwareTerms ? "none" : "";
+            if (softwareTermsFields) softwareTermsFields.style.display = hasSoftwareTerms ? "" : "none";
+        }
+
+        function setSoftwareTermsConditionsMode(mode) {
+            if (!softwareTermsConditionsInput || !softwareTermsConditionsInputWrap || !softwareTermsConditionsDisplayWrap) {
                 return;
             }
 
             if (mode === "display") {
-                const currentValue = vendorTermsConditionsInput.value.trim();
+                const currentValue = softwareTermsConditionsInput.value.trim();
                 if (!currentValue) {
-                    vendorTermsConditionsInput.focus();
+                    softwareTermsConditionsInput.focus();
                     return;
                 }
 
-                if (vendorTermsConditionsOpenLink) {
-                    vendorTermsConditionsOpenLink.href = currentValue;
-                    vendorTermsConditionsOpenLink.textContent = currentValue;
+                if (softwareTermsConditionsOpenLink) {
+                    softwareTermsConditionsOpenLink.href = currentValue;
+                    softwareTermsConditionsOpenLink.textContent = currentValue;
                 }
-                vendorTermsConditionsInputWrap.style.display = "none";
-                vendorTermsConditionsDisplayWrap.style.display = "";
+                softwareTermsConditionsInputWrap.style.display = "none";
+                softwareTermsConditionsDisplayWrap.style.display = "";
+                updateTermsFieldsVisibility(true);
                 return;
             }
 
-            vendorTermsConditionsInputWrap.style.display = "";
-            vendorTermsConditionsDisplayWrap.style.display = "none";
-            vendorTermsConditionsInput.focus();
-            vendorTermsConditionsInput.select();
+            if (mode === "clear") {
+                softwareTermsConditionsInput.value = "";
+                softwareTermsConditionsInputWrap.style.display = "";
+                softwareTermsConditionsDisplayWrap.style.display = "none";
+                updateTermsFieldsVisibility(false);
+                softwareTermsConditionsInput.focus();
+                return;
+            }
+
+            softwareTermsConditionsInputWrap.style.display = "";
+            softwareTermsConditionsDisplayWrap.style.display = "none";
+            softwareTermsConditionsInput.focus();
+            softwareTermsConditionsInput.select();
         }
 
-        async function persistVendorTermsConditionsLink() {
-            if (!assessmentVendorNameField || !vendorTermsConditionsInput) {
+        async function persistSoftwareTermsConditionsLink() {
+            const softwareNameField = document.querySelector('input[name="software_name"]');
+            if (!softwareNameField || !softwareTermsConditionsInput) {
                 return true;
             }
 
-            const vendorName = assessmentVendorNameField.value.trim();
-            const termsConditionsLink = vendorTermsConditionsInput.value.trim();
-            if (!vendorName) {
+            const softwareName = softwareNameField.value.trim();
+            const termsConditionsLink = softwareTermsConditionsInput.value.trim();
+            if (!softwareName) {
                 return true;
             }
 
-            const response = await fetch(`/vendors/${encodeURIComponent(vendorName)}/terms-conditions`, {
+            const response = await fetch(`/software/${encodeURIComponent(softwareName)}/terms-conditions`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/x-www-form-urlencoded;charset=UTF-8",
                 },
                 body: new URLSearchParams({
-                    vendor_terms_conditions_link: termsConditionsLink,
+                    terms_conditions_link: termsConditionsLink,
                 }),
             });
 
@@ -1287,9 +1330,9 @@
             reviewDateManuallyEdited = Boolean(reviewDateField.value);
         });
 
-        if (freeSoftwareField) {
-            freeSoftwareField.addEventListener("change", updateFreeSoftwareFields);
-            updateFreeSoftwareFields();
+        if (licenseTypeField) {
+            licenseTypeField.addEventListener("change", updateLicenseTypeFields);
+            updateLicenseTypeFields();
         }
 
         if (studentIntendedUseField) {
@@ -1306,8 +1349,8 @@
         initializeIconButton(licenseAgreementEditButton, editLinkIconMarkup);
         initializeIconButton(purchaseLinkCopyButton, copyLinkIconMarkup);
         initializeIconButton(purchaseLinkEditButton, editLinkIconMarkup);
-        initializeIconButton(vendorTermsConditionsCopyButton, copyLinkIconMarkup);
-        initializeIconButton(vendorTermsConditionsEditButton, editLinkIconMarkup);
+        initializeIconButton(softwareTermsConditionsCopyButton, copyLinkIconMarkup);
+        initializeIconButton(softwareTermsConditionsEditButton, editLinkIconMarkup);
 
         if (softwareWebsiteAddButton) {
             softwareWebsiteAddButton.addEventListener("click", async () => {
@@ -1375,25 +1418,35 @@
             });
         }
 
-        if (vendorTermsConditionsAddButton) {
-            vendorTermsConditionsAddButton.addEventListener("click", async () => {
-                const saved = await persistVendorTermsConditionsLink();
+        if (softwareTermsConditionsAddButton) {
+            softwareTermsConditionsAddButton.addEventListener("click", async () => {
+                const saved = await persistSoftwareTermsConditionsLink();
                 if (!saved) {
                     return;
                 }
-                setVendorTermsConditionsMode("display");
+                setSoftwareTermsConditionsMode("display");
             });
         }
 
-        if (vendorTermsConditionsCopyButton) {
-            vendorTermsConditionsCopyButton.addEventListener("click", () => {
-                copyAssessmentLink(vendorTermsConditionsInput, vendorTermsConditionsCopyButton);
+        if (softwareTermsConditionsCopyButton) {
+            softwareTermsConditionsCopyButton.addEventListener("click", () => {
+                copyAssessmentLink(softwareTermsConditionsInput, softwareTermsConditionsCopyButton);
             });
         }
 
-        if (vendorTermsConditionsEditButton) {
-            vendorTermsConditionsEditButton.addEventListener("click", () => {
-                setVendorTermsConditionsMode("edit");
+        if (softwareTermsConditionsEditButton) {
+            softwareTermsConditionsEditButton.addEventListener("click", () => {
+                setSoftwareTermsConditionsMode("edit");
+            });
+        }
+
+        if (softwareTermsConditionsClearButton) {
+            softwareTermsConditionsClearButton.addEventListener("click", async () => {
+                if (softwareTermsConditionsInput) {
+                    softwareTermsConditionsInput.value = "";
+                }
+                await persistSoftwareTermsConditionsLink();
+                setSoftwareTermsConditionsMode("clear");
             });
         }
 

@@ -49,6 +49,21 @@
     </div>
 </section>
 
+{% if software.vendor_name and not software.terms_conditions_link and not vendor_terms_conditions_link %}
+<section class="table-panel p-4 mb-4">
+    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Alerts</h2>
+    <div class="alert alert-warning d-flex gap-3 align-items-start mb-0" role="alert">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+        </svg>
+        <div>
+            <strong>No terms and conditions link on record.</strong>
+            {{ software.vendor_name }} does not have a published terms and conditions link. Add one via the <a href="{{ url_for('vendor_detail', vendor_name=software.vendor_name) }}">vendor page</a>.
+        </div>
+    </div>
+</section>
+{% endif %}
+
 <section class="table-panel p-4 mb-4">
     <div class="row g-3">
         {% if software.vendor_name %}
@@ -85,6 +100,16 @@
             <div>{{ software.genuine_need_notes }}</div>
         </div>
         {% endif %}
+        {% if software.terms_conditions_link %}
+        <div class="col-md-6">
+            <div class="small text-secondary mb-1">Terms and Conditions</div>
+            <div>
+                <a class="text-decoration-none" href="{{ software.terms_conditions_link }}" target="_blank" rel="noopener noreferrer">
+                    Open terms
+                </a>
+            </div>
+        </div>
+        {% endif %}
     </div>
 </section>
 
@@ -112,12 +137,7 @@
         </div>
         <div class="col-md-6">
             <div class="small text-secondary mb-1">Risk Level</div>
-            {% if software.risk_level == "Low" %}
-            <span class="fw-semibold text-success d-flex align-items-center gap-1" style="width: fit-content;">
-                <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0"/></svg>
-                Low
-            </span>
-            {% elif software.risk_level %}
+            {% if software.risk_level %}
             <div class="fw-semibold">{{ software.risk_level }}</div>
             {% else %}
             <div class="text-secondary">Not set</div>
@@ -222,7 +242,6 @@
                     <th>Vendor</th>
                     <th>Version</th>
                     <th>Next Audit Date</th>
-                    <th>Review Date</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -248,7 +267,6 @@
                     </td>
                     <td>{{ record.version or "Not provided" }}</td>
                     <td>{{ record.next_audit_date or "Not scheduled" }}</td>
-                    <td>{{ record.review_date or "Not scheduled" }}</td>
                     <td>
                         <div class="d-flex flex-wrap gap-2">
                             <a class="btn btn-sm btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" href="{{ url_for('edit_assessment', assessment_id=record.id) }}" aria-label="Edit assessment" title="Edit assessment">

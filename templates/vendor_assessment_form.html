@@ -187,7 +187,7 @@
                         </div>
                     </div>
                 </div>
-                <div class="col-md-6">
+                <div class="col-12">
                     <label class="form-label" for="vendor_terms_conditions_link">Terms and Conditions</label>
                     <div id="vendor_terms_conditions_link_input_wrap" {% if vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
                         <input class="form-control" type="url" id="vendor_terms_conditions_link" name="vendor_terms_conditions_link" value="{{ vendor.vendor_terms_conditions_link }}" placeholder="https://example.com/terms">
@@ -197,9 +197,25 @@
                     </div>
                     <div class="link-field-display" id="vendor_terms_conditions_link_display_wrap" {% if not vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
                         <div class="d-flex align-items-center gap-2 flex-wrap">
-                            <a id="vendor_terms_conditions_link_open_link" href="{{ vendor.vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer">{{ vendor.vendor_terms_conditions_link }}</a>
+                            <a id="vendor_terms_conditions_link_open_link" href="{{ vendor.vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer" style="word-break: break-all;">{{ vendor.vendor_terms_conditions_link }}</a>
                             <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_copy_button" aria-label="Copy link" title="Copy link"></button>
                             <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_edit_button" aria-label="Edit link" title="Edit link"></button>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-12">
+                    <label class="form-label" for="vendor_cookie_policy_link">Cookie Policy</label>
+                    <div id="vendor_cookie_policy_link_input_wrap" {% if vendor.vendor_cookie_policy_link %}style="display: none;"{% endif %}>
+                        <input class="form-control" type="url" id="vendor_cookie_policy_link" name="vendor_cookie_policy_link" value="{{ vendor.vendor_cookie_policy_link }}" placeholder="https://example.com/cookies">
+                        <div class="d-flex align-items-center gap-2 mt-2">
+                            <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_cookie_policy_link_add_button">Add</button>
+                        </div>
+                    </div>
+                    <div class="link-field-display" id="vendor_cookie_policy_link_display_wrap" {% if not vendor.vendor_cookie_policy_link %}style="display: none;"{% endif %}>
+                        <div class="d-flex align-items-center gap-2 flex-wrap">
+                            <a id="vendor_cookie_policy_link_open_link" href="{{ vendor.vendor_cookie_policy_link or '#' }}" target="_blank" rel="noopener noreferrer" style="word-break: break-all;">{{ vendor.vendor_cookie_policy_link }}</a>
+                            <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_cookie_policy_link_copy_button" aria-label="Copy link" title="Copy link"></button>
+                            <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_cookie_policy_link_edit_button" aria-label="Edit link" title="Edit link"></button>
                         </div>
                     </div>
                 </div>
@@ -226,6 +242,38 @@
                                 <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_edit_button" aria-label="Edit link" title="Edit link"></button>
                             </div>
                         </div>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="privacy-subsection">
+                        <div class="privacy-subsection-title">Age Restrictions</div>
+                        <select class="form-select" id="vendor_age_restrictions" name="vendor_age_restrictions">
+                            <option value="">Select an option</option>
+                            <option value="None" {% if vendor.vendor_age_restrictions == "None" %}selected{% endif %}>None</option>
+                            <option value="13+" {% if vendor.vendor_age_restrictions == "13+" %}selected{% endif %}>13+</option>
+                            <option value="16+" {% if vendor.vendor_age_restrictions == "16+" %}selected{% endif %}>16+</option>
+                            <option value="18+" {% if vendor.vendor_age_restrictions == "18+" %}selected{% endif %}>18+</option>
+                            <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" {% if vendor.vendor_age_restrictions == "Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" %}selected{% endif %}>Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="privacy-subsection">
+                        <div class="privacy-subsection-title">Terms Permit Acceptance by the College on Behalf of Students</div>
+                        <select class="form-select" id="vendor_allows_acceptance_on_behalf_of_entity" name="vendor_allows_acceptance_on_behalf_of_entity">
+                            <option value="">Select an option</option>
+                            <option value="Yes" {% if vendor.vendor_allows_acceptance_on_behalf_of_entity == "Yes" %}selected{% endif %}>Yes</option>
+                            <option value="No" {% if vendor.vendor_allows_acceptance_on_behalf_of_entity == "No" %}selected{% endif %}>No</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="col-12">
+                    <div class="privacy-subsection">
+                        <div class="privacy-subsection-title">Terms and Conditions Notes</div>
+                        <textarea class="form-control" id="vendor_terms_conditions_notes" name="vendor_terms_conditions_notes" rows="3">{{ vendor.vendor_terms_conditions_notes }}</textarea>
                     </div>
                 </div>
 
@@ -453,6 +501,13 @@
     const vendorTermsEditButton = document.getElementById("vendor_terms_conditions_link_edit_button");
     const vendorTermsCopyButton = document.getElementById("vendor_terms_conditions_link_copy_button");
     const vendorTermsOpenLink = document.getElementById("vendor_terms_conditions_link_open_link");
+    const vendorCookiePolicyInput = document.getElementById("vendor_cookie_policy_link");
+    const vendorCookiePolicyInputWrap = document.getElementById("vendor_cookie_policy_link_input_wrap");
+    const vendorCookiePolicyDisplayWrap = document.getElementById("vendor_cookie_policy_link_display_wrap");
+    const vendorCookiePolicyAddButton = document.getElementById("vendor_cookie_policy_link_add_button");
+    const vendorCookiePolicyEditButton = document.getElementById("vendor_cookie_policy_link_edit_button");
+    const vendorCookiePolicyCopyButton = document.getElementById("vendor_cookie_policy_link_copy_button");
+    const vendorCookiePolicyOpenLink = document.getElementById("vendor_cookie_policy_link_open_link");
     const dataProcessingAgreementWrap = document.getElementById("data_processing_agreement_wrap");
     const dataProcessingAgreementField = document.getElementById("data_processing_agreement_in_place");
     const dataStorageLocationWrap = document.getElementById("data_storage_location_wrap");
@@ -778,6 +833,17 @@
         openLink: vendorTermsOpenLink,
         endpoint: "terms-conditions",
         fieldName: "vendor_terms_conditions_link",
+    });
+    setupVendorLinkField({
+        input: vendorCookiePolicyInput,
+        inputWrap: vendorCookiePolicyInputWrap,
+        displayWrap: vendorCookiePolicyDisplayWrap,
+        addButton: vendorCookiePolicyAddButton,
+        editButton: vendorCookiePolicyEditButton,
+        copyButton: vendorCookiePolicyCopyButton,
+        openLink: vendorCookiePolicyOpenLink,
+        endpoint: "cookie-policy",
+        fieldName: "vendor_cookie_policy_link",
     });
     setupVendorLinkField({
         input: vendorPrivacyPolicyInput,

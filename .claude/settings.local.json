@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git -C \"c:\\\\Users\\\\ggleeson\\\\OneDrive - St Patricks College\\\\Visual Studio Projects\\\\Software Security Auditor\" status)",
+      "Bash(git -C \"c:\\\\Users\\\\ggleeson\\\\OneDrive - St Patricks College\\\\Visual Studio Projects\\\\Software Security Auditor\" log --oneline -5)",
+      "Bash(git -C \"c:\\\\Users\\\\ggleeson\\\\OneDrive - St Patricks College\\\\Visual Studio Projects\\\\Software Security Auditor\" diff --stat)",
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git -C \"c:\\\\Users\\\\ggleeson\\\\OneDrive - St Patricks College\\\\Visual Studio Projects\\\\Software Security Auditor\" push origin main)",
+      "Bash(dir /s /b \"c:\\\\Users\\\\ggleeson\\\\OneDrive - St Patricks College\\\\Visual Studio Projects\\\\Software Security Auditor\")",
+      "Bash(findstr /E \"\\\\.tsx$|\\\\.ts$|\\\\.jsx$|\\\\.js$\")",
+      "Bash(netstat -ano)",
+      "Bash(findstr :5000)",
+      "Bash(taskkill /PID 2744 /F)",
+      "Bash(taskkill /PID 17748 /F)"
+    ]
+  }
+}

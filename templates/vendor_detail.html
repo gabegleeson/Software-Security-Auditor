@@ -211,6 +211,8 @@
     {% endif %}
 </section>
 
+{% set only_unspecified = vendor_data_storage_map.locations == ["Other countries (unspecified)"] %}
+{% if not only_unspecified %}
 <section class="table-panel p-4 mb-4">
     <div class="mb-3">
         <h2 class="h5 mb-1">Data Storage Map</h2>
@@ -230,6 +232,7 @@
     <div class="text-secondary">No submitted vendor audit is available yet for mapping data storage locations.</div>
     {% endif %}
 </section>
+{% endif %}
 
 <section class="table-panel p-4 mb-4">
     <div class="row g-3">

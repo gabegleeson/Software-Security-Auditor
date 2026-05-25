@@ -478,12 +478,12 @@
 
         <input type="hidden" name="vendor_privacy_policy_link" value="{{ vendor_privacy_policy_link }}">
         <input type="hidden" name="vendor_terms_conditions_link" value="{{ vendor_terms_conditions_link }}">
-        <input type="hidden" name="terms_source" id="terms_source_value" value="{{ 'vendor' if not assessment.terms_conditions_link and vendor_terms_conditions_link else 'software' }}">
+        {% set use_vendor_terms = vendor_terms_conditions_link and (not assessment.terms_conditions_link or assessment.terms_conditions_link == vendor_terms_conditions_link) %}
+        <input type="hidden" name="terms_source" id="terms_source_value" value="{{ 'vendor' if use_vendor_terms else 'software' }}">
 
         <div class="section">
             <h2>Terms of Use / License Agreement Compliance</h2>
 
-            {% set use_vendor_terms = not assessment.terms_conditions_link and vendor_terms_conditions_link %}
             <div id="vendor_terms_info" {% if not use_vendor_terms %}style="display: none;"{% endif %}>
                 <div class="field">
                     <label>Terms and Conditions</label>
@@ -653,6 +653,11 @@
                 {% endif %}
             </div>
             <div class="d-flex gap-2 flex-wrap">
+                {% if assessment.software_name %}
+                <a href="{{ url_for('software_detail', software_name=assessment.software_name) }}" class="btn btn-outline-secondary btn-lg rounded-pill px-4">Cancel</a>
+                {% else %}
+                <a href="{{ url_for('software_list') }}" class="btn btn-outline-secondary btn-lg rounded-pill px-4">Cancel</a>
+                {% endif %}
                 <button type="submit" name="submit_action" value="draft" class="btn btn-outline-secondary btn-lg rounded-pill px-4">Save Draft</button>
                 <button type="submit" name="submit_action" value="submit" class="btn btn-primary btn-lg rounded-pill px-4">{{ submit_label }}</button>
             </div>
@@ -1032,19 +1037,28 @@
             const isStudentUse = studentIntendedUseField.value === "Yes";
             const source = getTermsSource();
 
-            if (vendorStudentFields) vendorStudentFields.style.display = (isStudentUse && source === "vendor") ? "" : "none";
-            if (softwareStudentFields) softwareStudentFields.style.display = (isStudentUse && source === "software") ? "" : "none";
+            // If there's no software T&C link and the vendor already has age/notes data,
+            // show vendor student fields even when source is "software" (no vendor T&C link).
+            const hasSoftwareTcLink = Boolean(softwareTermsConditionsInput && softwareTermsConditionsInput.value.trim());
+            const vendorHasStudentData = !hasSoftwareTcLink && (
+                Boolean(vendorAgeRestrictionsEditField && vendorAgeRestrictionsEditField.value) ||
+                Boolean(vendorTermsNotesEditField && vendorTermsNotesEditField.value.trim())
+            );
+            const useVendorStudentFields = source === "vendor" || vendorHasStudentData;
+
+            if (vendorStudentFields) vendorStudentFields.style.display = (isStudentUse && useVendorStudentFields) ? "" : "none";
+            if (softwareStudentFields) softwareStudentFields.style.display = (isStudentUse && !useVendorStudentFields) ? "" : "none";
 
             if (vendorAgeRestrictionsEditField && vendorAllowsAcceptanceEditWrap) {
                 const ageValue = vendorAgeRestrictionsEditField.value;
                 const hasRestriction = Boolean(ageValue) && ageValue !== "None";
-                vendorAllowsAcceptanceEditWrap.style.display = (isStudentUse && source === "vendor" && hasRestriction) ? "" : "none";
+                vendorAllowsAcceptanceEditWrap.style.display = (isStudentUse && useVendorStudentFields && hasRestriction) ? "" : "none";
                 if (!hasRestriction && vendorAllowsAcceptanceEditField) vendorAllowsAcceptanceEditField.value = "";
             }
 
             if (ageRestrictionsField && allowsAcceptanceFieldWrap) {
                 const ageValue = ageRestrictionsField.value;
-                const hasRestriction = isStudentUse && source === "software" && Boolean(ageValue) && ageValue !== "None";
+                const hasRestriction = isStudentUse && !useVendorStudentFields && Boolean(ageValue) && ageValue !== "None";
                 allowsAcceptanceFieldWrap.style.display = hasRestriction ? "" : "none";
                 if (!hasRestriction && allowsAcceptanceField) allowsAcceptanceField.value = "";
             }

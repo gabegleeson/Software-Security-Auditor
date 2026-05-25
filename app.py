@@ -6,6 +6,9 @@ import json
 import os
 from pathlib import Path
 import sqlite3
+import time
+import urllib.parse
+import urllib.request
 from xml.sax.saxutils import escape
 
 from flask import Flask, abort, jsonify, redirect, render_template, request, send_file, session, url_for
@@ -19,9 +22,12 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("APP_SECRET_KEY", "change-this-secret-key")
+NVD_API_KEY = os.environ.get("NVD_API_KEY", "")
+NVD_CACHE_TTL = 3600
+_nvd_cache: dict = {}
 DB_DIRECTORY = Path(__file__).resolve().parent / ".venv" / "data"
 DB_PATH = DB_DIRECTORY / "software_auditor.db"
-PDF_LOGO_PATH = Path(r"C:\Users\ggleeson\OneDrive - St Patricks College\IT Department - SPC Username Assistant\image\logo.jpg")
+PDF_LOGO_PATH = Path(r"C:\Users\ggleeson\OneDrive - St Patricks College\Visual Studio Projects\Ticketpad\static\images\crest.png")
 LOGIN_USERNAME = os.environ.get("APP_USERNAME", "admin")
 LOGIN_PASSWORD_HASH = generate_password_hash(os.environ.get("APP_PASSWORD", "change-me"))
 
@@ -671,6 +677,23 @@ PDF_FIELD_LABELS = {
 }
 
 PDF_SECTION_FIELDS = [
+    ("Software Information", [
+        "software_name",
+        "software_description",
+        "software_website",
+        "version",
+        "license_cost",
+        "purchase_link",
+        "duplicates_existing",
+        "genuine_need_notes",
+        "product_updates",
+        "security_updates",
+        "support_notes",
+        "license_start_date",
+        "license_renewal_date",
+        "deployment_date",
+        "next_audit_date",
+    ]),
     ("Vendor Information", [
         "vendor_name",
         "vendor_country",
@@ -690,23 +713,6 @@ PDF_SECTION_FIELDS = [
         "security_privacy_standards",
         "data_storage_notes",
         "privacy_notes",
-    ]),
-    ("Software Information", [
-        "software_name",
-        "software_description",
-        "software_website",
-        "version",
-        "license_cost",
-        "purchase_link",
-        "duplicates_existing",
-        "genuine_need_notes",
-        "product_updates",
-        "security_updates",
-        "support_notes",
-        "license_start_date",
-        "license_renewal_date",
-        "deployment_date",
-        "next_audit_date",
     ]),
     ("Assessment Responses", [
         "assessment_date",
@@ -1227,7 +1233,7 @@ def pdf_paragraph(value, style, preserve_line_breaks=False):
     return Paragraph(text, style)
 
 
-def build_assessment_pdf(record):
+def build_assessment_pdf(record, cve_data=None):
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -1246,7 +1252,7 @@ def build_assessment_pdf(record):
         fontName="Helvetica-Bold",
         fontSize=22,
         leading=26,
-        textColor=colors.HexColor("#16324F"),
+        textColor=colors.HexColor("#016936"),
         alignment=TA_LEFT,
         spaceAfter=6,
     )
@@ -1256,7 +1262,7 @@ def build_assessment_pdf(record):
         fontName="Helvetica",
         fontSize=10,
         leading=14,
-        textColor=colors.HexColor("#5B6773"),
+        textColor=colors.HexColor("#2a4238"),
         spaceAfter=12,
     )
     section_style = ParagraphStyle(
@@ -1266,7 +1272,7 @@ def build_assessment_pdf(record):
         fontSize=13,
         leading=16,
         textColor=colors.white,
-        backColor=colors.HexColor("#1F4D6B"),
+        backColor=colors.HexColor("#016936"),
         borderPadding=(6, 10, 6),
         spaceBefore=10,
         spaceAfter=8,
@@ -1277,7 +1283,7 @@ def build_assessment_pdf(record):
         fontName="Helvetica-Bold",
         fontSize=9,
         leading=12,
-        textColor=colors.HexColor("#52616F"),
+        textColor=colors.HexColor("#2a4238"),
     )
     value_style = ParagraphStyle(
         "FieldValue",
@@ -1285,7 +1291,7 @@ def build_assessment_pdf(record):
         fontName="Helvetica",
         fontSize=10,
         leading=14,
-        textColor=colors.HexColor("#1F2933"),
+        textColor=colors.HexColor("#2a4238"),
     )
 
     story = []
@@ -1333,9 +1339,9 @@ def build_assessment_pdf(record):
     summary_table.setStyle(
         TableStyle(
             [
-                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F6F8FB")),
-                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D9E2EC")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D9E2EC")),
+                ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#ebfdf2")),
+                ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#D1D5DB")),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
@@ -1378,14 +1384,14 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-                    ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D9E2EC")),
-                    ("INNERGRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#E4EBF2")),
+                    ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D1D5DB")),
+                    ("INNERGRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#E5E7EB")),
                     ("VALIGN", (0, 0), (-1, -1), "TOP"),
                     ("LEFTPADDING", (0, 0), (-1, -1), 8),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                     ("TOPPADDING", (0, 0), (-1, -1), 7),
                     ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
-                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#ebfdf2")),
                 ]
             )
         )
@@ -1428,7 +1434,7 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -1477,7 +1483,7 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -1519,7 +1525,7 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -1561,7 +1567,7 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -1603,7 +1609,7 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -1645,7 +1651,7 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -1687,7 +1693,7 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -1729,7 +1735,7 @@ def build_assessment_pdf(record):
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
-                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
                     ("LEFTPADDING", (0, 0), (-1, -1), 10),
                     ("RIGHTPADDING", (0, 0), (-1, -1), 10),
                     ("TOPPADDING", (0, 0), (-1, -1), 8),
@@ -1739,6 +1745,61 @@ def build_assessment_pdf(record):
             )
         )
         story.append(no_updates_table)
+        story.append(Spacer(1, 10))
+
+    if cve_data and cve_data.get("cves"):
+        _severity_rank = {"CRITICAL": 4, "HIGH": 3, "MEDIUM": 2, "LOW": 1}
+        highest_severity = max(
+            (c.get("severity", "") for c in cve_data["cves"]),
+            key=lambda s: _severity_rank.get(s, 0),
+            default="",
+        )
+        cve_count = cve_data["total"]
+        cve_ids = ", ".join(c["id"] for c in cve_data["cves"][:5])
+        if cve_data["total"] > 5:
+            cve_ids += f" and {cve_data['total'] - 5} more"
+        cve_alert_heading_style = ParagraphStyle(
+            "CveAlertHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        cve_alert_body_style = ParagraphStyle(
+            "CveAlertBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        cve_alert_cell = [
+            Paragraph("Known vulnerabilities detected.", cve_alert_heading_style),
+            Paragraph(
+                f"{cve_count} active CVE(s) matched for {escape(clean_pdf_text(record.get('software_name', '')))} "
+                f"in the National Vulnerability Database (NVD). "
+                f"Highest severity: {escape(clean_pdf_text(highest_severity))}. "
+                f"CVEs include: {escape(clean_pdf_text(cve_ids))}. "
+                "Results are keyword-matched and may include related products — verify each CVE applies to this software.",
+                cve_alert_body_style,
+            ),
+        ]
+        cve_alert_table = Table([[cve_alert_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        cve_alert_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(cve_alert_table)
         story.append(Spacer(1, 10))
 
     signature_roles = ["IT Director", "Line Manager"]
@@ -1759,14 +1820,14 @@ def build_assessment_pdf(record):
         TableStyle(
             [
                 ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D9E2EC")),
-                ("INNERGRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#E4EBF2")),
+                ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D1D5DB")),
+                ("INNERGRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#E5E7EB")),
                 ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
                 ("LEFTPADDING", (0, 0), (-1, -1), 8),
                 ("RIGHTPADDING", (0, 0), (-1, -1), 8),
                 ("TOPPADDING", (0, 0), (-1, -1), 12),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-                ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#F8FAFC")),
+                ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#ebfdf2")),
             ]
         )
     )
@@ -2374,6 +2435,7 @@ def load_vendor_records():
             "vendor_country": loaded_vendor.get("vendor_country", ""),
             "vendor_website": loaded_vendor.get("vendor_website", "") or loaded_vendor.get("website", ""),
             "vendor_terms_conditions_link": loaded_vendor.get("vendor_terms_conditions_link", ""),
+            "no_vendor_terms_conditions": bool(loaded_vendor.get("no_vendor_terms_conditions", False)),
             "vendor_cookie_policy_link": loaded_vendor.get("vendor_cookie_policy_link", ""),
             "vendor_privacy_policy_link": loaded_vendor.get("vendor_privacy_policy_link", ""),
             "online_support": loaded_vendor.get("online_support", ""),
@@ -2710,6 +2772,7 @@ def build_vendor_list(active_only=False):
                 "vendor_age_restrictions": vendor.get("vendor_age_restrictions", ""),
                 "vendor_terms_conditions_notes": vendor.get("vendor_terms_conditions_notes", ""),
                 "vendor_allows_acceptance_on_behalf_of_entity": vendor.get("vendor_allows_acceptance_on_behalf_of_entity", ""),
+                "no_vendor_terms_conditions": vendor.get("no_vendor_terms_conditions", False),
                 "product_count": 0,
             },
         )
@@ -2724,6 +2787,7 @@ def build_vendor_list(active_only=False):
         existing["vendor_age_restrictions"] = existing.get("vendor_age_restrictions") or vendor.get("vendor_age_restrictions", "")
         existing["vendor_terms_conditions_notes"] = existing.get("vendor_terms_conditions_notes") or vendor.get("vendor_terms_conditions_notes", "")
         existing["vendor_allows_acceptance_on_behalf_of_entity"] = existing.get("vendor_allows_acceptance_on_behalf_of_entity") or vendor.get("vendor_allows_acceptance_on_behalf_of_entity", "")
+        existing["no_vendor_terms_conditions"] = existing.get("no_vendor_terms_conditions") or vendor.get("no_vendor_terms_conditions", False)
 
     built_vendors = []
     for vendor_name in sorted(vendors_by_name):
@@ -2742,6 +2806,7 @@ def build_vendor_list(active_only=False):
                 "vendor_age_restrictions": vendor.get("vendor_age_restrictions", ""),
                 "vendor_terms_conditions_notes": vendor.get("vendor_terms_conditions_notes", ""),
                 "vendor_allows_acceptance_on_behalf_of_entity": vendor.get("vendor_allows_acceptance_on_behalf_of_entity", ""),
+                "no_vendor_terms_conditions": vendor.get("no_vendor_terms_conditions", False),
                 "product_count": vendor["product_count"],
             }
         )
@@ -4164,7 +4229,6 @@ def save_software_deployed_status(software_name, deployed):
             updated = True
     return updated
 
-
 @app.route("/software-bulk-status", methods=["POST"])
 def bulk_software_status():
     software_names = request.form.getlist("software_names")
@@ -4305,6 +4369,68 @@ def software_detail(software_name):
     )
 
 
+def fetch_nvd_cves(keyword):
+    """Returns {"cves": [...], "total": N} or None on any failure. Caches for NVD_CACHE_TTL seconds."""
+    if not keyword:
+        return None
+    cache_key = keyword.casefold()
+    cached = _nvd_cache.get(cache_key)
+    if cached:
+        cached_at, cached_data = cached
+        if time.time() - cached_at < NVD_CACHE_TTL:
+            return cached_data
+    params = urllib.parse.urlencode({"keywordSearch": keyword, "resultsPerPage": 15})
+    url = f"https://services.nvd.nist.gov/rest/json/cves/2.0?{params}&noRejected"
+    req = urllib.request.Request(url, headers={"User-Agent": "SoftwareSecurityAuditor/1.0"})
+    if NVD_API_KEY:
+        req.add_header("apiKey", NVD_API_KEY)
+    try:
+        with urllib.request.urlopen(req, timeout=15) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        cves = []
+        for vuln in data.get("vulnerabilities", []):
+            cve = vuln.get("cve", {})
+            if cve.get("vulnStatus", "").lower() == "rejected":
+                continue
+            description = next(
+                (d.get("value", "") for d in cve.get("descriptions", []) if d.get("lang") == "en"),
+                "",
+            )
+            base_score = None
+            severity = ""
+            metrics = cve.get("metrics", {})
+            for metric_key in ("cvssMetricV31", "cvssMetricV30", "cvssMetricV2"):
+                metric_list = metrics.get(metric_key, [])
+                if metric_list and isinstance(metric_list[0], dict):
+                    cvss_data = metric_list[0].get("cvssData", {}) or {}
+                    base_score = cvss_data.get("baseScore")
+                    severity = cvss_data.get("baseSeverity", "")
+                    break
+            cves.append({
+                "id": cve.get("id", ""),
+                "description": description,
+                "base_score": base_score,
+                "severity": severity,
+                "published": (cve.get("published", "") or "")[:10],
+            })
+    except Exception:
+        return None
+    result = {"cves": cves, "total": data.get("totalResults", 0)}
+    _nvd_cache[cache_key] = (time.time(), result)
+    return result
+
+
+@app.route("/api/nvd/cves")
+def nvd_cves():
+    keyword = request.args.get("keyword", "").strip()
+    if not keyword:
+        return jsonify({"error": "keyword required"}), 400
+    result = fetch_nvd_cves(keyword)
+    if result is None:
+        return jsonify({"error": "Could not load vulnerability data from NVD"}), 502
+    return jsonify(result)
+
+
 @app.route("/vendors")
 def vendor_list():
     return render_template("vendor_list.html", vendors=build_vendor_list())
@@ -4373,6 +4499,43 @@ def vendor_detail(vendor_name):
         linked_software=linked_software,
         vendor_assessments=get_vendor_assessments(vendor_name),
         vendor_data_storage_map=build_vendor_data_storage_map(vendor_name),
+    )
+
+
+@app.route("/countries/<path:country_name>", methods=["GET", "POST"])
+def country_detail(country_name):
+    if country_name not in COUNTRY_OPTIONS:
+        abort(404)
+
+    if request.method == "POST":
+        new_risk = request.form.get("risk_level", "").strip()
+        assignments = get_country_risk_assignments()
+        if new_risk in RISK_CATEGORY_OPTIONS:
+            assignments[country_name] = new_risk
+        else:
+            assignments.pop(country_name, None)
+        APP_SETTINGS["country_risk_assignments"] = json.dumps(assignments)
+        persist_app_settings()
+        return redirect(url_for("country_detail", country_name=country_name))
+
+    vendors_hosting = []
+    vendors_based = []
+    for vendor in build_vendor_list():
+        vendor_name = vendor.get("vendor_name", "")
+        if vendor.get("vendor_country", "") == country_name:
+            vendors_based.append(vendor)
+        assessment = get_latest_vendor_assessment(vendor_name)
+        locations = get_selected_values((assessment or {}).get("data_storage_location", ""))
+        if country_name in locations:
+            vendors_hosting.append(vendor)
+
+    return render_template(
+        "country_detail.html",
+        country_name=country_name,
+        risk_level=get_country_risk_level(country_name),
+        vendors_hosting=vendors_hosting,
+        vendors_based=vendors_based,
+        risk_category_options=RISK_CATEGORY_OPTIONS,
     )
 
 
@@ -4766,7 +4929,8 @@ def download_assessment_pdf(assessment_id):
         or record.get("next_audit_date")
         or f"assessment-{assessment_id}"
     )
-    pdf_data = build_assessment_pdf(pdf_record)
+    cve_data = fetch_nvd_cves(pdf_record.get("software_name", ""))
+    pdf_data = build_assessment_pdf(pdf_record, cve_data=cve_data)
     return send_file(
         pdf_data,
         mimetype="application/pdf",

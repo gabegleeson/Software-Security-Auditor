@@ -12,7 +12,12 @@
       "Bash(netstat -ano)",
       "Bash(findstr :5000)",
       "Bash(taskkill /PID 2744 /F)",
-      "Bash(taskkill /PID 17748 /F)"
+      "Bash(taskkill /PID 17748 /F)",
+      "Bash(python -c \"import sqlite3, json; conn = sqlite3.connect\\('.venv/data/software_auditor.db'\\); rows = conn.execute\\('SELECT name, data FROM vendors WHERE lower\\(name\\) LIKE lower\\(\\\\\"%vectric%\\\\\"\\)'\\).fetchall\\(\\); [print\\(r[0], json.dumps\\(json.loads\\(r[1]\\), indent=2\\)\\) for r in rows]; conn.close\\(\\)\")",
+      "Bash(.venv/Scripts/python.exe -c \"import sqlite3, json; conn = sqlite3.connect\\('.venv/data/software_auditor.db'\\); rows = conn.execute\\('SELECT name, data FROM vendors WHERE lower\\(name\\) LIKE lower\\(\\\\\"%vectric%\\\\\"\\)'\\).fetchall\\(\\); [print\\(r[0], ':', json.dumps\\(json.loads\\(r[1]\\), indent=2\\)\\) for r in rows]; conn.close\\(\\)\")"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\ggleeson\\.claude\\projects\\c--Users-ggleeson-OneDrive---St-Patricks-College-Visual-Studio-Projects-Software-Security-Auditor\\memory"
     ]
   }
 }

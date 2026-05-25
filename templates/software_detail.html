@@ -36,7 +36,7 @@
             <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_assessment', source_assessment_id=software.id) }}">Add Assessment</a>
         </div>
     </div>
-    <div>
+    <div class="mb-4">
         <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Software History</span>
         <h1 class="display-6 fw-semibold mb-2">{{ software_name }}</h1>
         {% if software.software_website %}
@@ -47,22 +47,136 @@
         </div>
         {% endif %}
     </div>
-</section>
-
-{% if software.vendor_name and not software.terms_conditions_link and not vendor_terms_conditions_link %}
-<section class="table-panel p-4 mb-4">
     <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Alerts</h2>
-    <div class="alert alert-warning d-flex gap-3 align-items-start mb-0" role="alert">
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
-            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-        </svg>
-        <div>
-            <strong>No terms and conditions link on record.</strong>
-            {{ software.vendor_name }} does not have a published terms and conditions link. Add one via the <a href="{{ url_for('vendor_detail', vendor_name=software.vendor_name) }}">vendor page</a>.
+    {% set ns = namespace(alerts=[]) %}
+    {% set effective_age_restrictions = software.age_restrictions if software.terms_conditions_link else (software.age_restrictions or vendor_age_restrictions) %}
+    {% set effective_allows_acceptance = software.allows_acceptance_on_behalf_of_entity if software.terms_conditions_link else (software.allows_acceptance_on_behalf_of_entity or vendor_allows_acceptance) %}
+    {% if software.vendor_name and not software.terms_conditions_link and not vendor_terms_conditions_link %}
+        {% set ns.alerts = ns.alerts + ["no_tc_link"] %}
+    {% endif %}
+    {% if effective_age_restrictions and effective_age_restrictions != "None" and effective_allows_acceptance == "No" %}
+        {% set ns.alerts = ns.alerts + ["acceptance_restricted"] %}
+    {% endif %}
+    {% if vendor_high_risk_locations %}
+        {% set ns.alerts = ns.alerts + ["vendor_high_risk"] %}
+    {% endif %}
+    {% if software.is_assessment and not software.product_updates and not software.security_updates %}
+        {% set ns.alerts = ns.alerts + ["no_updates"] %}
+    {% endif %}
+    {% if software.is_assessment and not software.tested %}
+        {% set ns.alerts = ns.alerts + ["not_tested"] %}
+    {% endif %}
+    {% if software.vendor_name and not vendor_online_support %}
+        {% set ns.alerts = ns.alerts + ["no_online_support"] %}
+    {% endif %}
+    {% if "Other countries (unspecified)" in vendor_data_storage_locations %}
+        {% set ns.alerts = ns.alerts + ["unspecified_hosting"] %}
+    {% endif %}
+    {% if vendor_no_privacy_policy %}
+        {% set ns.alerts = ns.alerts + ["no_privacy_policy"] %}
+    {% endif %}
+
+    <div id="alerts-container">
+    {% if ns.alerts %}
+        {% if "no_tc_link" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No terms and conditions link on record.</strong>
+                {{ software.vendor_name }} does not have a published terms and conditions link. Add one via the <a href="{{ url_for('vendor_detail', vendor_name=software.vendor_name) }}">vendor page</a>.
+            </div>
         </div>
+        {% endif %}
+        {% if "acceptance_restricted" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>Acceptance terms require individual consent.</strong>
+                This software has age restrictions ({{ effective_age_restrictions }}) and the vendor's terms do not permit the college to accept on behalf of users. Individual consent may be required before deployment.
+            </div>
+        </div>
+        {% endif %}
+        {% if "vendor_high_risk" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>High-risk data storage locations detected.</strong>
+                The latest audit for {{ software.vendor_name }} lists data stored in
+                {% if vendor_high_risk_locations|length == 1 %}
+                    <strong>{{ vendor_high_risk_locations[0] }}</strong>, which is classified as high risk.
+                {% else %}
+                    {% for loc in vendor_high_risk_locations %}<strong>{{ loc }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}, which are classified as high risk.
+                {% endif %}
+                Review data transfer mechanisms and ensure appropriate safeguards are in place.
+            </div>
+        </div>
+        {% endif %}
+        {% if "not_tested" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>Software has not been tested.</strong>
+                This software has not been marked as tested. Confirm that appropriate testing has been completed before deployment.
+            </div>
+        </div>
+        {% endif %}
+        {% if "no_updates" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No product or security updates available.</strong>
+                This software does not offer product updates or security updates. Review whether this poses an ongoing security risk before deployment or continued use.
+            </div>
+        </div>
+        {% endif %}
+        {% if "no_online_support" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No online support link on record.</strong>
+                {{ software.vendor_name }} does not have an online support link. Add one via the <a href="{{ url_for('vendor_detail', vendor_name=software.vendor_name) }}">vendor page</a>.
+            </div>
+        </div>
+        {% endif %}
+        {% if "unspecified_hosting" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>Unspecified data hosting locations.</strong>
+                The latest audit for {{ software.vendor_name }} lists data hosted in other countries (unspecified). Review the vendor audit to clarify where data is stored.
+            </div>
+        </div>
+        {% endif %}
+        {% if "no_privacy_policy" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No vendor privacy policy available.</strong>
+                The latest audit for {{ software.vendor_name }} records that no privacy policy is available. Confirm whether a privacy policy exists before deployment.
+            </div>
+        </div>
+        {% endif %}
+    {% else %}
+    <p class="text-secondary mb-0" id="no-alerts-msg">No alerts for this software.</p>
+    {% endif %}
     </div>
 </section>
-{% endif %}
 
 <section class="table-panel p-4 mb-4">
     <div class="row g-3">
@@ -184,123 +298,118 @@
 </section>
 {% endif %}
 
-<section class="table-panel p-4 mb-4">
-    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Alerts</h2>
-    {% set ns = namespace(alerts=[]) %}
-    {% set effective_age_restrictions = software.age_restrictions if software.terms_conditions_link else (software.age_restrictions or vendor_age_restrictions) %}
-    {% set effective_allows_acceptance = software.allows_acceptance_on_behalf_of_entity if software.terms_conditions_link else (software.allows_acceptance_on_behalf_of_entity or vendor_allows_acceptance) %}
-    {% if effective_age_restrictions
-          and effective_age_restrictions != "None"
-          and effective_allows_acceptance == "No" %}
-        {% set ns.alerts = ns.alerts + ["acceptance_restricted"] %}
-    {% endif %}
-    {% if vendor_high_risk_locations %}
-        {% set ns.alerts = ns.alerts + ["vendor_high_risk"] %}
-    {% endif %}
-    {% if software.is_assessment and not software.product_updates and not software.security_updates %}
-        {% set ns.alerts = ns.alerts + ["no_updates"] %}
-    {% endif %}
-    {% if software.is_assessment and not software.tested %}
-        {% set ns.alerts = ns.alerts + ["not_tested"] %}
-    {% endif %}
-    {% if software.vendor_name and not vendor_online_support %}
-        {% set ns.alerts = ns.alerts + ["no_online_support"] %}
-    {% endif %}
-    {% if "Other countries (unspecified)" in vendor_data_storage_locations %}
-        {% set ns.alerts = ns.alerts + ["unspecified_hosting"] %}
-    {% endif %}
-    {% if vendor_no_privacy_policy %}
-        {% set ns.alerts = ns.alerts + ["no_privacy_policy"] %}
-    {% endif %}
-
-    {% if ns.alerts %}
-        {% if "acceptance_restricted" in ns.alerts %}
-        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-            </svg>
-            <div>
-                <strong>Acceptance terms require individual consent.</strong>
-                This software has age restrictions ({{ effective_age_restrictions }}) and the vendor's terms do not permit the college to accept on behalf of users. Individual consent may be required before deployment.
+<section class="table-panel p-4 mb-4" id="nvd-section">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-0">Known Vulnerabilities</h2>
+        <span class="small text-secondary">Source: <a href="https://nvd.nist.gov/" target="_blank" rel="noopener noreferrer" class="text-decoration-none">NVD / NIST</a></span>
+    </div>
+    <div id="nvd-loading" class="text-secondary small">Loading vulnerabilities&hellip;</div>
+    <div id="nvd-error" class="text-secondary small d-none"></div>
+    <div id="nvd-results" class="d-none">
+        <p id="nvd-none" class="text-secondary small mb-0 d-none">No CVEs found matching &ldquo;{{ software_name }}&rdquo; in the NVD.</p>
+        <div id="nvd-table-wrapper" class="d-none">
+            <p class="small text-secondary mb-2" id="nvd-result-count"></p>
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th class="text-nowrap">CVE ID</th>
+                            <th>Severity</th>
+                            <th>Score</th>
+                            <th>Description</th>
+                            <th class="text-nowrap">Published</th>
+                        </tr>
+                    </thead>
+                    <tbody id="nvd-table-body"></tbody>
+                </table>
             </div>
         </div>
-        {% endif %}
-        {% if "vendor_high_risk" in ns.alerts %}
-        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-            </svg>
-            <div>
-                <strong>High-risk data storage locations detected.</strong>
-                The latest audit for {{ software.vendor_name }} lists data stored in
-                {% if vendor_high_risk_locations|length == 1 %}
-                    <strong>{{ vendor_high_risk_locations[0] }}</strong>, which is classified as high risk.
-                {% else %}
-                    {% for loc in vendor_high_risk_locations %}<strong>{{ loc }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}, which are classified as high risk.
-                {% endif %}
-                Review data transfer mechanisms and ensure appropriate safeguards are in place.
-            </div>
-        </div>
-        {% endif %}
-        {% if "not_tested" in ns.alerts %}
-        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-            </svg>
-            <div>
-                <strong>Software has not been tested.</strong>
-                This software has not been marked as tested. Confirm that appropriate testing has been completed before deployment.
-            </div>
-        </div>
-        {% endif %}
-        {% if "no_updates" in ns.alerts %}
-        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-            </svg>
-            <div>
-                <strong>No product or security updates available.</strong>
-                This software does not offer product updates or security updates. Review whether this poses an ongoing security risk before deployment or continued use.
-            </div>
-        </div>
-        {% endif %}
-        {% if "no_online_support" in ns.alerts %}
-        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-            </svg>
-            <div>
-                <strong>No online support link on record.</strong>
-                {{ software.vendor_name }} does not have an online support link. Add one via the <a href="{{ url_for('vendor_detail', vendor_name=software.vendor_name) }}">vendor page</a>.
-            </div>
-        </div>
-        {% endif %}
-        {% if "unspecified_hosting" in ns.alerts %}
-        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-            </svg>
-            <div>
-                <strong>Unspecified data hosting locations.</strong>
-                The latest audit for {{ software.vendor_name }} lists data hosted in other countries (unspecified). Review the vendor audit to clarify where data is stored.
-            </div>
-        </div>
-        {% endif %}
-        {% if "no_privacy_policy" in ns.alerts %}
-        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
-                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
-            </svg>
-            <div>
-                <strong>No vendor privacy policy available.</strong>
-                The latest audit for {{ software.vendor_name }} records that no privacy policy is available. Confirm whether a privacy policy exists before deployment.
-            </div>
-        </div>
-        {% endif %}
-    {% else %}
-    <p class="text-secondary mb-0">No alerts for this software.</p>
-    {% endif %}
+    </div>
 </section>
+
+<script>
+(function () {
+    const keyword = {{ software_name | tojson }};
+    const loading = document.getElementById("nvd-loading");
+    const errorEl = document.getElementById("nvd-error");
+    const results = document.getElementById("nvd-results");
+    const noneEl = document.getElementById("nvd-none");
+    const tableWrapper = document.getElementById("nvd-table-wrapper");
+    const tableBody = document.getElementById("nvd-table-body");
+    const countEl = document.getElementById("nvd-result-count");
+
+    const severityBadge = { CRITICAL: "danger", HIGH: "warning", MEDIUM: "primary", LOW: "success" };
+
+    function escapeHtml(str) {
+        const d = document.createElement("div");
+        d.appendChild(document.createTextNode(str));
+        return d.innerHTML;
+    }
+
+    fetch("/api/nvd/cves?keyword=" + encodeURIComponent(keyword))
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+            loading.classList.add("d-none");
+            if (data.error) {
+                errorEl.textContent = "Could not load vulnerabilities: " + data.error;
+                errorEl.classList.remove("d-none");
+                return;
+            }
+            results.classList.remove("d-none");
+            if (!data.cves || data.cves.length === 0) {
+                noneEl.classList.remove("d-none");
+                return;
+            }
+
+            var severityRank = { CRITICAL: 4, HIGH: 3, MEDIUM: 2, LOW: 1 };
+            var highest = "";
+            var highestRank = 0;
+            data.cves.forEach(function (cve) {
+                var rank = severityRank[cve.severity] || 0;
+                if (rank > highestRank) { highestRank = rank; highest = cve.severity; }
+            });
+            var alertsContainer = document.getElementById("alerts-container");
+            var noAlertsMsg = document.getElementById("no-alerts-msg");
+            if (alertsContainer) {
+                var count = data.total;
+                var alertDiv = document.createElement("div");
+                alertDiv.className = "alert alert-warning d-flex gap-3 align-items-start mb-2";
+                alertDiv.setAttribute("role", "alert");
+                alertDiv.innerHTML =
+                    '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true"><path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/></svg>' +
+                    "<div><strong>" + escapeHtml(count) + " known vulnerabilit" + (count === 1 ? "y" : "ies") + " found.</strong> " +
+                    (highest ? "Highest severity: <strong>" + escapeHtml(highest) + "</strong>. " : "") +
+                    '<a href="#nvd-section">See the Known Vulnerabilities section below.</a></div>';
+                alertsContainer.insertBefore(alertDiv, alertsContainer.firstChild);
+                if (noAlertsMsg) { noAlertsMsg.classList.add("d-none"); }
+            }
+
+            tableWrapper.classList.remove("d-none");
+            var note = data.total > data.cves.length
+                ? "Showing " + data.cves.length + " of " + data.total + " results — results are keyword-matched and may include unrelated products."
+                : data.cves.length + " result" + (data.cves.length !== 1 ? "s" : "") + " — keyword-matched, may include unrelated products.";
+            countEl.textContent = note;
+            data.cves.forEach(function (cve) {
+                var badge = severityBadge[cve.severity] || "secondary";
+                var score = cve.base_score !== null && cve.base_score !== undefined ? cve.base_score.toFixed(1) : "N/A";
+                var desc = cve.description.length > 160 ? cve.description.slice(0, 160) + "…" : cve.description;
+                var tr = document.createElement("tr");
+                tr.innerHTML =
+                    "<td class=\"text-nowrap\"><a href=\"https://nvd.nist.gov/vuln/detail/" + escapeHtml(cve.id) + "\" target=\"_blank\" rel=\"noopener noreferrer\" class=\"text-decoration-none fw-semibold\">" + escapeHtml(cve.id) + "</a></td>" +
+                    "<td><span class=\"badge text-bg-" + badge + " rounded-pill\">" + escapeHtml(cve.severity || "N/A") + "</span></td>" +
+                    "<td class=\"text-nowrap\">" + escapeHtml(score) + "</td>" +
+                    "<td class=\"small\">" + escapeHtml(desc) + "</td>" +
+                    "<td class=\"small text-nowrap\">" + escapeHtml(cve.published) + "</td>";
+                tableBody.appendChild(tr);
+            });
+        })
+        .catch(function () {
+            loading.classList.add("d-none");
+            errorEl.textContent = "Could not load vulnerability data.";
+            errorEl.classList.remove("d-none");
+        });
+}());
+</script>
 
 <section class="table-panel p-4">
     {% if assessments %}

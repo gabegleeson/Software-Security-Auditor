@@ -1,0 +1,314 @@
+{% extends "base.html" %}
+
+{% block title %}Vendor Country of Origin Map{% endblock %}
+
+{% block head_extra %}
+<link
+    rel="stylesheet"
+    href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIINfQd9LOQ9crLNfkL4bIwSlezC1wT2Cpk="
+    crossorigin=""
+>
+<style>
+    .origin-map-panel {
+        display: grid;
+        gap: 1.25rem;
+    }
+
+    .origin-map-stack {
+        display: grid;
+        gap: 14px;
+    }
+
+    .leaflet-origin-map {
+        min-height: 620px;
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        overflow: hidden;
+        background: var(--surface-subtle);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.65);
+    }
+
+    .leaflet-container {
+        font-family: inherit;
+    }
+
+    .leaflet-origin-map .leaflet-pane,
+    .leaflet-origin-map .leaflet-map-pane {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+
+    .leaflet-origin-map .leaflet-tile-pane { z-index: 200; }
+    .leaflet-origin-map .leaflet-marker-pane { z-index: 900; }
+    .leaflet-origin-map .leaflet-popup-pane { z-index: 1200; pointer-events: auto; }
+    .leaflet-origin-map .leaflet-popup { z-index: 1201; }
+
+    .leaflet-origin-map .leaflet-tile,
+    .leaflet-origin-map .leaflet-marker-icon,
+    .leaflet-origin-map .leaflet-marker-shadow,
+    .leaflet-origin-map .leaflet-tile-container,
+    .leaflet-origin-map .leaflet-pane > svg,
+    .leaflet-origin-map .leaflet-pane > canvas,
+    .leaflet-origin-map .leaflet-zoom-box,
+    .leaflet-origin-map .leaflet-image-layer,
+    .leaflet-origin-map .leaflet-layer {
+        position: absolute;
+        left: 0;
+        top: 0;
+    }
+
+    .leaflet-origin-map .leaflet-tile {
+        width: 256px !important;
+        height: 256px !important;
+        max-width: none !important;
+        max-height: none !important;
+        padding: 0 !important;
+        border: 0 !important;
+    }
+
+    body.dark-mode .leaflet-origin-map .leaflet-tile {
+        filter: grayscale(1) brightness(0.48) contrast(1.18);
+    }
+
+    .leaflet-origin-map .leaflet-control-container {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+        z-index: 1100;
+    }
+
+    .leaflet-origin-map .leaflet-control { pointer-events: auto; }
+
+    .leaflet-origin-map .leaflet-control-zoom {
+        border: 0;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 10px 24px rgba(15, 23, 42, 0.16);
+        width: auto;
+        display: inline-flex;
+        flex-direction: column;
+    }
+
+    .leaflet-origin-map .leaflet-control-zoom a {
+        width: 34px;
+        height: 34px;
+        border: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--surface-field);
+        color: var(--page-text);
+        font-size: 1.05rem;
+        font-weight: 700;
+        line-height: 1;
+        text-indent: 0;
+    }
+
+    .leaflet-origin-map .leaflet-control-zoom a:first-child {
+        border-bottom: 1px solid var(--border-soft);
+    }
+
+    .leaflet-origin-map .leaflet-control-zoom a:hover,
+    .leaflet-origin-map .leaflet-control-zoom a:focus {
+        background: var(--surface-subtle);
+        color: var(--page-text);
+    }
+
+    .leaflet-origin-map .leaflet-right { right: 16px; }
+    .leaflet-origin-map .leaflet-bottom { bottom: 16px; }
+
+    .origin-map-marker {
+        border: 2px solid #ffffff;
+        border-radius: 999px;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.28);
+        opacity: 0.92;
+        transition: width 0.12s ease, height 0.12s ease;
+    }
+
+    .origin-map-selection-title {
+        font-weight: 700;
+        margin-bottom: 6px;
+    }
+
+    .origin-map-selection-list {
+        margin: 8px 0 0;
+        padding-left: 18px;
+    }
+
+    .origin-map-selection-list li {
+        margin-bottom: 4px;
+    }
+
+    .origin-breakdown-wrap,
+    .origin-map-selection {
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        padding: 14px;
+        background: var(--surface-subtle-strong);
+    }
+
+    .origin-breakdown {
+        columns: 3 220px;
+        column-gap: 24px;
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    .origin-breakdown li {
+        break-inside: avoid;
+        margin-bottom: 6px;
+    }
+
+    @media (max-width: 992px) {
+        .leaflet-origin-map { min-height: 500px; }
+    }
+
+    @media (max-width: 620px) {
+        .leaflet-origin-map { min-height: 400px; }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="table-panel p-4 mb-4 origin-map-panel">
+    <div>
+        <h2 class="h4 fw-semibold mb-2">Vendor Country of Origin Map</h2>
+        <p class="text-secondary mb-0">Vendors plotted by their registered country of origin.</p>
+    </div>
+
+    {% if vendor_origin_map.map_locations %}
+    <div class="origin-map-stack">
+        <div id="origin_map" class="leaflet-origin-map"></div>
+        <div class="origin-map-selection" id="origin_map_selection">
+            <div class="text-secondary">Select a map point to view vendors based in that country.</div>
+        </div>
+        <div class="origin-breakdown-wrap">
+            <div class="fw-semibold mb-2">Country Breakdown</div>
+            <ol class="origin-breakdown">
+                {% for item in vendor_origin_map.locations %}
+                <li>
+                    <strong>{{ item.location }}</strong>:
+                    {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}
+                    {% if item.percentage %}&middot; {{ item.percentage }}%{% endif %}
+                    {% if "latitude" not in item %}<span class="text-secondary">(not plotted)</span>{% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+        </div>
+    </div>
+    {% elif vendor_origin_map.locations %}
+    <div class="text-secondary">Vendor countries are recorded but none could be plotted on the map.</div>
+    <div class="origin-breakdown-wrap mt-2">
+        <div class="fw-semibold mb-2">Country Breakdown</div>
+        <ol class="origin-breakdown">
+            {% for item in vendor_origin_map.locations %}
+            <li><strong>{{ item.location }}</strong>: {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}</li>
+            {% endfor %}
+        </ol>
+    </div>
+    {% else %}
+    <div class="text-secondary">No vendors have a country of origin recorded yet.</div>
+    {% endif %}
+</section>
+
+{% if vendor_origin_map.map_locations %}
+<script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+    crossorigin=""
+></script>
+<script type="application/json" id="origin_map_data" data-max-count="{{ vendor_origin_map.max_count or 1 }}">{{ vendor_origin_map.map_locations|tojson }}</script>
+<script>
+    const originMapDataScript = document.getElementById("origin_map_data");
+    const originMapLocations = originMapDataScript ? JSON.parse(originMapDataScript.textContent) : [];
+    const originMapSelection = document.getElementById("origin_map_selection");
+    const defaultOriginMapZoom = 2;
+    const originMapBounds = [[-85, -180], [85, 180]];
+
+    const originMap = L.map("origin_map", {
+        attributionControl: false,
+        maxBounds: originMapBounds,
+        maxBoundsViscosity: 1,
+        minZoom: defaultOriginMapZoom,
+        zoomControl: false,
+        worldCopyJump: true,
+        scrollWheelZoom: false,
+    }).setView([18, 20], defaultOriginMapZoom);
+
+    L.control.zoom({ position: "bottomright" }).addTo(originMap);
+    L.control.attribution({ position: "bottomright", prefix: false }).addTo(originMap);
+
+    L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        minZoom: defaultOriginMapZoom,
+        maxZoom: 8,
+        subdomains: "abcd",
+        errorTileUrl: "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=",
+    }).addTo(originMap);
+
+    function escapeHtml(value) {
+        return String(value || "")
+            .replaceAll("&", "&amp;")
+            .replaceAll("<", "&lt;")
+            .replaceAll(">", "&gt;")
+            .replaceAll('"', "&quot;")
+            .replaceAll("'", "&#039;");
+    }
+
+    function showOriginVendorSelection(item) {
+        if (!originMapSelection) return;
+        const vendorList = (item.vendors || [])
+            .map((vendor) => {
+                const vendorName = vendor.vendor_name || "Unnamed vendor";
+                return `<li><a href="/vendors/${encodeURIComponent(vendorName)}">${escapeHtml(vendorName)}</a></li>`;
+            })
+            .join("");
+        originMapSelection.innerHTML = `
+            <div class="origin-map-selection-title">${escapeHtml(item.location)}</div>
+            <div>${item.count} vendor${item.count === 1 ? "" : "s"} based in this country</div>
+            ${vendorList ? `<ol class="origin-map-selection-list">${vendorList}</ol>` : ""}
+        `;
+    }
+
+    const ORIGIN_MARKER_SIZE = 16;
+    const ORIGIN_MARKER_COLOR = "#2563eb";
+    const originMarkerBounds = [];
+    const originMarkers = [];
+
+    originMapLocations.forEach((item) => {
+        const marker = L.marker([item.latitude, item.longitude], {
+            icon: L.divIcon({
+                className: "",
+                html: `<span class="origin-map-marker" style="display:block;width:${ORIGIN_MARKER_SIZE}px;height:${ORIGIN_MARKER_SIZE}px;background:${ORIGIN_MARKER_COLOR};"></span>`,
+                iconSize: [ORIGIN_MARKER_SIZE, ORIGIN_MARKER_SIZE],
+                iconAnchor: [ORIGIN_MARKER_SIZE / 2, ORIGIN_MARKER_SIZE / 2],
+                popupAnchor: [0, -(ORIGIN_MARKER_SIZE / 2)],
+            }),
+            zIndexOffset: 1000,
+            title: item.location,
+        }).addTo(originMap);
+
+        marker.on("click", () => showOriginVendorSelection(item));
+        originMarkers.push(marker);
+        originMarkerBounds.push([item.latitude, item.longitude]);
+    });
+
+    function refreshOriginMarkers() {
+        originMarkers.forEach((marker) => {
+            marker.setZIndexOffset(1000 + Math.round(originMap.getZoom() * 10));
+        });
+    }
+
+    if (originMarkerBounds.length) {
+        originMap.fitBounds(originMarkerBounds, { padding: [32, 32], maxZoom: 3 });
+    }
+
+    originMap.on("zoomend", refreshOriginMarkers);
+    refreshOriginMarkers();
+
+    window.requestAnimationFrame(() => { originMap.invalidateSize(); });
+    window.addEventListener("load", () => { originMap.invalidateSize(); });
+</script>
+{% endif %}
+{% endblock %}

@@ -212,75 +212,81 @@
                 <div class="col-12">
                     <div class="privacy-subsection">
                         <div class="privacy-subsection-title">Terms and Conditions</div>
-                        <div id="vendor_terms_conditions_link_input_wrap" {% if vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
-                            <input class="form-control" type="url" id="vendor_terms_conditions_link" name="vendor_terms_conditions_link" value="{{ vendor.vendor_terms_conditions_link }}" placeholder="https://example.com/terms">
-                            <div class="d-flex align-items-center gap-2 mt-2">
-                                <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_terms_conditions_link_add_button">Add</button>
+                        <div id="vendor_terms_link_field_wrap" {% if vendor.no_vendor_terms_conditions %}style="display: none;"{% endif %}>
+                            <div id="vendor_terms_conditions_link_input_wrap" {% if vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
+                                <input class="form-control" type="url" id="vendor_terms_conditions_link" name="vendor_terms_conditions_link" value="{{ vendor.vendor_terms_conditions_link }}" placeholder="https://example.com/terms">
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_terms_conditions_link_add_button">Add</button>
+                                </div>
+                            </div>
+                            <div class="link-field-display" id="vendor_terms_conditions_link_display_wrap" {% if not vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <a id="vendor_terms_conditions_link_open_link" href="{{ vendor.vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer" style="word-break: break-all;">{{ vendor.vendor_terms_conditions_link }}</a>
+                                    <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_copy_button" aria-label="Copy link" title="Copy link"></button>
+                                    <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_edit_button" aria-label="Edit link" title="Edit link"></button>
+                                </div>
                             </div>
                         </div>
-                        <div class="link-field-display" id="vendor_terms_conditions_link_display_wrap" {% if not vendor.vendor_terms_conditions_link %}style="display: none;"{% endif %}>
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <a id="vendor_terms_conditions_link_open_link" href="{{ vendor.vendor_terms_conditions_link or '#' }}" target="_blank" rel="noopener noreferrer" style="word-break: break-all;">{{ vendor.vendor_terms_conditions_link }}</a>
-                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_copy_button" aria-label="Copy link" title="Copy link"></button>
-                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_terms_conditions_link_edit_button" aria-label="Edit link" title="Edit link"></button>
-                            </div>
+                        <label class="form-label mt-3 d-flex align-items-start gap-2">
+                            <input type="checkbox" id="no_vendor_terms_conditions" name="no_vendor_terms_conditions" value="true" {% if vendor.no_vendor_terms_conditions %}checked{% endif %}>
+                            <span>No vendor terms and conditions available</span>
+                        </label>
+
+                        <div id="vendor_terms_age_restrictions_wrap">
+                            <label class="form-label fw-semibold mt-3" for="vendor_age_restrictions">Age Restrictions</label>
+                            <select class="form-select" id="vendor_age_restrictions" name="vendor_age_restrictions">
+                                <option value="">Select an option</option>
+                                <option value="None" {% if vendor.vendor_age_restrictions == "None" %}selected{% endif %}>None</option>
+                                <option value="13+" {% if vendor.vendor_age_restrictions == "13+" %}selected{% endif %}>13+</option>
+                                <option value="16+" {% if vendor.vendor_age_restrictions == "16+" %}selected{% endif %}>16+</option>
+                                <option value="18+" {% if vendor.vendor_age_restrictions == "18+" %}selected{% endif %}>18+</option>
+                                <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" {% if vendor.vendor_age_restrictions == "Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" %}selected{% endif %}>Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
+                            </select>
                         </div>
-                    </div>
-                </div>
 
-                <div class="col-12">
-                    <div class="privacy-subsection">
-                        <div class="privacy-subsection-title">Age Restrictions</div>
-                        <select class="form-select" id="vendor_age_restrictions" name="vendor_age_restrictions">
-                            <option value="">Select an option</option>
-                            <option value="None" {% if vendor.vendor_age_restrictions == "None" %}selected{% endif %}>None</option>
-                            <option value="13+" {% if vendor.vendor_age_restrictions == "13+" %}selected{% endif %}>13+</option>
-                            <option value="16+" {% if vendor.vendor_age_restrictions == "16+" %}selected{% endif %}>16+</option>
-                            <option value="18+" {% if vendor.vendor_age_restrictions == "18+" %}selected{% endif %}>18+</option>
-                            <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" {% if vendor.vendor_age_restrictions == "Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" %}selected{% endif %}>Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
-                        </select>
-                    </div>
-                </div>
+                        <div id="vendor_allows_acceptance_wrap">
+                            <label class="form-label fw-semibold mt-3" for="vendor_allows_acceptance_on_behalf_of_entity">Terms Permit Acceptance by the College on Behalf of Students</label>
+                            <select class="form-select" id="vendor_allows_acceptance_on_behalf_of_entity" name="vendor_allows_acceptance_on_behalf_of_entity">
+                                <option value="">Select an option</option>
+                                <option value="Yes" {% if vendor.vendor_allows_acceptance_on_behalf_of_entity == "Yes" %}selected{% endif %}>Yes</option>
+                                <option value="No" {% if vendor.vendor_allows_acceptance_on_behalf_of_entity == "No" %}selected{% endif %}>No</option>
+                            </select>
+                        </div>
 
-                <div class="col-12">
-                    <div class="privacy-subsection">
-                        <div class="privacy-subsection-title">Terms Permit Acceptance by the College on Behalf of Students</div>
-                        <select class="form-select" id="vendor_allows_acceptance_on_behalf_of_entity" name="vendor_allows_acceptance_on_behalf_of_entity">
-                            <option value="">Select an option</option>
-                            <option value="Yes" {% if vendor.vendor_allows_acceptance_on_behalf_of_entity == "Yes" %}selected{% endif %}>Yes</option>
-                            <option value="No" {% if vendor.vendor_allows_acceptance_on_behalf_of_entity == "No" %}selected{% endif %}>No</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="col-12">
-                    <div class="privacy-subsection">
-                        <div class="privacy-subsection-title">Terms and Conditions Notes</div>
-                        <textarea class="form-control" id="vendor_terms_conditions_notes" name="vendor_terms_conditions_notes" rows="3">{{ vendor.vendor_terms_conditions_notes }}</textarea>
+                        <div id="vendor_terms_notes_wrap">
+                            <label class="form-label fw-semibold mt-3" for="vendor_terms_conditions_notes">Terms and Conditions Notes</label>
+                            <textarea class="form-control" id="vendor_terms_conditions_notes" name="vendor_terms_conditions_notes" rows="3">{{ vendor.vendor_terms_conditions_notes }}</textarea>
+                        </div>
                     </div>
                 </div>
 
                 <div class="col-12">
                     <div class="privacy-subsection">
                         <div class="privacy-subsection-title">Vendor Privacy Policy</div>
-                        <div id="vendor_privacy_policy_input_wrap" {% if vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
-                            <input class="form-control" type="url" id="vendor_privacy_policy_link" name="vendor_privacy_policy_link" value="{{ vendor.vendor_privacy_policy_link }}" placeholder="https://example.com/privacy">
-                            <div class="d-flex align-items-center gap-2 mt-2">
-                                <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_privacy_policy_add_button">Add</button>
+                        <div id="vendor_privacy_policy_field_wrap" {% if assessment.no_vendor_privacy_policy %}style="display: none;"{% endif %}>
+                            <div id="vendor_privacy_policy_input_wrap" {% if vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
+                                <input class="form-control" type="url" id="vendor_privacy_policy_link" name="vendor_privacy_policy_link" value="{{ vendor.vendor_privacy_policy_link }}" placeholder="https://example.com/privacy">
+                                <div class="d-flex align-items-center gap-2 mt-2">
+                                    <button class="btn btn-outline-primary rounded-pill px-3" type="button" id="vendor_privacy_policy_add_button">Add</button>
+                                </div>
+                                <div class="form-text mt-2">If there is no vendor privacy policy yet, add it here and then press Add.</div>
                             </div>
-                            <div class="form-text mt-2">If there is no vendor privacy policy yet, add it here and then press Add.</div>
-                        </div>
-                        <div class="link-field-display" id="vendor_privacy_policy_display_wrap" {% if not vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
-                            <div class="d-flex align-items-center gap-2 flex-wrap">
-                                <a id="vendor_privacy_policy_open_link" href="{{ vendor.vendor_privacy_policy_link or '#' }}" target="_blank" rel="noopener noreferrer">{{ vendor.vendor_privacy_policy_link }}</a>
-                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_copy_button" aria-label="Copy link" title="Copy link"></button>
-                                <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_edit_button" aria-label="Edit link" title="Edit link"></button>
+                            <div class="link-field-display" id="vendor_privacy_policy_display_wrap" {% if not vendor.vendor_privacy_policy_link %}style="display: none;"{% endif %}>
+                                <div class="d-flex align-items-center gap-2 flex-wrap">
+                                    <a id="vendor_privacy_policy_open_link" href="{{ vendor.vendor_privacy_policy_link or '#' }}" target="_blank" rel="noopener noreferrer">{{ vendor.vendor_privacy_policy_link }}</a>
+                                    <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_copy_button" aria-label="Copy link" title="Copy link"></button>
+                                    <button class="btn btn-outline-secondary icon-action-button" type="button" id="vendor_privacy_policy_edit_button" aria-label="Edit link" title="Edit link"></button>
+                                </div>
                             </div>
                         </div>
+                        <label class="form-label mt-3 d-flex align-items-start gap-2">
+                            <input type="checkbox" id="no_vendor_privacy_policy" name="no_vendor_privacy_policy" value="true" {% if assessment.no_vendor_privacy_policy %}checked{% endif %}>
+                            <span>No vendor privacy policy available</span>
+                        </label>
                     </div>
                 </div>
 
-                <div class="col-12">
+                <div class="col-12" id="privacy_storage_location_section">
                     <div class="privacy-subsection">
                         <div class="privacy-subsection-title">Storage Location</div>
                         <label class="form-label fw-semibold" for="cloud_hosted_data">Cloud-Hosted Data</label>
@@ -364,7 +370,7 @@
                     </div>
                 </div>
 
-                <div class="col-12">
+                <div class="col-12" id="privacy_laws_section">
                     <div class="privacy-subsection">
                         <div class="privacy-subsection-title">Privacy Laws</div>
                         <label class="form-label fw-semibold">Core Privacy Laws Followed</label>
@@ -409,7 +415,7 @@
                     </div>
                 </div>
 
-                <div class="col-12">
+                <div class="col-12" id="privacy_standards_section">
                     <div class="privacy-subsection">
                         <div class="privacy-subsection-title">Security and Privacy Standards</div>
                         {% set selected_security_standards = (assessment.security_privacy_standards or "").split(", ") %}
@@ -927,6 +933,60 @@
         updateSelectedDataStorageLocationsText();
         syncDataStorageGroupStates();
         updateEuSelectionLock();
+    }
+
+    const vendorAgeRestrictionsField = document.getElementById("vendor_age_restrictions");
+    const vendorAllowsAcceptanceWrap = document.getElementById("vendor_allows_acceptance_wrap");
+
+    function syncAllowsAcceptanceVisibility() {
+        if (!vendorAgeRestrictionsField || !vendorAllowsAcceptanceWrap) return;
+        vendorAllowsAcceptanceWrap.style.display = vendorAgeRestrictionsField.value === "None" ? "none" : "";
+    }
+
+    if (vendorAgeRestrictionsField) {
+        vendorAgeRestrictionsField.addEventListener("change", syncAllowsAcceptanceVisibility);
+        syncAllowsAcceptanceVisibility();
+    }
+
+    const noPrivacyPolicyCheckbox = document.getElementById("no_vendor_privacy_policy");
+    const privacyPolicyFieldWrap = document.getElementById("vendor_privacy_policy_field_wrap");
+    const privacyStorageLocationSection = document.getElementById("privacy_storage_location_section");
+    const privacyLawsSection = document.getElementById("privacy_laws_section");
+    const privacyStandardsSection = document.getElementById("privacy_standards_section");
+
+    function updateNoPrivacyPolicySections() {
+        if (!noPrivacyPolicyCheckbox) return;
+        const checked = noPrivacyPolicyCheckbox.checked;
+        if (privacyPolicyFieldWrap) privacyPolicyFieldWrap.style.display = checked ? "none" : "";
+        if (privacyStorageLocationSection) privacyStorageLocationSection.style.display = checked ? "none" : "";
+        if (privacyLawsSection) privacyLawsSection.style.display = checked ? "none" : "";
+        if (privacyStandardsSection) privacyStandardsSection.style.display = checked ? "none" : "";
+        if (cloudHostedDataField) cloudHostedDataField.required = !checked;
+    }
+
+    if (noPrivacyPolicyCheckbox) {
+        noPrivacyPolicyCheckbox.addEventListener("change", updateNoPrivacyPolicySections);
+        updateNoPrivacyPolicySections();
+    }
+
+    const noVendorTermsConditionsCheckbox = document.getElementById("no_vendor_terms_conditions");
+    const vendorTermsLinkFieldWrap = document.getElementById("vendor_terms_link_field_wrap");
+    const vendorTermsAgeRestrictionsWrap = document.getElementById("vendor_terms_age_restrictions_wrap");
+    const vendorTermsNotesWrap = document.getElementById("vendor_terms_notes_wrap");
+
+    function updateNoTermsConditionsSections() {
+        if (!noVendorTermsConditionsCheckbox) return;
+        const checked = noVendorTermsConditionsCheckbox.checked;
+        if (vendorTermsLinkFieldWrap) vendorTermsLinkFieldWrap.style.display = checked ? "none" : "";
+        if (vendorTermsAgeRestrictionsWrap) vendorTermsAgeRestrictionsWrap.style.display = checked ? "none" : "";
+        if (vendorAllowsAcceptanceWrap) vendorAllowsAcceptanceWrap.style.display = checked ? "none" : "";
+        if (vendorTermsNotesWrap) vendorTermsNotesWrap.style.display = checked ? "none" : "";
+        if (!checked) syncAllowsAcceptanceVisibility();
+    }
+
+    if (noVendorTermsConditionsCheckbox) {
+        noVendorTermsConditionsCheckbox.addEventListener("change", updateNoTermsConditionsSections);
+        updateNoTermsConditionsSections();
     }
 </script>
 {% endblock %}

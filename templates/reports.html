@@ -236,12 +236,14 @@
             <div class="fw-semibold mb-2">Location Breakdown</div>
             <ol class="location-breakdown">
                 {% for item in data_hosting_heatmap.locations %}
+                {% if item.location != "Other countries (unspecified)" %}
                 <li>
                     <strong>{{ item.location }}</strong>:
                     {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}
                     {% if item.percentage %}&middot; {{ item.percentage }}%{% endif %}
                     {% if not item.map_x %}<span class="text-secondary">(not plotted)</span>{% endif %}
                 </li>
+                {% endif %}
                 {% endfor %}
             </ol>
         </div>
@@ -269,9 +271,7 @@
             <thead>
                 <tr>
                     <th>Vendor</th>
-                    <th>Country</th>
                     <th>Latest Audit</th>
-                    <th>Other Listed Countries</th>
                 </tr>
             </thead>
             <tbody>
@@ -283,9 +283,7 @@
                             {{ vendor.vendor_name }}
                         </a>
                     </td>
-                    <td>{{ vendor.vendor_country or "-" }}</td>
                     <td>{{ vendor.vendor_assessment_date or "-" }}</td>
-                    <td>{{ vendor.listed_countries or "-" }}</td>
                 </tr>
                 {% endfor %}
                 {% elif unspecified_location.item %}
@@ -296,9 +294,7 @@
                             {{ vendor.vendor_name }}
                         </a>
                     </td>
-                    <td>-</td>
                     <td>{{ vendor.vendor_assessment_date or "-" }}</td>
-                    <td>-</td>
                 </tr>
                 {% endfor %}
                 {% endif %}
@@ -322,9 +318,7 @@
             <thead>
                 <tr>
                     <th>Vendor</th>
-                    <th>Country</th>
                     <th>Latest Audit</th>
-                    <th>Reason</th>
                 </tr>
             </thead>
             <tbody>
@@ -335,9 +329,7 @@
                             {{ vendor.vendor_name }}
                         </a>
                     </td>
-                    <td>{{ vendor.vendor_country or "-" }}</td>
                     <td>{{ vendor.vendor_assessment_date or "-" }}</td>
-                    <td>{{ vendor.reason }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

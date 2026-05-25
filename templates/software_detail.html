@@ -197,6 +197,21 @@
     {% if vendor_high_risk_locations %}
         {% set ns.alerts = ns.alerts + ["vendor_high_risk"] %}
     {% endif %}
+    {% if software.is_assessment and not software.product_updates and not software.security_updates %}
+        {% set ns.alerts = ns.alerts + ["no_updates"] %}
+    {% endif %}
+    {% if software.is_assessment and not software.tested %}
+        {% set ns.alerts = ns.alerts + ["not_tested"] %}
+    {% endif %}
+    {% if software.vendor_name and not vendor_online_support %}
+        {% set ns.alerts = ns.alerts + ["no_online_support"] %}
+    {% endif %}
+    {% if "Other countries (unspecified)" in vendor_data_storage_locations %}
+        {% set ns.alerts = ns.alerts + ["unspecified_hosting"] %}
+    {% endif %}
+    {% if vendor_no_privacy_policy %}
+        {% set ns.alerts = ns.alerts + ["no_privacy_policy"] %}
+    {% endif %}
 
     {% if ns.alerts %}
         {% if "acceptance_restricted" in ns.alerts %}
@@ -224,6 +239,61 @@
                     {% for loc in vendor_high_risk_locations %}<strong>{{ loc }}</strong>{% if not loop.last %}, {% endif %}{% endfor %}, which are classified as high risk.
                 {% endif %}
                 Review data transfer mechanisms and ensure appropriate safeguards are in place.
+            </div>
+        </div>
+        {% endif %}
+        {% if "not_tested" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>Software has not been tested.</strong>
+                This software has not been marked as tested. Confirm that appropriate testing has been completed before deployment.
+            </div>
+        </div>
+        {% endif %}
+        {% if "no_updates" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No product or security updates available.</strong>
+                This software does not offer product updates or security updates. Review whether this poses an ongoing security risk before deployment or continued use.
+            </div>
+        </div>
+        {% endif %}
+        {% if "no_online_support" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No online support link on record.</strong>
+                {{ software.vendor_name }} does not have an online support link. Add one via the <a href="{{ url_for('vendor_detail', vendor_name=software.vendor_name) }}">vendor page</a>.
+            </div>
+        </div>
+        {% endif %}
+        {% if "unspecified_hosting" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>Unspecified data hosting locations.</strong>
+                The latest audit for {{ software.vendor_name }} lists data hosted in other countries (unspecified). Review the vendor audit to clarify where data is stored.
+            </div>
+        </div>
+        {% endif %}
+        {% if "no_privacy_policy" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No vendor privacy policy available.</strong>
+                The latest audit for {{ software.vendor_name }} records that no privacy policy is available. Confirm whether a privacy policy exists before deployment.
             </div>
         </div>
         {% endif %}

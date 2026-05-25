@@ -184,14 +184,14 @@
         </div>
     </div>
     {% endif %}
-    {% if not vendor.vendor_terms_conditions_link %}
+    {% if vendor.no_vendor_terms_conditions %}
     <div class="alert alert-warning d-flex gap-3 align-items-start mb-3" role="alert">
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
             <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
         </svg>
         <div>
-            <strong>No terms and conditions link on record.</strong>
-            This vendor does not have a published terms and conditions link. Add one using the <a href="{{ url_for('edit_vendor', vendor_name=vendor.vendor_name) }}">Edit Vendor</a> page or via a vendor audit.
+            <strong>No vendor terms and conditions available.</strong>
+            This vendor does not have terms and conditions available. Confirm whether terms and conditions exist before deployment.
         </div>
     </div>
     {% endif %}
@@ -206,7 +206,40 @@
         </div>
     </div>
     {% endif %}
-    {% if not vendor_data_storage_map.high_risk_locations and vendor.vendor_terms_conditions_link and not (vendor.vendor_age_restrictions and vendor.vendor_age_restrictions != "None" and vendor.vendor_allows_acceptance_on_behalf_of_entity == "No") %}
+    {% if not vendor.online_support %}
+    <div class="alert alert-warning d-flex gap-3 align-items-start mb-3" role="alert">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+        </svg>
+        <div>
+            <strong>No online support link on record.</strong>
+            This vendor does not have an online support link. Add one via the vendor details section above.
+        </div>
+    </div>
+    {% endif %}
+    {% if "Other countries (unspecified)" in vendor_data_storage_map.locations %}
+    <div class="alert alert-warning d-flex gap-3 align-items-start mb-3" role="alert">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+        </svg>
+        <div>
+            <strong>Unspecified data hosting locations.</strong>
+            The latest audit lists data hosted in other countries (unspecified). Update the vendor audit to clarify where data is stored.
+        </div>
+    </div>
+    {% endif %}
+    {% if vendor_data_storage_map.no_privacy_policy %}
+    <div class="alert alert-warning d-flex gap-3 align-items-start mb-3" role="alert">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+        </svg>
+        <div>
+            <strong>No vendor privacy policy available.</strong>
+            The latest audit records that this vendor does not have a privacy policy. Confirm whether a privacy policy exists before deployment.
+        </div>
+    </div>
+    {% endif %}
+    {% if not vendor_data_storage_map.high_risk_locations and not vendor.no_vendor_terms_conditions and not (vendor.vendor_age_restrictions and vendor.vendor_age_restrictions != "None" and vendor.vendor_allows_acceptance_on_behalf_of_entity == "No") and vendor.online_support and "Other countries (unspecified)" not in vendor_data_storage_map.locations and not vendor_data_storage_map.no_privacy_policy %}
     <p class="text-secondary mb-0">No alerts for this vendor.</p>
     {% endif %}
 </section>

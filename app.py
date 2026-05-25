@@ -80,6 +80,7 @@ CHECKBOX_FIELDS = {
     "free_software",
 }
 VENDOR_PRIVACY_FIELDS = (
+    "no_vendor_privacy_policy",
     "data_processing_agreement_in_place",
     "data_storage_location",
     "storage_location_notes",
@@ -99,6 +100,7 @@ VENDOR_PROFILE_FIELDS = (
     "vendor_country",
     "vendor_website",
     "vendor_terms_conditions_link",
+    "no_vendor_terms_conditions",
     "vendor_cookie_policy_link",
     "vendor_privacy_policy_link",
     "online_support",
@@ -160,17 +162,22 @@ PRIVACY_LAW_OPTIONS = (
 )
 INTERNATIONAL_PRIVACY_LAW_OPTIONS = (
     "APPI (Japan)",
+    "FDPA (Germany)",
+    "LGPD (Brazil)",
     "PDPA (Singapore)",
     "PIPEDA (Canada)",
-    "LGPD (Brazil)",
+    "PIPA (South Korea)",
     "Swiss Federal Data Protection Act (FADP)",
 )
 SECURITY_PRIVACY_STANDARD_OPTIONS = (
+    "ISO 9001",
     "ISO/IEC 27001",
     "ISO/IEC 27017",
     "ISO/IEC 27018",
     "ISO/IEC 27701",
     "ISO/IEC 42001",
+    "BSI C5",
+    "CSA CAIQ",
     "CSA STAR Level 1",
     "CSA STAR Level 2",
     "SOC 1",
@@ -178,9 +185,12 @@ SECURITY_PRIVACY_STANDARD_OPTIONS = (
     "SOC 3",
     "NIST Cybersecurity Framework",
     "FedRAMP",
+    "TISAX",
+    "TX-RAMP",
     "APEC Privacy Framework (Asia-Pacific)",
     "PCI DSS",
     "CIS Controls",
+    "VPAT 508",
 )
 SECTOR_SPECIFIC_CONTEXTUAL_LAW_OPTIONS = (
     "HIPAA",
@@ -686,7 +696,6 @@ PDF_SECTION_FIELDS = [
         "software_description",
         "software_website",
         "version",
-        "free_software",
         "license_cost",
         "purchase_link",
         "duplicates_existing",
@@ -1347,6 +1356,8 @@ def build_assessment_pdf(record):
                 continue
             if field == "allows_acceptance_on_behalf_of_entity" and record.get("age_restrictions", "") in ("", "None"):
                 continue
+            if field == "license_cost" and (record.get("free_software") or record.get("license_type") == "Free" or not str(record.get("license_cost", "")).strip()):
+                continue
             label = PDF_FIELD_LABELS.get(field, field.replace("_", " ").title())
             value = format_assessment_value(field, record.get(field, ""), record)
             if value == "Not provided":
@@ -1478,8 +1489,7 @@ def build_assessment_pdf(record):
         story.append(vendor_alert_table)
         story.append(Spacer(1, 10))
 
-    vendor_terms_link = record.get("terms_conditions_link", "") or record.get("vendor_terms_conditions_link", "")
-    if record.get("vendor_name") and not vendor_terms_link:
+    if record.get("vendor_name") and record.get("no_vendor_terms_conditions"):
         tc_alert_heading_style = ParagraphStyle(
             "TcAlertHeading",
             parent=styles["BodyText"],
@@ -1489,10 +1499,19 @@ def build_assessment_pdf(record):
             fontName="Helvetica-Bold",
             spaceAfter=2,
         )
+        tc_alert_body_style = ParagraphStyle(
+            "TcAlertBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
         tc_alert_cell = [
+            Paragraph("No vendor terms and conditions available.", tc_alert_heading_style),
             Paragraph(
-                f"{vendor_name or 'This vendor'} does not have a published terms and conditions link on record.",
-                tc_alert_heading_style,
+                f"{vendor_name or 'This vendor'} does not have terms and conditions available. "
+                "Confirm whether terms and conditions exist before deployment.",
+                tc_alert_body_style,
             ),
         ]
         tc_alert_table = Table([[tc_alert_cell]], colWidths=[174 * mm], hAlign="LEFT")
@@ -1510,6 +1529,216 @@ def build_assessment_pdf(record):
             )
         )
         story.append(tc_alert_table)
+        story.append(Spacer(1, 10))
+
+    if record.get("vendor_name") and not record.get("online_support", ""):
+        support_alert_heading_style = ParagraphStyle(
+            "SupportAlertHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        support_alert_body_style = ParagraphStyle(
+            "SupportAlertBody",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        support_alert_cell = [
+            Paragraph("No online support link on record.", support_alert_heading_style),
+            Paragraph(
+                f"{vendor_name} does not have an online support link on record. "
+                "Consider whether this affects the supportability of this software.",
+                support_alert_body_style,
+            ),
+        ]
+        support_alert_table = Table([[support_alert_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        support_alert_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(support_alert_table)
+        story.append(Spacer(1, 10))
+
+    if OTHER_DATA_STORAGE_LOCATION in vendor_map.get("locations", []):
+        unspecified_heading_style = ParagraphStyle(
+            "UnspecifiedHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        unspecified_body_style = ParagraphStyle(
+            "UnspecifiedBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        unspecified_cell = [
+            Paragraph("Unspecified data hosting locations.", unspecified_heading_style),
+            Paragraph(
+                f"The latest audit for {vendor_name} lists data hosted in other countries (unspecified). "
+                "Update the vendor audit to clarify where data is stored.",
+                unspecified_body_style,
+            ),
+        ]
+        unspecified_table = Table([[unspecified_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        unspecified_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(unspecified_table)
+        story.append(Spacer(1, 10))
+
+    if vendor_map.get("no_privacy_policy"):
+        no_privacy_heading_style = ParagraphStyle(
+            "NoPrivacyHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        no_privacy_body_style = ParagraphStyle(
+            "NoPrivacyBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        no_privacy_cell = [
+            Paragraph("No vendor privacy policy available.", no_privacy_heading_style),
+            Paragraph(
+                f"{vendor_name} does not have a privacy policy on record. "
+                "Confirm whether a privacy policy exists before deployment.",
+                no_privacy_body_style,
+            ),
+        ]
+        no_privacy_table = Table([[no_privacy_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        no_privacy_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(no_privacy_table)
+        story.append(Spacer(1, 10))
+
+    if record.get("is_assessment") and not record.get("tested"):
+        not_tested_heading_style = ParagraphStyle(
+            "NotTestedHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        not_tested_body_style = ParagraphStyle(
+            "NotTestedBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        not_tested_cell = [
+            Paragraph("Software has not been tested.", not_tested_heading_style),
+            Paragraph(
+                "This software has not been marked as tested. Confirm that appropriate "
+                "testing has been completed before deployment.",
+                not_tested_body_style,
+            ),
+        ]
+        not_tested_table = Table([[not_tested_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        not_tested_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(not_tested_table)
+        story.append(Spacer(1, 10))
+
+    if record.get("is_assessment") and not record.get("product_updates") and not record.get("security_updates"):
+        no_updates_heading_style = ParagraphStyle(
+            "NoUpdatesHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        no_updates_body_style = ParagraphStyle(
+            "NoUpdatesBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        no_updates_cell = [
+            Paragraph("No product or security updates available.", no_updates_heading_style),
+            Paragraph(
+                "This software does not offer product updates or security updates. "
+                "Review whether this poses an ongoing security risk before deployment or continued use.",
+                no_updates_body_style,
+            ),
+        ]
+        no_updates_table = Table([[no_updates_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        no_updates_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#F59E0B")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(no_updates_table)
         story.append(Spacer(1, 10))
 
     signature_roles = ["IT Director", "Line Manager"]
@@ -2705,6 +2934,34 @@ def update_software_details(original_software_name, updated_details):
     persist_vendor_records()
 
 
+def save_vendor_terms_from_assessment_form(form):
+    if form.get("terms_source", "") != "vendor":
+        return
+    vendor_name = form.get("vendor_name", "").strip()
+    if not vendor_name:
+        return
+    age = form.get("vendor_age_restrictions_edit", "").strip()
+    acceptance = form.get("vendor_allows_acceptance_edit", "").strip()
+    notes = form.get("vendor_terms_notes_edit", "").strip()
+    if not any([age, acceptance, notes]):
+        return
+    normalized = normalized_name(vendor_name)
+    for vendor in VENDOR_RECORDS:
+        if normalized_name(vendor["vendor_name"]) == normalized:
+            vendor["vendor_age_restrictions"] = age
+            vendor["vendor_allows_acceptance_on_behalf_of_entity"] = acceptance
+            vendor["vendor_terms_conditions_notes"] = notes
+            break
+    else:
+        entry = blank_vendor()
+        entry["vendor_name"] = vendor_name
+        entry["vendor_age_restrictions"] = age
+        entry["vendor_allows_acceptance_on_behalf_of_entity"] = acceptance
+        entry["vendor_terms_conditions_notes"] = notes
+        VENDOR_RECORDS.append(entry)
+    persist_vendor_records()
+
+
 def collect_assessment_form_data(form, assessment_id=None):
     record = {"id": assessment_id} if assessment_id is not None else {}
     for field in ASSESSMENT_FIELDS:
@@ -2763,19 +3020,21 @@ def collect_assessment_form_data(form, assessment_id=None):
 def collect_vendor_form_data(form):
     vendor_audit_reminder_frequency = form.get("vendor_audit_reminder_frequency", "").strip() or "1_year"
     vendor_next_audit_date = form.get("vendor_next_audit_date", "").strip()
+    no_vendor_terms_conditions = "no_vendor_terms_conditions" in form
     return {
         "vendor_name": form.get("vendor_name", "").strip(),
         "vendor_country": form.get("vendor_country", "").strip(),
         "vendor_website": form.get("vendor_website", "").strip(),
         "vendor_terms_conditions_link": form.get("vendor_terms_conditions_link", "").strip(),
+        "no_vendor_terms_conditions": no_vendor_terms_conditions,
         "vendor_cookie_policy_link": form.get("vendor_cookie_policy_link", "").strip(),
         "vendor_privacy_policy_link": form.get("vendor_privacy_policy_link", "").strip(),
         "online_support": form.get("online_support", "").strip(),
         "vendor_audit_reminder_frequency": vendor_audit_reminder_frequency,
         "vendor_next_audit_date": vendor_next_audit_date,
-        "vendor_age_restrictions": form.get("vendor_age_restrictions", "").strip(),
-        "vendor_terms_conditions_notes": form.get("vendor_terms_conditions_notes", "").strip(),
-        "vendor_allows_acceptance_on_behalf_of_entity": form.get("vendor_allows_acceptance_on_behalf_of_entity", "").strip(),
+        "vendor_age_restrictions": "" if no_vendor_terms_conditions else form.get("vendor_age_restrictions", "").strip(),
+        "vendor_terms_conditions_notes": "" if no_vendor_terms_conditions else form.get("vendor_terms_conditions_notes", "").strip(),
+        "vendor_allows_acceptance_on_behalf_of_entity": "" if no_vendor_terms_conditions else form.get("vendor_allows_acceptance_on_behalf_of_entity", "").strip(),
     }
 
 
@@ -2785,6 +3044,7 @@ def blank_vendor():
         "vendor_country": "",
         "vendor_website": "",
         "vendor_terms_conditions_link": "",
+        "no_vendor_terms_conditions": False,
         "vendor_cookie_policy_link": "",
         "vendor_privacy_policy_link": "",
         "online_support": "",
@@ -2851,6 +3111,21 @@ def collect_vendor_assessment_form_data(form, assessment_id=None):
         else ""
     )
     assessment["privacy_notes"] = form.get("privacy_notes", "").strip()
+    assessment["no_vendor_privacy_policy"] = "no_vendor_privacy_policy" in form
+    if assessment["no_vendor_privacy_policy"]:
+        assessment["cloud_hosted_data"] = ""
+        assessment["data_storage_location"] = ""
+        assessment["data_processing_agreement_in_place"] = False
+        assessment["storage_location_notes"] = ""
+        assessment["data_types_stored"] = ""
+        assessment["data_storage_notes"] = ""
+        assessment["privacy_laws_adhered_to"] = ""
+        assessment["privacy_law_notes"] = ""
+        assessment["sector_specific_contextual_laws"] = ""
+        assessment["cross_border_data_transfer_mechanisms"] = ""
+        assessment["us_specific_laws"] = ""
+        assessment["security_privacy_standards"] = ""
+        assessment["privacy_notes"] = ""
     assessment["vendor_audit_reminder_frequency"] = vendor.get("vendor_audit_reminder_frequency", "") or "1_year"
     assessment["vendor_next_audit_date"] = calculate_next_audit_date_from_assessment(
         assessment["vendor_assessment_date"],
@@ -3617,6 +3892,46 @@ def build_data_hosting_heatmap():
     }
 
 
+def build_vendor_origin_map():
+    location_counts = Counter()
+    location_vendors = defaultdict(list)
+
+    for vendor in build_vendor_list(active_only=True):
+        country = vendor.get("vendor_country", "").strip()
+        if not country:
+            continue
+        location_counts[country] += 1
+        location_vendors[country].append({"vendor_name": vendor.get("vendor_name", "")})
+
+    total_count = sum(location_counts.values())
+    origin_locations = []
+
+    for location, count in sorted(location_counts.items(), key=lambda item: (-item[1], item[0])):
+        location_item = {
+            "location": location,
+            "count": count,
+            "percentage": round((count / total_count) * 100) if total_count else 0,
+            "vendors": sorted(
+                location_vendors.get(location, []),
+                key=lambda v: normalized_name(v.get("vendor_name", "")),
+            ),
+        }
+        coordinates = COUNTRY_MAP_COORDINATES.get(location)
+        if coordinates is not None:
+            latitude, longitude = coordinates
+            location_item["latitude"] = latitude
+            location_item["longitude"] = longitude
+        origin_locations.append(location_item)
+
+    mapped_locations = [item for item in origin_locations if "latitude" in item]
+
+    return {
+        "locations": origin_locations,
+        "map_locations": mapped_locations,
+        "vendor_count": total_count,
+    }
+
+
 def build_vendors_without_hosting_locations_report():
     vendors_without_locations = []
 
@@ -3630,8 +3945,9 @@ def build_vendors_without_hosting_locations_report():
             continue
 
         if latest_assessment.get("cloud_hosted_data") == "No":
-            reason = "Cloud-hosted data marked as No"
-        elif latest_assessment.get("data_processing_agreement_in_place"):
+            continue
+
+        if latest_assessment.get("data_processing_agreement_in_place"):
             reason = "No listed storage country recorded"
         else:
             reason = "No listed storage countries"
@@ -3697,6 +4013,7 @@ def build_vendor_data_storage_map(vendor_name):
             "map_locations": [],
             "high_risk_locations": [],
             "vendor_assessment_date": "",
+            "no_privacy_policy": False,
         }
 
     locations = sorted(set(get_selected_values(latest_assessment.get("data_storage_location", ""))))
@@ -3733,6 +4050,7 @@ def build_vendor_data_storage_map(vendor_name):
         "map_locations": map_locations,
         "high_risk_locations": high_risk_locations,
         "vendor_assessment_date": latest_assessment.get("vendor_assessment_date", ""),
+        "no_privacy_policy": bool(latest_assessment.get("no_vendor_privacy_policy", False)),
     }
 
 
@@ -3871,6 +4189,14 @@ def reports():
     )
 
 
+@app.route("/reports/vendor-origins")
+def vendor_origins():
+    return render_template(
+        "vendor_origins.html",
+        vendor_origin_map=build_vendor_origin_map(),
+    )
+
+
 @app.route("/software/new", methods=["GET", "POST"])
 def new_software():
     global NEXT_SOFTWARE_ID
@@ -3957,6 +4283,7 @@ def software_detail(software_name):
     vendor_terms_conditions_link = (vendor_record or {}).get("vendor_terms_conditions_link", "")
     vendor_age_restrictions = (vendor_record or {}).get("vendor_age_restrictions", "")
     vendor_allows_acceptance = (vendor_record or {}).get("vendor_allows_acceptance_on_behalf_of_entity", "")
+    vendor_online_support = (vendor_record or {}).get("online_support", "")
 
     software_item = get_software_item_by_name(software_name)
     display_record = dict(software_record)
@@ -3969,9 +4296,12 @@ def software_detail(software_name):
         software_name=software_record["software_name"],
         assessments=assessments,
         vendor_high_risk_locations=vendor_map["high_risk_locations"],
+        vendor_data_storage_locations=vendor_map["locations"],
+        vendor_no_privacy_policy=vendor_map.get("no_privacy_policy", False),
         vendor_terms_conditions_link=vendor_terms_conditions_link,
         vendor_age_restrictions=vendor_age_restrictions,
         vendor_allows_acceptance=vendor_allows_acceptance,
+        vendor_online_support=vendor_online_support,
     )
 
 
@@ -3990,7 +4320,7 @@ def render_new_vendor_assessment_form(vendor):
         assessment=assessment,
         home_country=get_home_country(),
         form_title="Add Vendor Audit",
-        submit_label="Save Vendor Audit",
+        submit_label="Submit Vendor Audit",
         **FORM_OPTION_CONTEXT,
     )
 
@@ -4014,6 +4344,16 @@ def save_new_vendor_assessment(vendor_name):
     persist_vendor_assessment_records()
     NEXT_VENDOR_ASSESSMENT_ID += 1
     return redirect(url_for("vendor_detail", vendor_name=vendor["vendor_name"]))
+
+
+@app.route("/vendors/<path:vendor_name>/terms-student-data", methods=["POST"])
+def update_vendor_terms_student_data(vendor_name):
+    vendor = build_vendor_context(vendor_name)
+    vendor["vendor_age_restrictions"] = request.form.get("vendor_age_restrictions", "").strip()
+    vendor["vendor_allows_acceptance_on_behalf_of_entity"] = request.form.get("vendor_allows_acceptance_on_behalf_of_entity", "").strip()
+    vendor["vendor_terms_conditions_notes"] = request.form.get("vendor_terms_conditions_notes", "").strip()
+    update_vendor_details(vendor_name, vendor)
+    return jsonify({"ok": True})
 
 
 @app.route("/vendors/<path:vendor_name>", methods=["GET", "POST"])
@@ -4235,6 +4575,7 @@ def new_assessment():
         submit_action = request.form.get("submit_action", "submit")
         assessment_id = request.form.get("assessment_id", type=int)
         form_data = collect_assessment_form_data(request.form, assessment_id)
+        save_vendor_terms_from_assessment_form(request.form)
         form_data["is_assessment"] = True
         if submit_action == "draft":
             form_data["submission_status"] = "draft"
@@ -4313,6 +4654,7 @@ def edit_assessment(assessment_id):
     if request.method == "POST":
         submit_action = request.form.get("submit_action", record.get("submission_status") or "draft")
         updated_record = collect_assessment_form_data(request.form, assessment_id)
+        save_vendor_terms_from_assessment_form(request.form)
         updated_record["is_assessment"] = True
         if submit_action == "submit":
             updated_record["submission_status"] = "submitted"
@@ -4359,6 +4701,7 @@ def autosave_assessment_draft(assessment_id):
         return jsonify({"ok": False, "error": "Draft not found"}), 404
 
     draft_record = collect_assessment_form_data(request.form, assessment_id)
+    save_vendor_terms_from_assessment_form(request.form)
     draft_record["is_assessment"] = True
     draft_record["submission_status"] = "draft"
     index = SOFTWARE_RECORDS.index(record)
@@ -4399,6 +4742,9 @@ def download_assessment_pdf(assessment_id):
             pdf_record["age_restrictions"] = vendor_record.get("vendor_age_restrictions", "") or record.get("age_restrictions", "")
             pdf_record["terms_compliance_notes"] = vendor_record.get("vendor_terms_conditions_notes", "") or record.get("terms_compliance_notes", "")
             pdf_record["allows_acceptance_on_behalf_of_entity"] = vendor_record.get("vendor_allows_acceptance_on_behalf_of_entity", "") or record.get("allows_acceptance_on_behalf_of_entity", "")
+    live_vendor = get_vendor_by_name(record.get("vendor_name", ""))
+    pdf_record["online_support"] = (live_vendor or {}).get("online_support", "") or record.get("online_support", "")
+    pdf_record["no_vendor_terms_conditions"] = bool((live_vendor or {}).get("no_vendor_terms_conditions", False))
     vendor = get_latest_vendor_assessment(record.get("vendor_name", "")) or {}
     for field in VENDOR_PRIVACY_FIELDS:
         pdf_record[field] = vendor.get(field, "")

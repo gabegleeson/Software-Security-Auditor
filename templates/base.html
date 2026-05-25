@@ -215,39 +215,49 @@
             border: 2px solid var(--navy);
         }
 
-        .notifications-menu {
-            min-width: 320px;
+        .profile-menu,
+        .nav-dropdown-menu {
+            min-width: 200px;
             border: 0;
             border-radius: 1rem;
             box-shadow: 0 18px 40px rgba(15, 23, 42, 0.16);
-            padding: 0.75rem;
+            padding: 0.5rem;
             z-index: 1200;
         }
 
-        .notification-item {
-            display: block;
-            padding: 0.85rem 0.9rem;
-            border-radius: 0.85rem;
-            text-decoration: none;
+        .profile-menu .dropdown-item,
+        .nav-dropdown-menu .dropdown-item {
+            border-radius: 0.6rem;
+            padding: 0.6rem 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
             color: var(--page-text);
+            font-size: 0.95rem;
         }
 
-        .notification-item:hover,
-        .notification-item:focus {
+        .profile-menu .dropdown-item:hover,
+        .profile-menu .dropdown-item:focus,
+        .nav-dropdown-menu .dropdown-item:hover,
+        .nav-dropdown-menu .dropdown-item:focus {
             background: #eef5fb;
             color: var(--page-text);
         }
 
-        .notification-title {
-            display: block;
-            font-weight: 700;
+        body.dark-mode .profile-menu .dropdown-item:hover,
+        body.dark-mode .profile-menu .dropdown-item:focus,
+        body.dark-mode .nav-dropdown-menu .dropdown-item:hover,
+        body.dark-mode .nav-dropdown-menu .dropdown-item:focus {
+            background: rgba(148, 163, 184, 0.14);
+            color: #e5edf6;
         }
 
-        .notification-meta {
-            display: block;
-            color: var(--muted-text);
-            font-size: 0.9rem;
-            margin-top: 0.15rem;
+        .profile-menu .dropdown-divider {
+            margin: 0.35rem 0;
+        }
+
+        .nav-dropdown-toggle::after {
+            display: none;
         }
 
         .metric-card {
@@ -403,22 +413,36 @@
                         <a class="nav-link nav-pill px-3 {% if request.path == url_for('index') %}active{% endif %}" href="{{ url_for('index') }}">Dashboard</a>
                         <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('software_list')) %}active{% endif %}" href="{{ url_for('software_list') }}">Software</a>
                         <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('vendor_list')) %}active{% endif %}" href="{{ url_for('vendor_list') }}">Vendors</a>
-                        <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('reports')) %}active{% endif %}" href="{{ url_for('reports') }}">Reports</a>
-                        <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('settings')) %}active{% endif %}" href="{{ url_for('settings') }}">Settings</a>
-                        <a class="nav-link nav-pill px-3" href="{{ url_for('logout') }}">Logout</a>
+                        <div class="dropdown">
+                            <button class="nav-link nav-pill nav-dropdown-toggle px-3 dropdown-toggle {% if request.path.startswith('/reports') %}active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">Reports</button>
+                            <div class="dropdown-menu dropdown-menu-end nav-dropdown-menu">
+                                <a class="dropdown-item" href="{{ url_for('reports') }}">Global Data Hosting Map</a>
+                                <a class="dropdown-item" href="{{ url_for('vendor_origins') }}">Vendor Country of Origin Map</a>
+                            </div>
+                        </div>
                         <div class="dropdown ms-lg-3 mt-3 mt-lg-0">
-                            <button class="btn nav-icon-button dropdown-toggle border-0 shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Notifications">
-                                <span class="nav-icon-badge"></span>
+                            <button class="btn nav-icon-button dropdown-toggle border-0 shadow-none" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Account menu">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
-                                    <path d="M8 16a2 2 0 0 0 2-2H6a2 2 0 0 0 2 2"/>
-                                    <path d="M8 1.918a1 1 0 0 0-.9.55A5 5 0 0 0 3 7c0 1.098-.5 6-2 7h14c-1.5-1-2-5.902-2-7a5 5 0 0 0-4.1-4.532 1 1 0 0 0-.9-.55"/>
+                                    <path d="M11 6a3 3 0 1 1-6 0 3 3 0 0 1 6 0"/>
+                                    <path fill-rule="evenodd" d="M0 8a8 8 0 1 1 16 0A8 8 0 0 1 0 8m8-7a7 7 0 0 0-5.468 11.37C3.242 11.226 4.805 10 8 10s4.757 1.225 5.468 2.37A7 7 0 0 0 8 1"/>
                                 </svg>
                             </button>
-                            <div class="dropdown-menu dropdown-menu-end notifications-menu">
-                                <div class="px-3 pt-2 pb-1">
-                                    <div class="fw-semibold">Notifications</div>
-                                    <div class="text-secondary small">Recent audit activity and reminders</div>
-                                </div>
+                            <div class="dropdown-menu dropdown-menu-end profile-menu">
+                                <a class="dropdown-item" href="{{ url_for('settings') }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                        <path d="M8 4.754a3.246 3.246 0 1 0 0 6.492 3.246 3.246 0 0 0 0-6.492M5.754 8a2.246 2.246 0 1 1 4.492 0 2.246 2.246 0 0 1-4.492 0"/>
+                                        <path d="M9.796 1.343c-.527-1.79-3.065-1.79-3.592 0l-.094.319a.873.873 0 0 1-1.255.52l-.292-.16c-1.64-.892-3.433.902-2.54 2.541l.159.292a.873.873 0 0 1-.52 1.255l-.319.094c-1.79.527-1.79 3.065 0 3.592l.319.094a.873.873 0 0 1 .52 1.255l-.16.292c-.892 1.64.901 3.434 2.541 2.54l.292-.159a.873.873 0 0 1 1.255.52l.094.319c.527 1.79 3.065 1.79 3.592 0l.094-.319a.873.873 0 0 1 1.255-.52l.292.16c1.64.893 3.434-.902 2.54-2.541l-.159-.292a.873.873 0 0 1 .52-1.255l.319-.094c1.79-.527 1.79-3.065 0-3.592l-.319-.094a.873.873 0 0 1-.52-1.255l.16-.292c.893-1.64-.902-3.433-2.541-2.54l-.292.159a.873.873 0 0 1-1.255-.52z"/>
+                                    </svg>
+                                    Settings
+                                </a>
+                                <div class="dropdown-divider"></div>
+                                <a class="dropdown-item text-danger" href="{{ url_for('logout') }}">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                                        <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0z"/>
+                                        <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708z"/>
+                                    </svg>
+                                    Logout
+                                </a>
                             </div>
                         </div>
                     </div>

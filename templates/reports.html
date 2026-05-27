@@ -238,7 +238,7 @@
                 {% for item in data_hosting_heatmap.locations %}
                 {% if item.location != "Other countries (unspecified)" %}
                 <li>
-                    <strong>{{ item.location }}</strong>:
+                    <strong><a class="text-decoration-none" href="{{ url_for('country_detail', country_name=item.location) }}">{{ item.location }}</a></strong>:
                     {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}
                     {% if item.percentage %}&middot; {{ item.percentage }}%{% endif %}
                     {% if not item.map_x %}<span class="text-secondary">(not plotted)</span>{% endif %}

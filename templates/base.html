@@ -412,12 +412,14 @@
                     <div class="navbar-nav ms-auto align-items-lg-center gap-lg-2">
                         <a class="nav-link nav-pill px-3 {% if request.path == url_for('index') %}active{% endif %}" href="{{ url_for('index') }}">Dashboard</a>
                         <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('software_list')) %}active{% endif %}" href="{{ url_for('software_list') }}">Software</a>
+                        <a class="nav-link nav-pill px-3 {% if request.path.startswith('/categories') %}active{% endif %}" href="{{ url_for('category_list') }}">Categories</a>
                         <a class="nav-link nav-pill px-3 {% if request.path.startswith(url_for('vendor_list')) %}active{% endif %}" href="{{ url_for('vendor_list') }}">Vendors</a>
                         <div class="dropdown">
                             <button class="nav-link nav-pill nav-dropdown-toggle px-3 dropdown-toggle {% if request.path.startswith('/reports') %}active{% endif %}" type="button" data-bs-toggle="dropdown" aria-expanded="false">Reports</button>
                             <div class="dropdown-menu dropdown-menu-end nav-dropdown-menu">
                                 <a class="dropdown-item" href="{{ url_for('reports') }}">Global Data Hosting Map</a>
                                 <a class="dropdown-item" href="{{ url_for('vendor_origins') }}">Vendor Country of Origin Map</a>
+                                <a class="dropdown-item" href="{{ url_for('age_restriction_graph') }}">Age Restriction Graph</a>
                             </div>
                         </div>
                         <div class="dropdown ms-lg-3 mt-3 mt-lg-0">

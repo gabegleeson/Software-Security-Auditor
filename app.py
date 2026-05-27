@@ -43,12 +43,12 @@ ASSESSMENT_FIELDS = (
     "license_type",
     "subscription_billing_frequency",
     "version",
+    "product_updates",
+    "security_updates",
     "free_software",
     "currency_type",
     "license_cost",
     "purchase_link",
-    "duplicates_existing",
-    "genuine_need_notes",
     "vendor_security_assessment",
     "student_intended_use",
     "age_restrictions",
@@ -80,10 +80,13 @@ ASSESSMENT_FIELDS = (
     "software_id",
     "is_assessment",
     "submission_status",
+    "category",
 )
 
 CHECKBOX_FIELDS = {
     "free_software",
+    "product_updates",
+    "security_updates",
 }
 VENDOR_PRIVACY_FIELDS = (
     "no_vendor_privacy_policy",
@@ -627,8 +630,6 @@ PDF_FIELD_LABELS = {
     "free_software": "Free Software",
     "license_cost": "License Cost",
     "purchase_link": "Purchase Link",
-    "duplicates_existing": "Duplicates Existing Capability",
-    "genuine_need_notes": "Genuine Need Notes",
     "data_storage_location": "Data Storage Location",
     "storage_location_notes": "Storage Location Notes",
     "cloud_hosted_data": "Cloud-Hosted Data",
@@ -684,8 +685,6 @@ PDF_SECTION_FIELDS = [
         "version",
         "license_cost",
         "purchase_link",
-        "duplicates_existing",
-        "genuine_need_notes",
         "product_updates",
         "security_updates",
         "support_notes",
@@ -799,8 +798,6 @@ SOFTWARE_DETAIL_FIELDS = (
     "vendor_country",
     "software_website",
     "purchase_link",
-    "duplicates_existing",
-    "genuine_need_notes",
     "product_updates",
     "security_updates",
     "support_notes",
@@ -813,6 +810,7 @@ SOFTWARE_DETAIL_FIELDS = (
     "audit_reminder_frequency",
     "next_audit_date",
     "risk_level",
+    "category",
 )
 
 FORM_OPTION_CONTEXT = {
@@ -868,8 +866,6 @@ def collect_software_form_data(form):
         "license_agreement_link": form.get("license_agreement_link", "").strip(),
         "license_type": license_type,
         "purchase_link": form.get("purchase_link", "").strip(),
-        "duplicates_existing": form.get("duplicates_existing", "").strip(),
-        "genuine_need_notes": form.get("genuine_need_notes", "").strip(),
         "product_updates": "product_updates" in form,
         "security_updates": "security_updates" in form,
         "support_notes": form.get("support_notes", "").strip(),
@@ -882,6 +878,7 @@ def collect_software_form_data(form):
         "audit_reminder_frequency": form.get("audit_reminder_frequency", "").strip() or "1_year",
         "next_audit_date": form.get("next_audit_date", "").strip(),
         "risk_level": form.get("risk_level", "").strip(),
+        "category": form.get("category", "").strip(),
     }
 
 
@@ -1398,6 +1395,81 @@ def build_assessment_pdf(record, cve_data=None):
         story.append(section_table)
         story.append(Spacer(1, 8))
 
+        if section_title == "Software Information":
+            category_name = clean_pdf_text(record.get("category", "")).strip()
+            genuine_need = clean_pdf_text(record.get("genuine_need", "")).strip()
+            if category_name:
+                story.append(Paragraph("Category and Genuine Need", section_style))
+                cat_rows = [
+                    [
+                        pdf_paragraph("Category", label_style),
+                        pdf_paragraph(category_name, value_style),
+                    ],
+                    [
+                        pdf_paragraph("Genuine Need", label_style),
+                        pdf_paragraph(genuine_need or "Not recorded", value_style, preserve_line_breaks=True),
+                    ],
+                ]
+                cat_table = Table(cat_rows, colWidths=[58 * mm, 116 * mm], hAlign="LEFT")
+                cat_table.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+                            ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D1D5DB")),
+                            ("INNERGRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#E5E7EB")),
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                            ("TOPPADDING", (0, 0), (-1, -1), 7),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 7),
+                            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#ebfdf2")),
+                        ]
+                    )
+                )
+                story.append(cat_table)
+                story.append(Spacer(1, 8))
+            else:
+                no_cat_heading_style = ParagraphStyle(
+                    "NoCategoryHeading",
+                    parent=styles["BodyText"],
+                    fontSize=9,
+                    leading=13,
+                    textColor=colors.HexColor("#92400E"),
+                    fontName="Helvetica-Bold",
+                    spaceAfter=2,
+                )
+                no_cat_body_style = ParagraphStyle(
+                    "NoCategoryBody",
+                    parent=styles["BodyText"],
+                    fontSize=8.5,
+                    leading=12,
+                    textColor=colors.HexColor("#92400E"),
+                )
+                no_cat_cell = [
+                    Paragraph("No genuine need recorded for this software.", no_cat_heading_style),
+                    Paragraph(
+                        "This software has not been assigned to a category. A genuine need statement "
+                        "is required before this software can be approved for deployment.",
+                        no_cat_body_style,
+                    ),
+                ]
+                no_cat_table = Table([[no_cat_cell]], colWidths=[174 * mm], hAlign="LEFT")
+                no_cat_table.setStyle(
+                    TableStyle(
+                        [
+                            ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                            ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                            ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                            ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                            ("TOPPADDING", (0, 0), (-1, -1), 8),
+                            ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                        ]
+                    )
+                )
+                story.append(no_cat_table)
+                story.append(Spacer(1, 10))
+
     if (
         record.get("student_intended_use") == "Yes"
         and record.get("age_restrictions", "") not in ("", "None")
@@ -1862,6 +1934,8 @@ NEXT_ASSESSMENT_ID = 1
 VENDOR_RECORDS = []
 VENDOR_ASSESSMENT_RECORDS = []
 NEXT_VENDOR_ASSESSMENT_ID = 1
+NEXT_CATEGORY_ID = 1
+CATEGORIES: list = []
 APP_SETTINGS = dict(DEFAULT_APP_SETTINGS)
 RISK_CATEGORY_OPTIONS = (
     "Low",
@@ -1987,6 +2061,15 @@ def init_db():
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value TEXT NOT NULL
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS categories (
+                id INTEGER PRIMARY KEY,
+                name TEXT NOT NULL UNIQUE,
+                genuine_need TEXT NOT NULL DEFAULT ''
             )
             """
         )
@@ -2679,9 +2762,35 @@ def migrate_privacy_fields_to_vendor_assessment_records():
     return changed
 
 
+def load_categories():
+    with get_db_connection() as connection:
+        rows = connection.execute(
+            "SELECT id, name, genuine_need FROM categories ORDER BY name"
+        ).fetchall()
+    return [{"id": row["id"], "name": row["name"], "genuine_need": row["genuine_need"]} for row in rows]
+
+
+def persist_categories():
+    with get_db_connection() as connection:
+        connection.execute("DELETE FROM categories")
+        connection.executemany(
+            "INSERT INTO categories (id, name, genuine_need) VALUES (?, ?, ?)",
+            [(cat["id"], cat["name"], cat["genuine_need"]) for cat in CATEGORIES],
+        )
+
+
+def get_category_by_name(name):
+    normalized = name.strip().casefold()
+    for cat in CATEGORIES:
+        if cat["name"].casefold() == normalized:
+            return cat
+    return None
+
+
 def refresh_runtime_state():
     global SOFTWARE_ITEMS, SOFTWARE_ASSESSMENT_RECORDS, SOFTWARE_RECORDS, VENDOR_RECORDS, VENDOR_ASSESSMENT_RECORDS
     global APP_SETTINGS, NEXT_SOFTWARE_ID, NEXT_ASSESSMENT_ID, NEXT_VENDOR_ASSESSMENT_ID
+    global CATEGORIES, NEXT_CATEGORY_ID
 
     SOFTWARE_ITEMS = load_software_items()
     SOFTWARE_ASSESSMENT_RECORDS = load_software_assessment_records(SOFTWARE_ITEMS)
@@ -2699,6 +2808,8 @@ def refresh_runtime_state():
     NEXT_SOFTWARE_ID = max((record["id"] for record in SOFTWARE_ITEMS), default=0) + 1
     NEXT_ASSESSMENT_ID = max((record["id"] for record in SOFTWARE_ASSESSMENT_RECORDS), default=0) + 1
     NEXT_VENDOR_ASSESSMENT_ID = max((record.get("id", 0) for record in VENDOR_ASSESSMENT_RECORDS), default=0) + 1
+    CATEGORIES = load_categories()
+    NEXT_CATEGORY_ID = max((cat["id"] for cat in CATEGORIES), default=0) + 1
 
 
 init_db()
@@ -2873,13 +2984,8 @@ def get_latest_software_record(software_name):
 
 
 def build_software_catalog(active_only=False):
-    deployed_by_name = {
-        normalized_name(item.get("software_name", "")): bool(item.get("deployed", False))
-        for item in SOFTWARE_ITEMS
-        if item.get("software_name")
-    }
-    risk_level_by_name = {
-        normalized_name(item.get("software_name", "")): item.get("risk_level", "")
+    item_fields_by_name = {
+        normalized_name(item.get("software_name", "")): item
         for item in SOFTWARE_ITEMS
         if item.get("software_name")
     }
@@ -2902,12 +3008,17 @@ def build_software_catalog(active_only=False):
 
     result = []
     for key, record in latest_by_name.items():
-        is_deployed = deployed_by_name.get(key, True)
+        item = item_fields_by_name.get(key, {})
+        is_deployed = bool(item.get("deployed", True))
         if active_only and not is_deployed:
             continue
         annotated = dict(record)
         annotated["deployed"] = is_deployed
-        annotated["risk_level"] = risk_level_by_name.get(key, record.get("risk_level", ""))
+        # next_audit_date and audit_reminder_frequency live on the software item, not per-assessment
+        annotated["next_audit_date"] = item.get("next_audit_date", "") or record.get("next_audit_date", "")
+        annotated["audit_reminder_frequency"] = item.get("audit_reminder_frequency", "") or record.get("audit_reminder_frequency", "")
+        annotated["risk_level"] = item.get("risk_level", "") or record.get("risk_level", "")
+        annotated["category"] = item.get("category", "") or record.get("category", "")
         result.append(annotated)
     return sorted(result, key=lambda record: normalized_name(record.get("software_name", "")))
 
@@ -2948,19 +3059,18 @@ def advance_software_next_audit_after_submission(assessment_record):
     if not normalized:
         return
 
-    linked_software = get_latest_software_record(software_name) or assessment_record
     next_audit_date = calculate_next_audit_date_from_assessment(
         assessment_record.get("assessment_date", ""),
-        linked_software.get("audit_reminder_frequency", "") or assessment_record.get("audit_reminder_frequency", ""),
+        assessment_record.get("audit_reminder_frequency", ""),
     )
     if not next_audit_date:
         return
 
     for record in SOFTWARE_RECORDS:
-        if normalized_name(record.get("software_name", "")) == normalized:
+        if normalized_name(record.get("software_name", "")) == normalized and not record.get("is_assessment"):
             record["next_audit_date"] = next_audit_date
             record["review_date"] = next_audit_date
-            record.update(enrich_assessment(record))
+            break
 
 
 def update_software_details(original_software_name, updated_details):
@@ -3066,7 +3176,6 @@ def collect_assessment_form_data(form, assessment_id=None):
             "license_agreement_link",
             "license_type",
             "purchase_link",
-            "duplicates_existing",
             "license_start_date",
             "license_renewal_date",
             "deployment_groups",
@@ -4261,13 +4370,142 @@ def vendor_origins():
     )
 
 
+def build_age_restriction_chart_data():
+    LEGAL_AGE_VALUE = "Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf"
+    LABEL_MAP = {
+        "None": "None",
+        "13+": "13+",
+        "16+": "16+",
+        "18+": "18+",
+        LEGAL_AGE_VALUE: "Legal age in country",
+    }
+    categories = ["None", "13+", "16+", "18+", "Legal age in country", "Not set"]
+    buckets = {cat: [] for cat in categories}
+
+    for record in build_software_catalog(active_only=True):
+        vendor_name = record.get("vendor_name", "")
+        vendor_record = get_vendor_by_name(vendor_name) if vendor_name else None
+        age = (
+            (vendor_record or {}).get("vendor_age_restrictions", "")
+            or record.get("age_restrictions", "")
+        )
+        label = LABEL_MAP.get(age, "Not set") if age else "Not set"
+        buckets[label].append({
+            "software_name": record.get("software_name", "Unknown"),
+            "vendor_name": record.get("vendor_name", ""),
+        })
+
+    return {
+        "categories": categories,
+        "counts": [len(buckets[cat]) for cat in categories],
+        "software_by_category": {cat: buckets[cat] for cat in categories},
+    }
+
+
+@app.route("/reports/age-restrictions")
+def age_restriction_graph():
+    return render_template(
+        "age_restriction_graph.html",
+        chart_data=build_age_restriction_chart_data(),
+    )
+
+
+@app.route("/categories")
+def category_list():
+    catalog = build_software_catalog(active_only=True)
+    software_counts = {}
+    uncategorised = []
+    for record in catalog:
+        cat_name = record.get("category", "").strip()
+        if cat_name:
+            software_counts[cat_name] = software_counts.get(cat_name, 0) + 1
+        else:
+            uncategorised.append(record)
+    uncategorised.sort(key=lambda r: r.get("software_name", "").casefold())
+    return render_template("category_list.html", categories=CATEGORIES, software_counts=software_counts, uncategorised=uncategorised)
+
+
+@app.route("/categories/new", methods=["GET", "POST"])
+def new_category():
+    global NEXT_CATEGORY_ID
+    error = None
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        genuine_need = request.form.get("genuine_need", "").strip()
+        if not name:
+            error = "Category name is required."
+        elif not genuine_need:
+            error = "Genuine need is required."
+        elif get_category_by_name(name):
+            error = f"A category named “{name}” already exists."
+        else:
+            CATEGORIES.append({"id": NEXT_CATEGORY_ID, "name": name, "genuine_need": genuine_need})
+            NEXT_CATEGORY_ID += 1
+            persist_categories()
+            return redirect(url_for("category_list"))
+    return render_template("new_category.html", error=error)
+
+
+@app.route("/categories/<path:category_name>", methods=["GET", "POST"])
+def category_detail(category_name):
+    cat = get_category_by_name(category_name)
+    if cat is None:
+        abort(404)
+    if request.method == "POST":
+        action = request.form.get("action", "")
+        if action == "delete":
+            CATEGORIES.remove(cat)
+            persist_categories()
+            return redirect(url_for("category_list"))
+    catalog = build_software_catalog(active_only=False)
+    cat_cf = cat["name"].casefold()
+    software = [r for r in catalog if r.get("category", "").strip().casefold() == cat_cf]
+    return render_template(
+        "category_detail.html",
+        category=cat,
+        software=software,
+    )
+
+
+@app.route("/categories/<path:category_name>/edit", methods=["GET", "POST"])
+def category_edit(category_name):
+    cat = get_category_by_name(category_name)
+    if cat is None:
+        abort(404)
+    error = None
+    if request.method == "POST":
+        new_name = request.form.get("name", "").strip()
+        genuine_need = request.form.get("genuine_need", "").strip()
+        if not new_name:
+            error = "Category name is required."
+        elif not genuine_need:
+            error = "Genuine need is required."
+        elif new_name.casefold() != cat["name"].casefold() and get_category_by_name(new_name):
+            error = f'A category named "{new_name}" already exists.'
+        else:
+            old_name = cat["name"]
+            cat["name"] = new_name
+            cat["genuine_need"] = genuine_need
+            if old_name.casefold() != new_name.casefold():
+                for record in SOFTWARE_RECORDS:
+                    if record.get("category", "").strip().casefold() == old_name.casefold():
+                        record["category"] = new_name
+                persist_software_records()
+            persist_categories()
+            return redirect(url_for("category_detail", category_name=new_name))
+    return render_template("category_edit.html", category=cat, error=error)
+
+
 @app.route("/software/new", methods=["GET", "POST"])
 def new_software():
     global NEXT_SOFTWARE_ID
 
+    category_error = None
     if request.method == "POST":
         software_details = collect_software_form_data(request.form)
-        if software_details["software_name"] and software_details["vendor_name"]:
+        if not software_details["category"]:
+            category_error = "A category is required."
+        elif software_details["software_name"] and software_details["vendor_name"]:
             record = blank_assessment()
             for field in SOFTWARE_DETAIL_FIELDS:
                 if field in software_details:
@@ -4285,12 +4523,18 @@ def new_software():
             NEXT_SOFTWARE_ID += 1
             return redirect(url_for("software_detail", software_name=enriched_record["software_name"]))
 
+    software = blank_assessment()
+    if request.method == "POST":
+        software.update(collect_software_form_data(request.form))
+
     return render_template(
         "software_edit.html",
-        software=blank_assessment(),
+        software=software,
         form_title="Add Software",
         submit_label="Save Software",
         is_new=True,
+        category_error=category_error,
+        categories=CATEGORIES,
         **FORM_OPTION_CONTEXT,
     )
 
@@ -4318,6 +4562,8 @@ def edit_software(software_name):
         form_title="Edit Software",
         submit_label="Update Software",
         is_new=False,
+        category_error=None,
+        categories=CATEGORIES,
         **FORM_OPTION_CONTEXT,
     )
 
@@ -4353,6 +4599,9 @@ def software_detail(software_name):
     display_record = dict(software_record)
     if software_item:
         display_record["risk_level"] = software_item.get("risk_level", "")
+        display_record["next_audit_date"] = software_item.get("next_audit_date", "") or display_record.get("next_audit_date", "")
+        display_record["audit_reminder_frequency"] = software_item.get("audit_reminder_frequency", "") or display_record.get("audit_reminder_frequency", "")
+        display_record["category"] = software_item.get("category", "") or display_record.get("category", "")
 
     return render_template(
         "software_detail.html",
@@ -4765,7 +5014,7 @@ def new_assessment():
         return redirect(url_for("software_detail", software_name=form_data["software_name"]))
 
     draft_id = request.args.get("draft_id", type=int)
-    source_assessment_id = request.args.get("source_assessment_id", type=int)
+    source_software_name = request.args.get("source_software_name", "").strip()
     if draft_id is not None:
         draft_record = get_assessment_or_none(draft_id)
         if draft_record is not None and draft_record.get("submission_status") == "draft":
@@ -4788,7 +5037,7 @@ def new_assessment():
                 **FORM_OPTION_CONTEXT,
             )
 
-    source_assessment = get_software_record_or_none(source_assessment_id) if source_assessment_id is not None else None
+    source_assessment = get_latest_software_record(source_software_name) if source_software_name else None
     draft_record = build_prefilled_assessment(source_assessment)
     draft_record["id"] = NEXT_ASSESSMENT_ID
     draft_record["is_assessment"] = True
@@ -4803,7 +5052,7 @@ def new_assessment():
         url_for(
             "new_assessment",
             draft_id=enriched_draft["id"],
-            source_assessment_id=source_assessment_id,
+            source_software_name=source_software_name,
         )
     )
 
@@ -4923,6 +5172,9 @@ def download_assessment_pdf(assessment_id):
         None,
     )
     pdf_record["risk_level"] = software_item.get("risk_level", "") if software_item else ""
+    pdf_record["category"] = (software_item.get("category", "") if software_item else "") or record.get("category", "")
+    cat_obj = get_category_by_name(pdf_record.get("category", ""))
+    pdf_record["genuine_need"] = cat_obj["genuine_need"] if cat_obj else ""
     safe_name = (record.get("software_name") or f"assessment-{assessment_id}").strip().replace(" ", "-")
     audit_date = (
         record.get("assessment_date")

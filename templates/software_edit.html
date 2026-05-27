@@ -197,17 +197,6 @@
                 <input class="form-control" type="date" id="deployment_date" name="deployment_date" value="{{ software.deployment_date }}">
             </div>
             <div class="col-md-6">
-                <label class="form-label fw-semibold">Duplicates existing capability?</label>
-                <div class="d-flex gap-3 pt-2">
-                    <label><input type="radio" name="duplicates_existing" value="Yes" {% if software.duplicates_existing == "Yes" %}checked{% endif %}> Yes</label>
-                    <label><input type="radio" name="duplicates_existing" value="No" {% if software.duplicates_existing == "No" %}checked{% endif %}> No</label>
-                </div>
-            </div>
-            <div class="col-12">
-                <label for="genuine_need_notes" class="form-label fw-semibold">Genuine Need Notes</label>
-                <textarea class="form-control" id="genuine_need_notes" name="genuine_need_notes" rows="4">{{ software.genuine_need_notes }}</textarea>
-            </div>
-            <div class="col-md-6">
                 <label for="deployment_type" class="form-label fw-semibold">Deployment Type</label>
                 <select class="form-select" id="deployment_type" name="deployment_type">
                     <option value="">Select deployment type</option>
@@ -215,12 +204,6 @@
                     <option value="Manual deployment" {% if software.deployment_type == "Manual deployment" %}selected{% endif %}>Manual deployment</option>
                     <option value="Other" {% if software.deployment_type == "Other" %}selected{% endif %}>Other</option>
                 </select>
-            </div>
-            <div class="col-md-6">
-                <label class="form-label fw-semibold">Deployment Status</label>
-                <div class="d-flex flex-wrap gap-3 pt-2">
-                    <label><input type="checkbox" name="tested" {% if software.tested %}checked{% endif %}> Tested</label>
-                </div>
             </div>
             <div class="col-md-6">
                 <label for="risk_level" class="form-label fw-semibold">Risk Level</label>
@@ -231,6 +214,16 @@
                     <option value="High" {% if software.risk_level == "High" %}selected{% endif %}>High</option>
                     <option value="Critical" {% if software.risk_level == "Critical" %}selected{% endif %}>Critical</option>
                 </select>
+            </div>
+            <div class="col-md-6">
+                <label for="category" class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
+                <select class="form-select {% if category_error %}is-invalid{% endif %}" id="category" name="category" {% if is_new %}required{% endif %}>
+                    <option value="">— Select a category —</option>
+                    {% for cat in categories %}
+                    <option value="{{ cat.name }}" {% if software.category == cat.name %}selected{% endif %}>{{ cat.name }}</option>
+                    {% endfor %}
+                </select>
+                {% if category_error %}<div class="invalid-feedback">{{ category_error }}</div>{% endif %}
             </div>
         </div>
 
@@ -247,6 +240,12 @@
             <div class="col-12">
                 <label for="support_notes" class="form-label fw-semibold">Support Notes</label>
                 <textarea class="form-control" id="support_notes" name="support_notes" rows="4">{{ software.support_notes }}</textarea>
+            </div>
+            <div class="col-12">
+                <label class="form-label fw-semibold">Deployment Status</label>
+                <div class="d-flex flex-wrap gap-3 pt-1">
+                    <label><input type="checkbox" name="tested" {% if software.tested %}checked{% endif %}> Tested</label>
+                </div>
             </div>
         </div>
 

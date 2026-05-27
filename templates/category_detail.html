@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category.name }}{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0"
+           style="width: 32px; height: 32px;"
+           href="{{ url_for('category_list') }}"
+           aria-label="Back to categories"
+           title="Back to categories">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+            </svg>
+        </a>
+        <div class="d-flex gap-2 align-items-center">
+            <a class="btn btn-sm btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center"
+               style="width: 36px; height: 36px;"
+               href="{{ url_for('category_edit', category_name=category.name) }}"
+               aria-label="Edit category"
+               title="Edit category">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                    <path d="M15.502 1.94a.5.5 0 0 1 0 .706l-1.793 1.793-2.647-2.647L12.855 0a.5.5 0 0 1 .707 0z"/>
+                    <path d="M1 13.5V16h2.5l7.372-7.372-2.647-2.647z"/>
+                </svg>
+            </a>
+            <form method="POST" onsubmit="return confirm('Delete this category? Software assigned to it will become uncategorised.');">
+                <input type="hidden" name="action" value="delete">
+                <button type="submit" class="btn btn-sm btn-outline-danger rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 36px; height: 36px;" aria-label="Delete category" title="Delete category">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                        <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                        <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                    </svg>
+                </button>
+            </form>
+        </div>
+    </div>
+    <div class="mb-4">
+        <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Category</span>
+        <h1 class="display-6 fw-semibold mb-2">{{ category.name }}</h1>
+    </div>
+    {% if category.genuine_need %}
+    <div>
+        <div class="small text-secondary mb-1">Genuine Need</div>
+        <div>{{ category.genuine_need }}</div>
+    </div>
+    {% else %}
+    <div class="text-secondary small">No genuine need recorded. <a href="{{ url_for('category_edit', category_name=category.name) }}">Add one.</a></div>
+    {% endif %}
+</section>
+
+<section class="table-panel p-4">
+    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Software in this Category <span class="badge text-bg-secondary rounded-pill ms-1">{{ software | length }}</span></h2>
+    {% if software %}
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Software</th>
+                    <th>Vendor</th>
+                    <th>Risk Level</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in software %}
+                <tr>
+                    <td class="fw-semibold">
+                        <a class="text-decoration-none" href="{{ url_for('software_detail', software_name=s.software_name) }}">{{ s.software_name }}</a>
+                    </td>
+                    <td class="text-secondary">
+                        {% if s.vendor_name %}
+                        <a class="text-decoration-none text-secondary" href="{{ url_for('vendor_detail', vendor_name=s.vendor_name) }}">{{ s.vendor_name }}</a>
+                        {% else %}-{% endif %}
+                    </td>
+                    <td>{{ s.risk_level or "—" }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-secondary mb-0">No software is assigned to this category yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

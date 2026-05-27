@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Categories{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Categories</span>
+            <h1 class="display-6 fw-semibold mb-0">Categories</h1>
+        </div>
+        <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_category') }}">Add Category</a>
+    </div>
+    {% if categories %}
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Category</th>
+                    <th>Software</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for cat in categories %}
+                <tr>
+                    <td class="fw-semibold">
+                        <a class="text-decoration-none" href="{{ url_for('category_detail', category_name=cat.name) }}">{{ cat.name }}</a>
+                    </td>
+                    <td>
+                        <span class="badge rounded-pill text-bg-secondary">{{ software_counts.get(cat.name, 0) }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-secondary mb-0">No categories yet. <a href="{{ url_for('new_category') }}">Add the first one.</a></p>
+    {% endif %}
+</section>
+
+<section class="table-panel p-4">
+    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Uncategorised Apps <span class="badge text-bg-secondary rounded-pill ms-1">{{ uncategorised | length }}</span></h2>
+    {% if uncategorised %}
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th>Software</th>
+                    <th>Vendor</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for s in uncategorised %}
+                <tr>
+                    <td class="fw-semibold">
+                        <a class="text-decoration-none" href="{{ url_for('software_detail', software_name=s.software_name) }}">{{ s.software_name }}</a>
+                    </td>
+                    <td class="text-secondary">
+                        {% if s.vendor_name %}
+                        <a class="text-decoration-none text-secondary" href="{{ url_for('vendor_detail', vendor_name=s.vendor_name) }}">{{ s.vendor_name }}</a>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="text-secondary mb-0">All software has been assigned to a category.</p>
+    {% endif %}
+</section>
+{% endblock %}

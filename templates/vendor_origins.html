@@ -189,7 +189,7 @@
             <ol class="origin-breakdown">
                 {% for item in vendor_origin_map.locations %}
                 <li>
-                    <strong>{{ item.location }}</strong>:
+                    <strong><a class="text-decoration-none" href="{{ url_for('country_detail', country_name=item.location) }}">{{ item.location }}</a></strong>:
                     {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}
                     {% if item.percentage %}&middot; {{ item.percentage }}%{% endif %}
                     {% if "latitude" not in item %}<span class="text-secondary">(not plotted)</span>{% endif %}
@@ -204,7 +204,7 @@
         <div class="fw-semibold mb-2">Country Breakdown</div>
         <ol class="origin-breakdown">
             {% for item in vendor_origin_map.locations %}
-            <li><strong>{{ item.location }}</strong>: {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}</li>
+            <li><strong><a class="text-decoration-none" href="{{ url_for('country_detail', country_name=item.location) }}">{{ item.location }}</a></strong>: {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}</li>
             {% endfor %}
         </ol>
     </div>

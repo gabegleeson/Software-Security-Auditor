@@ -28,7 +28,7 @@
             </div>
             <div class="text-end">
                 <div class="small text-danger fw-semibold">Action required</div>
-                <a class="btn btn-sm btn-outline-danger rounded-pill px-3 mt-2" href="{{ url_for('new_assessment', source_assessment_id=record.id) }}">
+                <a class="btn btn-sm btn-outline-danger rounded-pill px-3 mt-2" href="{{ url_for('new_assessment', source_software_name=record.software_name) }}">
                     Create assessment
                 </a>
             </div>
@@ -50,7 +50,11 @@
                     {{ vendor.vendor_name }}
                 </a>
             </div>
-            <div class="text-secondary small">{{ vendor.vendor_country or "Not provided" }}</div>
+            <div class="text-secondary small">
+                {% if vendor.vendor_country %}
+                <a class="text-decoration-none text-secondary" href="{{ url_for('country_detail', country_name=vendor.vendor_country) }}">{{ vendor.vendor_country }}</a>
+                {% else %}Not provided{% endif %}
+            </div>
         </div>
         <div class="text-end">
             <div class="small text-danger fw-semibold">Action required</div>
@@ -151,7 +155,7 @@
                     {% endif %}
                 </div>
                 <div class="mt-2">
-                    <a class="btn btn-sm btn-outline-primary rounded-pill px-3" href="{{ url_for('new_assessment', source_assessment_id=record.id) }}">
+                    <a class="btn btn-sm btn-outline-primary rounded-pill px-3" href="{{ url_for('new_assessment', source_software_name=record.software_name) }}">
                         New assessment
                     </a>
                 </div>

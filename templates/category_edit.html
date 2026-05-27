@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+
+{% block title %}Edit {{ category.name }}{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <a class="btn btn-sm btn-outline-secondary rounded-circle d-inline-flex align-items-center justify-content-center flex-shrink-0"
+           style="width: 32px; height: 32px;"
+           href="{{ url_for('category_detail', category_name=category.name) }}"
+           aria-label="Back to category"
+           title="Back to category">
+            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                <path fill-rule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+            </svg>
+        </a>
+    </div>
+    <div class="mb-4">
+        <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Category</span>
+        <h1 class="display-6 fw-semibold mb-0">Edit Category</h1>
+    </div>
+    {% if error %}
+    <div class="alert alert-danger mb-4">{{ error }}</div>
+    {% endif %}
+    <form method="POST" class="row g-3" style="max-width: 640px;">
+        <div class="col-12">
+            <label for="name" class="form-label fw-semibold">Category Name</label>
+            <input class="form-control" type="text" id="name" name="name" value="{{ category.name }}" required>
+        </div>
+        <div class="col-12">
+            <label for="genuine_need" class="form-label fw-semibold">Genuine Need</label>
+            <textarea class="form-control" id="genuine_need" name="genuine_need" rows="5" required>{{ category.genuine_need }}</textarea>
+        </div>
+        <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn btn-primary rounded-pill px-4">Save Changes</button>
+            <a class="btn btn-outline-secondary rounded-pill px-4" href="{{ url_for('category_detail', category_name=category.name) }}">Cancel</a>
+        </div>
+    </form>
+</section>
+{% endblock %}

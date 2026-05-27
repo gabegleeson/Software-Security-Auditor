@@ -33,7 +33,7 @@
                     </svg>
                 </button>
             </form>
-            <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_assessment', source_assessment_id=software.id) }}">Add Assessment</a>
+            <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_assessment', source_software_name=software_name) }}">Add Assessment</a>
         </div>
     </div>
     <div class="mb-4">
@@ -74,6 +74,9 @@
     {% endif %}
     {% if vendor_no_privacy_policy %}
         {% set ns.alerts = ns.alerts + ["no_privacy_policy"] %}
+    {% endif %}
+    {% if not software.category %}
+        {% set ns.alerts = ns.alerts + ["no_category"] %}
     {% endif %}
 
     <div id="alerts-container">
@@ -172,6 +175,17 @@
             </div>
         </div>
         {% endif %}
+        {% if "no_category" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No category assigned.</strong>
+                This software has not been assigned to a category. <a href="{{ url_for('edit_software', software_name=software_name) }}">Edit the software</a> or assign it from the <a href="{{ url_for('category_list') }}">Categories</a> page.
+            </div>
+        </div>
+        {% endif %}
     {% else %}
     <p class="text-secondary mb-0" id="no-alerts-msg">No alerts for this software.</p>
     {% endif %}
@@ -199,19 +213,13 @@
         {% if software.vendor_country %}
         <div class="col-md-6">
             <div class="small text-secondary mb-1">Country</div>
-            <div>{{ software.vendor_country }}</div>
+            <div><a class="text-decoration-none" href="{{ url_for('country_detail', country_name=software.vendor_country) }}">{{ software.vendor_country }}</a></div>
         </div>
         {% endif %}
         {% if software.deployment_date %}
         <div class="col-md-6">
             <div class="small text-secondary mb-1">Deployment Date</div>
             <div>{{ software.deployment_date }}</div>
-        </div>
-        {% endif %}
-        {% if software.genuine_need_notes %}
-        <div class="col-12">
-            <div class="small text-secondary mb-1">Genuine Need Notes</div>
-            <div>{{ software.genuine_need_notes }}</div>
         </div>
         {% endif %}
         {% if software.terms_conditions_link %}
@@ -257,6 +265,20 @@
             <div class="text-secondary">Not set</div>
             {% endif %}
         </div>
+        <div class="col-md-6">
+            <div class="small text-secondary mb-1">Next Audit Date</div>
+            {% if software.next_audit_date %}
+            <div>{{ software.next_audit_date }}</div>
+            {% else %}
+            <div class="text-secondary">Not scheduled</div>
+            {% endif %}
+        </div>
+        {% if software.category %}
+        <div class="col-md-6">
+            <div class="small text-secondary mb-1">Category</div>
+            <div><a class="text-decoration-none" href="{{ url_for('category_detail', category_name=software.category) }}">{{ software.category }}</a></div>
+        </div>
+        {% endif %}
     </div>
 </section>
 
@@ -421,7 +443,6 @@
                     <th>Assessment Date</th>
                     <th>Vendor</th>
                     <th>Version</th>
-                    <th>Next Audit Date</th>
                     <th>Actions</th>
                 </tr>
             </thead>
@@ -446,7 +467,6 @@
                         {% endif %}
                     </td>
                     <td>{{ record.version or "Not provided" }}</td>
-                    <td>{{ record.next_audit_date or "Not scheduled" }}</td>
                     <td>
                         <div class="d-flex flex-wrap gap-2">
                             <a class="btn btn-sm btn-outline-primary rounded-circle d-inline-flex align-items-center justify-content-center" style="width: 32px; height: 32px;" href="{{ url_for('edit_assessment', assessment_id=record.id) }}" aria-label="Edit assessment" title="Edit assessment">

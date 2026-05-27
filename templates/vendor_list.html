@@ -69,7 +69,11 @@
                             {{ vendor.vendor_name }}
                         </a>
                     </td>
-                    <td>{{ vendor.vendor_country or "Not provided" }}</td>
+                    <td>
+                        {% if vendor.vendor_country %}
+                        <a class="text-decoration-none" href="{{ url_for('country_detail', country_name=vendor.vendor_country) }}">{{ vendor.vendor_country }}</a>
+                        {% else %}Not provided{% endif %}
+                    </td>
                     <td><span class="badge rounded-pill text-bg-primary">{{ vendor.product_count }}</span></td>
                     <td>{{ vendor.vendor_next_audit_date or "Not scheduled" }}</td>
                     <td>

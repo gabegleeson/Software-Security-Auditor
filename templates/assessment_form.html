@@ -627,12 +627,16 @@
             <h2>Integration Assessment</h2>
 
             <div class="field">
-                <label>Supports Microsoft 365 Single Sign-On?</label>
-                <div class="radio-group">
-                    <label><input type="radio" name="supports_m365_sso" value="Yes"> Yes</label>
-                    <label><input type="radio" name="supports_m365_sso" value="No"> No</label>
-                    <label><input type="radio" name="supports_m365_sso" value="NA"> N/A</label>
-                </div>
+                <label for="supports_m365_sso">Supports Microsoft 365 SSO</label>
+                <select id="supports_m365_sso" name="supports_m365_sso">
+                    <option value="">— Select —</option>
+                    <option value="No SSO" {% if assessment.supports_m365_sso == "No SSO" %}selected{% endif %}>No SSO</option>
+                    <option value="Third Party IdP" {% if assessment.supports_m365_sso == "Third Party IdP" %}selected{% endif %}>Third Party IdP</option>
+                    <option value="SAML" {% if assessment.supports_m365_sso == "SAML" %}selected{% endif %}>SAML</option>
+                    <option value="Entra Manual" {% if assessment.supports_m365_sso == "Entra Manual" %}selected{% endif %}>Entra Manual</option>
+                    <option value="Entra Approved" {% if assessment.supports_m365_sso == "Entra Approved" %}selected{% endif %}>Entra Approved</option>
+                    <option value="Entra Other" {% if assessment.supports_m365_sso == "Entra Other" %}selected{% endif %}>Entra Other</option>
+                </select>
             </div>
 
             <div class="field">

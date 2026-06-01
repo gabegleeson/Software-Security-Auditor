@@ -81,6 +81,7 @@ ASSESSMENT_FIELDS = (
     "is_assessment",
     "submission_status",
     "category",
+    "unrelated_cves",
 )
 
 CHECKBOX_FIELDS = {
@@ -4678,6 +4679,33 @@ def nvd_cves():
     if result is None:
         return jsonify({"error": "Could not load vulnerability data from NVD"}), 502
     return jsonify(result)
+
+
+@app.route("/api/cve-status", methods=["GET", "POST"])
+def cve_status():
+    if request.method == "GET":
+        software_name = request.args.get("name", "").strip()
+        item = get_software_item_by_name(software_name) if software_name else None
+        unrelated = list(item.get("unrelated_cves") or []) if item else []
+        return jsonify({"unrelated_cves": unrelated})
+
+    data = request.get_json(silent=True) or {}
+    software_name = data.get("software_name", "").strip()
+    cve_id = data.get("cve_id", "").strip()
+    mark_unrelated = bool(data.get("unrelated", False))
+    if not software_name or not cve_id:
+        return jsonify({"error": "software_name and cve_id required"}), 400
+    item = get_software_item_by_name(software_name)
+    if item is None:
+        return jsonify({"error": "software not found"}), 404
+    cve_set = set(item.get("unrelated_cves") or [])
+    if mark_unrelated:
+        cve_set.add(cve_id)
+    else:
+        cve_set.discard(cve_id)
+    item["unrelated_cves"] = sorted(cve_set)
+    persist_software_items()
+    return jsonify({"ok": True, "unrelated_cves": item["unrelated_cves"]})
 
 
 @app.route("/vendors")

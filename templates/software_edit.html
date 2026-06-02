@@ -230,7 +230,15 @@
         <hr class="my-4">
         <h2 class="h5 fw-semibold mb-3">Maintenance</h2>
         <div class="row g-3">
-            <div class="col-12">
+            <div class="col-md-6">
+                <label for="software_type" class="form-label fw-semibold">Software Type</label>
+                <select class="form-select" id="software_type" name="software_type">
+                    <option value="">— Select type —</option>
+                    <option value="SaaS" {% if software.software_type == "SaaS" %}selected{% endif %}>SaaS</option>
+                    <option value="Desktop Application" {% if software.software_type == "Desktop Application" %}selected{% endif %}>Desktop Application</option>
+                </select>
+            </div>
+            <div class="col-12" id="software_updates_row">
                 <label class="form-label fw-semibold d-block">Software Updates</label>
                 <div class="d-flex flex-wrap gap-3 pt-1">
                     <label><input type="checkbox" name="product_updates" {% if software.product_updates %}checked{% endif %}> Product Updates Available</label>
@@ -418,5 +426,15 @@
     });
 
     searchVendors(vendorNameField.value);
+
+    const softwareTypeSelect = document.getElementById("software_type");
+    const softwareUpdatesRow = document.getElementById("software_updates_row");
+
+    function updateSoftwareUpdatesVisibility() {
+        softwareUpdatesRow.style.display = softwareTypeSelect.value === "SaaS" ? "none" : "";
+    }
+
+    softwareTypeSelect.addEventListener("change", updateSoftwareUpdatesVisibility);
+    updateSoftwareUpdatesVisibility();
 </script>
 {% endblock %}

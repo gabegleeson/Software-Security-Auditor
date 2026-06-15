@@ -3,6 +3,89 @@
 {% block title %}Dashboard{% endblock %}
 
 {% block content %}
+{% set risk_order = ["Low", "Moderate", "High", "Very High", "Not Assigned"] %}
+{% if dashboard_stats.total_products > 0 %}
+<style>
+    .risk-swatch { width: 12px; height: 12px; border-radius: 3px; flex-shrink: 0; display: inline-block; }
+    .risk-swatch[data-risk="Low"]          { background: #22c55e; }
+    .risk-swatch[data-risk="Moderate"]     { background: #facc15; }
+    .risk-swatch[data-risk="High"]         { background: #f97316; }
+    .risk-swatch[data-risk="Very High"]    { background: #dc2626; }
+    .risk-swatch[data-risk="Not Assigned"] { background: #9ca3af; }
+</style>
+<section class="table-panel p-4 mb-4">
+    <div class="d-flex flex-column flex-md-row align-items-center gap-4">
+        <div style="width: 180px; height: 180px; flex-shrink: 0;">
+            <canvas id="riskPieChart"></canvas>
+        </div>
+        <div class="flex-grow-1">
+            <h2 class="h5 fw-semibold mb-1">Risk Level Distribution</h2>
+            <p class="text-secondary small mb-3">
+                {{ dashboard_stats.total_products }} software title{{ 's' if dashboard_stats.total_products != 1 else '' }} in the active catalog
+            </p>
+            <div class="d-flex flex-wrap gap-3">
+                {% for level in risk_order %}
+                {% if risk_counts.get(level, 0) > 0 %}
+                <div class="d-flex align-items-center gap-2">
+                    <span class="risk-swatch" data-risk="{{ level }}"></span>
+                    <span class="small text-secondary">{{ level }}</span>
+                    <span class="fw-semibold small">{{ risk_counts[level] }}</span>
+                </div>
+                {% endif %}
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</section>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script type="application/json" id="risk_chart_data">{{ risk_counts | tojson }}</script>
+<script>
+(function () {
+    const raw = JSON.parse(document.getElementById("risk_chart_data").textContent);
+    const order = ["Low", "Moderate", "High", "Very High", "Not Assigned"];
+    const colorMap = {
+        "Low": "#22c55e",
+        "Moderate": "#facc15",
+        "High": "#f97316",
+        "Very High": "#dc2626",
+        "Not Assigned": "#9ca3af",
+    };
+    const labels = order.filter(l => (raw[l] || 0) > 0);
+    const data = labels.map(l => raw[l]);
+    const bgColors = labels.map(l => colorMap[l]);
+
+    new Chart(document.getElementById("riskPieChart"), {
+        type: "doughnut",
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: bgColors,
+                borderWidth: 0,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                            const pct = Math.round((ctx.parsed / total) * 100);
+                            return " " + ctx.label + ": " + ctx.parsed + " (" + pct + "%)";
+                        },
+                    },
+                },
+            },
+            cutout: "65%",
+        },
+    });
+})();
+</script>
+{% endif %}
+
 {% if software_needing_assessment %}
 <section class="table-panel p-4 mb-4">
     <h2 class="h4 mb-1">Action Required</h2>

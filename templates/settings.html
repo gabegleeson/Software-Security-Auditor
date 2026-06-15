@@ -154,13 +154,19 @@
                     <option value="{{ country }}" {% if settings.home_country == country %}selected{% endif %}>{{ country }}</option>
                     {% endfor %}
                 </select>
-                <div class="form-text">Used as the data storage location when a Data Processing Agreement is in place.</div>
+                <div class="form-text">Used to determine when a DPA is required (data stored outside this country).</div>
             </div>
 
             <div class="form-check form-switch mt-4 pt-1">
                 <input class="form-check-input" type="checkbox" role="switch" id="dark_mode" name="dark_mode" value="true" {% if settings.dark_mode == "true" %}checked{% endif %}>
                 <label class="form-check-label fw-semibold ms-2" for="dark_mode">Dark mode</label>
                 <div class="form-text mt-1">Use a darker colour theme across the application.</div>
+            </div>
+
+            <div class="form-check form-switch mt-4 pt-1">
+                <input class="form-check-input" type="checkbox" role="switch" id="category_required" name="category_required" value="true" {% if settings.category_required != "false" %}checked{% endif %}>
+                <label class="form-check-label fw-semibold ms-2" for="category_required">Category required to add software</label>
+                <div class="form-text mt-1">When enabled, a category must be selected before a new software title can be saved.</div>
             </div>
         </div>
 
@@ -211,6 +217,65 @@
                         <div class="assignment-list" id="assigned_countries_list"></div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <div class="settings-section-title">Alert Risk Levels</div>
+                <div class="form-text">
+                    Set the risk level each alert contributes. A software item's risk level is automatically determined by its highest-severity active alert. Alerts with no level assigned do not influence the risk level.
+                </div>
+            </div>
+
+            <div class="row g-3">
+                {% for alert_key, alert_label in pdf_alert_labels.items() %}
+                <div class="col-md-6 col-lg-4">
+                    <label class="form-label small fw-semibold" for="alert_risk_{{ alert_key }}">{{ alert_label }}</label>
+                    <select class="form-select form-select-sm" id="alert_risk_{{ alert_key }}" name="alert_risk_{{ alert_key }}">
+                        <option value="">— No level —</option>
+                        {% for level in risk_category_options %}
+                        <option value="{{ level }}" {% if alert_risk_levels.get(alert_key) == level %}selected{% endif %}>{{ level }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="settings-section">
+            <div class="settings-section-header">
+                <div class="settings-section-title">Signature Configuration</div>
+                <div class="form-text">
+                    Choose which alerts require each signatory's signature. A signatory's block is included in the PDF only when at least one of their assigned alerts is triggered.
+                </div>
+            </div>
+
+            <div class="row g-3">
+                {% for role in signatory_roles %}
+                {% set field_key = "signatory_" + role.lower().replace(" ", "_") %}
+                {% set assigned = signatory_alerts.get(role, []) %}
+                <div class="col-12 col-lg-4">
+                    <div class="border rounded-3 p-3 h-100" style="background: var(--surface-field);">
+                        <div class="fw-semibold mb-2">{{ role }}</div>
+                        {% for alert_key, alert_label in pdf_alert_labels.items() %}
+                        <div class="form-check mb-1">
+                            <input
+                                class="form-check-input"
+                                type="checkbox"
+                                name="{{ field_key }}"
+                                value="{{ alert_key }}"
+                                id="sig_{{ field_key }}_{{ alert_key }}"
+                                {% if alert_key in assigned %}checked{% endif %}
+                            >
+                            <label class="form-check-label small" for="sig_{{ field_key }}_{{ alert_key }}">
+                                {{ alert_label }}
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
             </div>
         </div>
 

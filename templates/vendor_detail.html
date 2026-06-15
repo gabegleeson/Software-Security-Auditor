@@ -253,7 +253,18 @@
         </div>
     </div>
     {% endif %}
-    {% if not vendor_data_storage_map.high_risk_locations and not vendor.no_vendor_terms_conditions and not (vendor.vendor_age_restrictions and vendor.vendor_age_restrictions != "None" and vendor.vendor_allows_acceptance_on_behalf_of_entity == "No") and vendor.online_support and "Other countries (unspecified)" not in vendor_data_storage_map.locations and not vendor_data_storage_map.no_privacy_policy %}
+    {% if vendor_data_storage_map.has_audit and vendor_data_storage_map.no_privacy_laws %}
+    <div class="alert alert-warning d-flex gap-3 align-items-start mb-3" role="alert">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+            <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+        </svg>
+        <div>
+            <strong>No privacy laws recorded.</strong>
+            This vendor does not adhere to any recorded privacy laws. Please confirm with the vendor which privacy laws and regulations they comply with.
+        </div>
+    </div>
+    {% endif %}
+    {% if not vendor_data_storage_map.high_risk_locations and not vendor.no_vendor_terms_conditions and not (vendor.vendor_age_restrictions and vendor.vendor_age_restrictions != "None" and vendor.vendor_allows_acceptance_on_behalf_of_entity == "No") and vendor.online_support and "Other countries (unspecified)" not in vendor_data_storage_map.locations and not vendor_data_storage_map.no_privacy_policy and not (vendor_data_storage_map.has_audit and vendor_data_storage_map.no_privacy_laws) %}
     <p class="text-secondary mb-0">No alerts for this vendor.</p>
     {% endif %}
 </section>

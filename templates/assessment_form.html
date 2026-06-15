@@ -547,6 +547,7 @@
                         <option value="">Select an option</option>
                         <option value="None" {% if vendor_age_restrictions == "None" %}selected{% endif %}>None</option>
                         <option value="13+" {% if vendor_age_restrictions == "13+" %}selected{% endif %}>13+</option>
+                        <option value="15+" {% if vendor_age_restrictions == "15+" %}selected{% endif %}>15+</option>
                         <option value="16+" {% if vendor_age_restrictions == "16+" %}selected{% endif %}>16+</option>
                         <option value="18+" {% if vendor_age_restrictions == "18+" %}selected{% endif %}>18+</option>
                         <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" {% if vendor_age_restrictions == "Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" %}selected{% endif %}>Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
@@ -573,6 +574,7 @@
                         <option value="">Select an option</option>
                         <option value="None" {% if assessment.age_restrictions == "None" %}selected{% endif %}>None</option>
                         <option value="13+" {% if assessment.age_restrictions == "13+" %}selected{% endif %}>13+</option>
+                        <option value="15+" {% if assessment.age_restrictions == "15+" %}selected{% endif %}>15+</option>
                         <option value="16+" {% if assessment.age_restrictions == "16+" %}selected{% endif %}>16+</option>
                         <option value="18+" {% if assessment.age_restrictions == "18+" %}selected{% endif %}>18+</option>
                         <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" {% if assessment.age_restrictions == "Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" %}selected{% endif %}>Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
@@ -647,6 +649,13 @@
 
         <input type="hidden" id="review_date" name="review_date">
 
+        <div class="section">
+            <h2>IT Recommendation</h2>
+            <div class="field">
+                <label for="it_recommendation">IT Recommendation</label>
+                <textarea id="it_recommendation" name="it_recommendation" rows="4" placeholder="Enter the IT department's recommendation for this software (e.g. Approved for deployment, Not recommended, Conditional approval pending DPA)."></textarea>
+            </div>
+        </div>
 
         <div class="d-flex justify-content-between align-items-center gap-3 flex-wrap">
             <div class="small text-secondary" id="draft_status_text">

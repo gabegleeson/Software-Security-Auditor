@@ -238,6 +238,7 @@
                                 <option value="">Select an option</option>
                                 <option value="None" {% if vendor.vendor_age_restrictions == "None" %}selected{% endif %}>None</option>
                                 <option value="13+" {% if vendor.vendor_age_restrictions == "13+" %}selected{% endif %}>13+</option>
+                                <option value="15+" {% if vendor.vendor_age_restrictions == "15+" %}selected{% endif %}>15+</option>
                                 <option value="16+" {% if vendor.vendor_age_restrictions == "16+" %}selected{% endif %}>16+</option>
                                 <option value="18+" {% if vendor.vendor_age_restrictions == "18+" %}selected{% endif %}>18+</option>
                                 <option value="Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" {% if vendor.vendor_age_restrictions == "Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf" %}selected{% endif %}>Users must be of legal age in their country OR have a parent/guardian accept the EULA on their behalf</option>
@@ -330,14 +331,15 @@
                                 <span>Other countries (unspecified)</span>
                             </label>
                         </div>
-                        <div id="data_processing_agreement_wrap" class="mt-3">
-                            <label class="form-label fw-semibold d-flex align-items-start gap-2">
-                                <input type="checkbox" id="data_processing_agreement_in_place" name="data_processing_agreement_in_place" value="true" {% if assessment.data_processing_agreement_in_place %}checked{% endif %}>
-                                <span>Data Processing Agreement in place</span>
-                            </label>
-                            <div class="form-text">When checked, data storage location is set to {{ home_country }}.</div>
+                        <div id="dpa_status_wrap" class="mt-3" style="display:none;" data-home-country="{{ home_country }}">
+                            <label for="dpa_status" class="form-label fw-semibold">DPA (Data Processing Addendum) Status</label>
+                            <select class="form-select" id="dpa_status" name="dpa_status">
+                                <option value="">— Select —</option>
+                                <option value="Obtained" {% if assessment.dpa_status == "Obtained" %}selected{% endif %}>Obtained</option>
+                                <option value="Not Obtained" {% if assessment.dpa_status == "Not Obtained" %}selected{% endif %}>Not Obtained</option>
+                            </select>
+                            <div class="form-text">Required when data is stored outside {{ home_country }}.</div>
                         </div>
-                        <input type="hidden" id="home_country" value="{{ home_country }}">
                         <div id="storage_location_notes_wrap">
                             <label for="storage_location_notes" class="form-label fw-semibold mt-3">Storage Location Notes</label>
                             <textarea class="form-control" id="storage_location_notes" name="storage_location_notes" rows="4">{{ assessment.storage_location_notes }}</textarea>
@@ -517,8 +519,9 @@
     const vendorCookiePolicyEditButton = document.getElementById("vendor_cookie_policy_link_edit_button");
     const vendorCookiePolicyCopyButton = document.getElementById("vendor_cookie_policy_link_copy_button");
     const vendorCookiePolicyOpenLink = document.getElementById("vendor_cookie_policy_link_open_link");
-    const dataProcessingAgreementWrap = document.getElementById("data_processing_agreement_wrap");
-    const dataProcessingAgreementField = document.getElementById("data_processing_agreement_in_place");
+    const dpaStatusWrap = document.getElementById("dpa_status_wrap");
+    const dpaStatusField = document.getElementById("dpa_status");
+    const homeCountry = dpaStatusWrap ? dpaStatusWrap.dataset.homeCountry : "";
     const dataStorageLocationWrap = document.getElementById("data_storage_location_wrap");
     const dataStorageLocationInputs = document.querySelectorAll('input[name="data_storage_location"]');
     const otherDataStorageLocationUnspecifiedCheckbox = document.getElementById("other_data_storage_location_unspecified_checkbox");
@@ -529,7 +532,6 @@
     const storageLocationNotesField = document.getElementById("storage_location_notes");
     const euDataStorageGroupField = document.getElementById("eu_data_storage_group");
     const eeaDataStorageGroupField = document.getElementById("eea_data_storage_group");
-    const homeCountryField = document.getElementById("home_country");
     const cloudHostedDataField = document.getElementById("cloud_hosted_data");
     const hostedDataPanel = document.getElementById("hosted_data_panel");
     const dataTypesHostedWrap = document.getElementById("data_types_hosted_wrap");
@@ -632,7 +634,6 @@
         }
 
         const hasCloudHostedData = cloudHostedDataField?.value === "Yes";
-        const hasDataProcessingAgreement = !!dataProcessingAgreementField?.checked;
         const baseDisabled = !hasCloudHostedData;
         const lockEuSelection = areAllGroupedInputsSelected(eeaDataStorageCountries) && !baseDisabled;
         if (euDataStorageGroupField) {
@@ -640,21 +641,30 @@
         }
     }
 
-    function updateDataStorageLocationVisibility() {
-        if (!dataProcessingAgreementField || !dataStorageLocationWrap) {
+    function updateDpaStatusVisibility() {
+        if (!dpaStatusWrap) {
             return;
         }
 
         const hasCloudHostedData = cloudHostedDataField?.value === "Yes";
-        const hasDataProcessingAgreement = dataProcessingAgreementField.checked;
-        const homeCountry = homeCountryField ? homeCountryField.value : "";
-        if (dataProcessingAgreementWrap) {
-            dataProcessingAgreementWrap.style.display = hasCloudHostedData ? "" : "none";
-        }
-        dataProcessingAgreementField.disabled = !hasCloudHostedData;
         if (!hasCloudHostedData) {
-            dataProcessingAgreementField.checked = false;
+            dpaStatusWrap.style.display = "none";
+            return;
         }
+
+        const selectedLocations = Array.from(dataStorageLocationInputs)
+            .filter((input) => input.checked)
+            .map((input) => input.value);
+        const hasNonHome = selectedLocations.some((loc) => loc !== homeCountry);
+        dpaStatusWrap.style.display = hasNonHome ? "" : "none";
+    }
+
+    function updateDataStorageLocationVisibility() {
+        if (!dataStorageLocationWrap) {
+            return;
+        }
+
+        const hasCloudHostedData = cloudHostedDataField?.value === "Yes";
         dataStorageLocationWrap.style.display = hasCloudHostedData ? "" : "none";
         if (euDataStorageGroupField) {
             euDataStorageGroupField.disabled = !hasCloudHostedData;
@@ -673,14 +683,13 @@
             input.disabled = !hasCloudHostedData;
             if (!hasCloudHostedData) {
                 input.checked = false;
-            } else if (hasDataProcessingAgreement) {
-                input.checked = input.checked || input.value === homeCountry;
             }
         });
         syncOtherDataStorageLocationUnspecifiedField();
         updateSelectedDataStorageLocationsText();
         syncDataStorageGroupStates();
         updateEuSelectionLock();
+        updateDpaStatusVisibility();
     }
 
     function updateDataTypesHostedVisibility() {
@@ -874,26 +883,7 @@
         updateDataTypesHostedVisibility();
     }
 
-    let preDpaCheckedCountries = null;
-
-    if (dataProcessingAgreementField) {
-        dataProcessingAgreementField.addEventListener("change", () => {
-            if (dataProcessingAgreementField.checked) {
-                preDpaCheckedCountries = new Set(
-                    Array.from(dataStorageLocationInputs)
-                        .filter((input) => input.checked)
-                        .map((input) => input.value)
-                );
-            } else if (preDpaCheckedCountries !== null) {
-                dataStorageLocationInputs.forEach((input) => {
-                    input.checked = preDpaCheckedCountries.has(input.value);
-                });
-                preDpaCheckedCountries = null;
-            }
-            updateDataStorageLocationVisibility();
-        });
-        updateDataStorageLocationVisibility();
-    }
+    updateDataStorageLocationVisibility();
 
     function bindDataStorageGroupToggle(groupField, countries, onSelected) {
         if (!groupField) {
@@ -927,6 +917,7 @@
                 updateSelectedDataStorageLocationsText();
                 syncDataStorageGroupStates();
                 updateEuSelectionLock();
+                updateDpaStatusVisibility();
             });
         });
         syncOtherDataStorageLocationUnspecifiedField();

@@ -7,11 +7,21 @@
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Categories</span>
-            <h1 class="display-6 fw-semibold mb-0">Categories</h1>
+            <h1 class="display-6 fw-semibold mb-2">Categories</h1>
+            <p class="text-secondary mb-0">{{ categories | length }} categor{{ 'ies' if categories | length != 1 else 'y' }} defined.</p>
         </div>
         <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_category') }}">Add Category</a>
     </div>
     {% if categories %}
+    <div class="mb-4" style="max-width: 360px;">
+        <input
+            class="form-control"
+            type="search"
+            id="category_search"
+            placeholder="Search categories"
+            aria-label="Search categories"
+        >
+    </div>
     <div class="table-responsive">
         <table class="table align-middle mb-0" id="categories-table">
             <thead>
@@ -38,11 +48,17 @@
             </tbody>
         </table>
     </div>
+    <div id="category_search_empty" class="text-secondary mt-3" style="display: none;">
+        No categories match your search.
+    </div>
     <script>
     (function () {
         const table = document.getElementById("categories-table");
         const tbody = table.querySelector("tbody");
         const headers = table.querySelectorAll(".sortable-header");
+        const searchField = document.getElementById("category_search");
+        const searchEmpty = document.getElementById("category_search_empty");
+        let allRows = Array.from(tbody.querySelectorAll("tr"));
         let currentCol = null;
         let currentAsc = true;
 
@@ -61,8 +77,7 @@
         });
 
         function sortTable(col, asc) {
-            const rows = Array.from(tbody.querySelectorAll("tr"));
-            rows.sort(function (a, b) {
+            allRows.sort(function (a, b) {
                 let aVal, bVal;
                 if (col === 1) {
                     aVal = parseInt(a.cells[1].dataset.count || "0", 10);
@@ -74,7 +89,20 @@
                     return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
                 }
             });
-            rows.forEach(function (row) { tbody.appendChild(row); });
+            allRows.forEach(function (row) { tbody.appendChild(row); });
+            filterRows();
+        }
+
+        function filterRows() {
+            const query = searchField.value.trim().toLowerCase();
+            let visibleCount = 0;
+            allRows.forEach(function (row) {
+                const name = (row.cells[0].textContent || "").trim().toLowerCase();
+                const matches = !query || name.includes(query);
+                row.style.display = matches ? "" : "none";
+                if (matches) visibleCount += 1;
+            });
+            searchEmpty.style.display = visibleCount ? "none" : "block";
         }
 
         function updateIcons(activeCol, asc) {
@@ -89,6 +117,8 @@
                 }
             });
         }
+
+        searchField.addEventListener("input", filterRows);
     }());
     </script>
     {% else %}

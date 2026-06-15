@@ -46,6 +46,13 @@
             </a>
         </div>
         {% endif %}
+        {% if software.software_support %}
+        <div class="mb-2">
+            <a class="text-decoration-none text-secondary" href="{{ software.software_support }}" target="_blank" rel="noopener noreferrer">
+                Support
+            </a>
+        </div>
+        {% endif %}
     </div>
     <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Alerts</h2>
     {% set ns = namespace(alerts=[]) %}
@@ -87,6 +94,15 @@
     {% set non_home_storage = vendor_data_storage_locations | reject("equalto", home_country) | list %}
     {% if non_home_storage and vendor_dpa_status == "Not Obtained" %}
         {% set ns.alerts = ns.alerts + ["dpa_not_obtained"] %}
+    {% endif %}
+    {% if vendor_dpa_status == "Obtained" %}
+        {% set ns.alerts = ns.alerts + ["app_collection_notice"] %}
+    {% endif %}
+    {% if vendor_no_privacy_laws %}
+        {% set ns.alerts = ns.alerts + ["no_privacy_laws"] %}
+    {% endif %}
+    {% if software.is_assessment and not software.it_recommendation %}
+        {% set ns.alerts = ns.alerts + ["no_it_recommendation"] %}
     {% endif %}
 
     <div id="alerts-container">
@@ -229,6 +245,39 @@
             </div>
         </div>
         {% endif %}
+        {% if "app_collection_notice" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>APP Collection Notice reminder.</strong>
+                A current Collection Notice to parents/guardians is required to meet Australian Privacy Principles (APP) obligations. The Collection Notice authorises the college to rely on a Data Processing Agreement (DPA) to govern overseas data transfers on behalf of students and families. Software deployments involving overseas data transfer should be reflected in the college's Collection Notice, issued as part of enrolment or other standard communications.
+            </div>
+        </div>
+        {% endif %}
+        {% if "no_privacy_laws" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No privacy laws recorded.</strong>
+                The latest audit for {{ software.vendor_name }} does not record any privacy laws adhered to. Please confirm with the vendor which privacy laws and regulations they comply with.
+            </div>
+        </div>
+        {% endif %}
+        {% if "no_it_recommendation" in ns.alerts %}
+        <div class="alert alert-warning d-flex gap-3 align-items-start mb-2" role="alert">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" class="flex-shrink-0 mt-1" viewBox="0 0 16 16" aria-hidden="true">
+                <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5m.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2"/>
+            </svg>
+            <div>
+                <strong>No IT recommendation recorded.</strong>
+                An IT recommendation has not been provided for this software. <a href="{{ url_for('edit_assessment', assessment_id=software.id) }}">Edit the assessment</a> to add one before the report is signed.
+            </div>
+        </div>
+        {% endif %}
     {% else %}
     <p class="text-secondary mb-0" id="no-alerts-msg">No alerts for this software.</p>
     {% endif %}
@@ -305,7 +354,7 @@
             {% if software.risk_level %}
             <div class="fw-semibold">{{ software.risk_level }}</div>
             {% else %}
-            <div class="text-secondary">Not set</div>
+            <div class="text-secondary">No active risk alerts</div>
             {% endif %}
         </div>
         <div class="col-md-6">

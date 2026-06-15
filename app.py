@@ -17,7 +17,7 @@ from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
-from reportlab.platypus import Image as PlatypusImage, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import Image as PlatypusImage, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
@@ -82,6 +82,7 @@ ASSESSMENT_FIELDS = (
     "submission_status",
     "category",
     "unrelated_cves",
+    "it_recommendation",
 )
 
 CHECKBOX_FIELDS = {
@@ -208,6 +209,7 @@ SECTOR_SPECIFIC_CONTEXTUAL_LAW_OPTIONS = (
     "SOX",
     "COPPA",
     "GLBA",
+    "SOPIPA",
 )
 CROSS_BORDER_DATA_TRANSFER_MECHANISM_OPTIONS = (
     "EU Standard Contractual Clauses (SCCs)",
@@ -620,6 +622,7 @@ PDF_FIELD_LABELS = {
     "software_description": "Software Description",
     "vendor_country": "Vendor Country",
     "software_website": "Software Website",
+    "software_support": "Software Support",
     "vendor_website": "Vendor Website",
     "vendor_terms_conditions_link": "Vendor Terms and Conditions Link",
     "terms_conditions_link": "Terms and Conditions Link",
@@ -677,6 +680,7 @@ PDF_FIELD_LABELS = {
     "review_date": "Review Date",
     "next_audit_date": "Next Audit Date",
     "risk_level": "Risk Level",
+    "it_recommendation": "IT Recommendation",
 }
 
 PDF_SECTION_FIELDS = [
@@ -798,6 +802,7 @@ SOFTWARE_DETAIL_FIELDS = (
     "software_description",
     "vendor_country",
     "software_website",
+    "software_support",
     "purchase_link",
     "product_updates",
     "security_updates",
@@ -864,6 +869,7 @@ def collect_software_form_data(form):
         "software_description": form.get("software_description", "").strip(),
         "vendor_country": form.get("vendor_country", "").strip(),
         "software_website": form.get("software_website", "").strip(),
+        "software_support": form.get("software_support", "").strip(),
         "terms_conditions_link": form.get("terms_conditions_link", "").strip(),
         "license_agreement_link": form.get("license_agreement_link", "").strip(),
         "license_type": license_type,
@@ -880,7 +886,6 @@ def collect_software_form_data(form):
         "deployment_date": form.get("deployment_date", "").strip(),
         "audit_reminder_frequency": form.get("audit_reminder_frequency", "").strip() or "1_year",
         "next_audit_date": form.get("next_audit_date", "").strip(),
-        "risk_level": form.get("risk_level", "").strip(),
         "category": form.get("category", "").strip(),
     }
 
@@ -1151,8 +1156,118 @@ def get_signatory_alerts():
     return normalize_signatory_alerts(APP_SETTINGS.get("signatory_alerts", "{}"))
 
 
+def normalize_alert_risk_levels(value):
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value) if value.strip() else {}
+        except json.JSONDecodeError:
+            parsed = {}
+    elif isinstance(value, dict):
+        parsed = value
+    else:
+        parsed = {}
+    valid_alerts = set(PDF_ALERT_LABELS)
+    return {
+        key: str(level).strip()
+        for key, level in parsed.items()
+        if key in valid_alerts and str(level).strip() in RISK_CATEGORY_OPTIONS
+    }
+
+
+def get_alert_risk_levels():
+    return normalize_alert_risk_levels(APP_SETTINGS.get("alert_risk_levels", "{}"))
+
+
+def compute_software_alert_keys(record, vendor_record, vendor_map, home_country, item=None):
+    """Returns the set of PDF_ALERT_LABELS keys that currently fire for a software item."""
+    item = item or {}
+    vendor_record = vendor_record or {}
+    vendor_name = record.get("vendor_name", "")
+    is_assessment = bool(record.get("is_assessment", False))
+
+    product_updates = bool(item.get("product_updates", record.get("product_updates", False)))
+    security_updates = bool(item.get("security_updates", record.get("security_updates", False)))
+    tested = bool(item.get("tested", record.get("tested", False)))
+    software_type = item.get("software_type", record.get("software_type", ""))
+    category = item.get("category", record.get("category", ""))
+
+    alert_keys = set()
+
+    if not category:
+        alert_keys.add("no_category")
+
+    terms_link = record.get("terms_conditions_link", "")
+    vendor_terms_link = vendor_record.get("vendor_terms_conditions_link", "")
+    if vendor_name and not terms_link and not vendor_terms_link:
+        alert_keys.add("no_tc")
+
+    if terms_link:
+        effective_age = record.get("age_restrictions", "")
+        effective_acceptance = record.get("allows_acceptance_on_behalf_of_entity", "")
+    else:
+        effective_age = record.get("age_restrictions", "") or vendor_record.get("vendor_age_restrictions", "")
+        effective_acceptance = (
+            record.get("allows_acceptance_on_behalf_of_entity", "")
+            or vendor_record.get("vendor_allows_acceptance_on_behalf_of_entity", "")
+        )
+    if effective_age and effective_age != "None" and effective_acceptance == "No":
+        alert_keys.add("age_restriction")
+
+    if vendor_map.get("high_risk_locations"):
+        alert_keys.add("high_risk_locations")
+
+    if vendor_name and not vendor_record.get("online_support", ""):
+        alert_keys.add("no_support")
+
+    if OTHER_DATA_STORAGE_LOCATION in vendor_map.get("locations", []):
+        alert_keys.add("unspecified_locations")
+
+    if vendor_map.get("no_privacy_policy"):
+        alert_keys.add("no_privacy_policy")
+
+    non_home_storage = [loc for loc in vendor_map.get("locations", []) if loc != home_country]
+    if non_home_storage and vendor_map.get("dpa_status") == "Not Obtained":
+        alert_keys.add("dpa_not_obtained")
+
+    if vendor_map.get("dpa_status") == "Obtained":
+        alert_keys.add("app_collection_notice")
+
+    if is_assessment and not tested:
+        alert_keys.add("not_tested")
+
+    if is_assessment and not product_updates and not security_updates and software_type != "SaaS":
+        alert_keys.add("no_updates")
+
+    sso = record.get("supports_m365_sso", "")
+    if sso in ("No SSO", "Third Party IdP"):
+        alert_keys.add("sso")
+
+    if is_assessment and not record.get("it_recommendation", ""):
+        alert_keys.add("no_it_recommendation")
+
+    return alert_keys
+
+
+def highest_risk_from_alerts(alert_keys):
+    """Returns the highest risk level configured for the given set of alert keys."""
+    risk_order = {level: idx for idx, level in enumerate(RISK_CATEGORY_OPTIONS)}
+    alert_risk_levels = get_alert_risk_levels()
+    highest = ""
+    highest_idx = -1
+    for key in alert_keys:
+        level = alert_risk_levels.get(key, "")
+        if level in risk_order and risk_order[level] > highest_idx:
+            highest = level
+            highest_idx = risk_order[level]
+    return highest
+
+
 def is_dark_mode_enabled():
     return str(APP_SETTINGS.get("dark_mode", "false")).strip().lower() == "true"
+
+
+def is_category_required():
+    return str(APP_SETTINGS.get("category_required", "true")).strip().lower() == "true"
 
 
 def normalize_privacy_laws_adhered_to(value):
@@ -1385,6 +1500,8 @@ def build_assessment_pdf(record, cve_data=None):
             if field == "allows_acceptance_on_behalf_of_entity" and record.get("age_restrictions", "") in ("", "None"):
                 continue
             if field == "license_cost" and (record.get("free_software") or record.get("license_type") == "Free" or not str(record.get("license_cost", "")).strip()):
+                continue
+            if field in ("product_updates", "security_updates") and record.get("software_type") == "SaaS":
                 continue
             label = PDF_FIELD_LABELS.get(field, field.replace("_", " ").title())
             value = format_assessment_value(field, record.get(field, ""), record)
@@ -1701,8 +1818,10 @@ def build_assessment_pdf(record, cve_data=None):
         unspecified_cell = [
             Paragraph("Unspecified data hosting locations.", unspecified_heading_style),
             Paragraph(
-                f"The latest audit for {vendor_name} lists data hosted in other countries (unspecified). "
-                "Update the vendor audit to clarify where data is stored.",
+                f"The latest audit for {vendor_name} lists data hosted in unspecified overseas locations. "
+                "This is common where vendors utilise distributed cloud infrastructure across multiple data centres, "
+                "such as Amazon Web Services (AWS) or Microsoft Azure. Confirm a Data Processing Agreement (DPA) is "
+                "in place to govern overseas data transfers and bridge obligations under the Australian Privacy Principles (APP).",
                 unspecified_body_style,
             ),
         ]
@@ -1808,6 +1927,52 @@ def build_assessment_pdf(record, cve_data=None):
         )
         fired_alerts.add("dpa_not_obtained")
         story.append(dpa_table)
+        story.append(Spacer(1, 10))
+
+    if vendor_map.get("dpa_status") == "Obtained":
+        app_notice_heading_style = ParagraphStyle(
+            "AppNoticeHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        app_notice_body_style = ParagraphStyle(
+            "AppNoticeBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        app_notice_cell = [
+            Paragraph("APP Collection Notice reminder.", app_notice_heading_style),
+            Paragraph(
+                "A current Collection Notice to parents/guardians is required to meet Australian Privacy Principles (APP) "
+                "obligations. The Collection Notice authorises the college to rely on a Data Processing Agreement (DPA) to "
+                "govern overseas data transfers on behalf of students and families. Software deployments involving overseas "
+                "data transfer should be reflected in the college's Collection Notice, issued as part of enrolment or other "
+                "standard communications.",
+                app_notice_body_style,
+            ),
+        ]
+        app_notice_table = Table([[app_notice_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        app_notice_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        fired_alerts.add("app_collection_notice")
+        story.append(app_notice_table)
         story.append(Spacer(1, 10))
 
     if record.get("is_assessment") and not record.get("tested"):
@@ -1997,6 +2162,91 @@ def build_assessment_pdf(record, cve_data=None):
         story.append(cve_alert_table)
         story.append(Spacer(1, 10))
 
+    it_recommendation = record.get("it_recommendation", "").strip()
+    it_rec_section_style = ParagraphStyle(
+        "ItRecSectionHeading",
+        parent=styles["Heading2"],
+        fontName="Helvetica-Bold",
+        fontSize=13,
+        leading=16,
+        textColor=colors.white,
+        backColor=colors.HexColor("#016936"),
+        borderPadding=(6, 10, 6),
+        spaceBefore=10,
+        spaceAfter=8,
+    )
+    it_rec_text_style = ParagraphStyle(
+        "ItRecText",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=10,
+        leading=14,
+        textColor=colors.HexColor("#2a4238"),
+    )
+    story.append(Paragraph("IT Recommendation", it_rec_section_style))
+    if it_recommendation:
+        it_rec_table = Table(
+            [[pdf_paragraph(it_recommendation, it_rec_text_style)]],
+            colWidths=[174 * mm],
+            hAlign="LEFT",
+        )
+        it_rec_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#F0FDF4")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        story.append(it_rec_table)
+    else:
+        no_rec_heading_style = ParagraphStyle(
+            "NoItRecHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        no_rec_body_style = ParagraphStyle(
+            "NoItRecBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        no_rec_cell = [
+            Paragraph("No IT recommendation recorded.", no_rec_heading_style),
+            Paragraph(
+                "An IT recommendation has not been provided for this software. "
+                "IT should record a recommendation before this report is signed.",
+                no_rec_body_style,
+            ),
+        ]
+        no_rec_table = Table([[no_rec_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        no_rec_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        fired_alerts.add("no_it_recommendation")
+        story.append(no_rec_table)
+    story.append(Spacer(1, 10))
+
     signatory_config = get_signatory_alerts()
     signature_roles = [
         role for role in SIGNATORY_ROLES
@@ -2005,32 +2255,162 @@ def build_assessment_pdf(record, cve_data=None):
 
     if signature_roles:
         story.append(Paragraph("Signatures", section_style))
+        sig_field_label_style = ParagraphStyle(
+            "SigFieldLabel",
+            parent=styles["BodyText"],
+            fontName="Helvetica",
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#6B7280"),
+        )
         signature_rows = [
             [
                 pdf_paragraph(role, label_style),
-                Paragraph("Signature: ________________________________", value_style),
-                Paragraph("Date: __________________", value_style),
+                Paragraph("Signature", sig_field_label_style),
+                Paragraph("", value_style),
+                Paragraph("Date", sig_field_label_style),
+                Paragraph("", value_style),
             ]
             for role in signature_roles
         ]
-        signature_table = Table(signature_rows, colWidths=[42 * mm, 88 * mm, 44 * mm], hAlign="LEFT")
-        signature_table.setStyle(
-            TableStyle(
-                [
-                    ("BACKGROUND", (0, 0), (-1, -1), colors.white),
-                    ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D1D5DB")),
-                    ("INNERGRID", (0, 0), (-1, -1), 0.45, colors.HexColor("#E5E7EB")),
-                    ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-                    ("LEFTPADDING", (0, 0), (-1, -1), 8),
-                    ("RIGHTPADDING", (0, 0), (-1, -1), 8),
-                    ("TOPPADDING", (0, 0), (-1, -1), 12),
-                    ("BOTTOMPADDING", (0, 0), (-1, -1), 12),
-                    ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#ebfdf2")),
-                ]
-            )
+        sig_style_commands = [
+            ("BACKGROUND", (0, 0), (-1, -1), colors.white),
+            ("BACKGROUND", (0, 0), (0, -1), colors.HexColor("#ebfdf2")),
+            ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D1D5DB")),
+            ("LINEAFTER", (0, 0), (0, -1), 0.45, colors.HexColor("#E5E7EB")),
+            ("VALIGN", (0, 0), (0, -1), "MIDDLE"),
+            ("VALIGN", (1, 0), (-1, -1), "BOTTOM"),
+            ("LEFTPADDING", (0, 0), (-1, -1), 8),
+            ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+            ("TOPPADDING", (0, 0), (-1, -1), 16),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING", (2, 0), (2, -1), 16),
+            ("LEFTPADDING", (3, 0), (3, -1), 4),
+        ]
+        for row_idx in range(len(signature_rows)):
+            sig_style_commands.append(("LINEBELOW", (2, row_idx), (2, row_idx), 0.75, colors.HexColor("#374151")))
+            sig_style_commands.append(("LINEBELOW", (4, row_idx), (4, row_idx), 0.75, colors.HexColor("#374151")))
+        signature_table = Table(
+            signature_rows,
+            colWidths=[40 * mm, 22 * mm, 60 * mm, 14 * mm, 38 * mm],
+            hAlign="LEFT",
         )
+        signature_table.setStyle(TableStyle(sig_style_commands))
         story.append(signature_table)
         story.append(Spacer(1, 8))
+
+    # --- Risk Matrix page ---
+    story.append(PageBreak())
+    story.append(Paragraph("Alert Risk Matrix", section_style))
+    story.append(Spacer(1, 4))
+
+    alert_risk_levels = get_alert_risk_levels()
+    risk_order = {level: i for i, level in enumerate(RISK_CATEGORY_OPTIONS)}
+
+    matrix_header_style = ParagraphStyle(
+        "MatrixHeader",
+        parent=styles["BodyText"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+        textColor=colors.white,
+    )
+    matrix_label_style = ParagraphStyle(
+        "MatrixLabel",
+        parent=styles["BodyText"],
+        fontName="Helvetica",
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#111827"),
+    )
+    matrix_risk_style = ParagraphStyle(
+        "MatrixRisk",
+        parent=styles["BodyText"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+        textColor=colors.HexColor("#111827"),
+    )
+    matrix_status_style = ParagraphStyle(
+        "MatrixStatus",
+        parent=styles["BodyText"],
+        fontName="Helvetica-Bold",
+        fontSize=9,
+        leading=12,
+    )
+
+    risk_bg = {
+        "Low": colors.HexColor("#dcfce7"),
+        "Moderate": colors.HexColor("#fef9c3"),
+        "High": colors.HexColor("#ffedd5"),
+        "Very High": colors.HexColor("#fee2e2"),
+    }
+    risk_badge = {
+        "Low": colors.HexColor("#22c55e"),
+        "Moderate": colors.HexColor("#ca8a04"),
+        "High": colors.HexColor("#f97316"),
+        "Very High": colors.HexColor("#dc2626"),
+    }
+
+    def sorted_alert_keys():
+        def sort_key(k):
+            level = alert_risk_levels.get(k, "")
+            return (risk_order.get(level, len(RISK_CATEGORY_OPTIONS)), PDF_ALERT_LABELS[k])
+        return sorted(PDF_ALERT_LABELS.keys(), key=sort_key, reverse=False)
+
+    matrix_rows = [[
+        Paragraph("Alert", matrix_header_style),
+        Paragraph("Risk Level", matrix_header_style),
+        Paragraph("Status", matrix_header_style),
+    ]]
+    matrix_style_cmds = [
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#016936")),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f9fafb")]),
+        ("BOX", (0, 0), (-1, -1), 0.6, colors.HexColor("#D1D5DB")),
+        ("INNERGRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#E5E7EB")),
+        ("LEFTPADDING", (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+        ("TOPPADDING", (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+    ]
+
+    for row_idx, key in enumerate(sorted_alert_keys(), start=1):
+        label = PDF_ALERT_LABELS[key]
+        level = alert_risk_levels.get(key, "")
+        fired = key in fired_alerts
+
+        bg = risk_bg.get(level, colors.white)
+        badge_color = risk_badge.get(level, colors.HexColor("#6b7280"))
+        risk_text_color = badge_color
+
+        status_text = "Triggered" if fired else "Not triggered"
+        status_color = colors.HexColor("#dc2626") if fired else colors.HexColor("#6b7280")
+
+        risk_para_style = ParagraphStyle(
+            f"MRisk_{row_idx}",
+            parent=matrix_risk_style,
+            textColor=risk_text_color,
+        )
+        status_para_style = ParagraphStyle(
+            f"MStatus_{row_idx}",
+            parent=matrix_status_style,
+            textColor=status_color,
+        )
+
+        matrix_rows.append([
+            Paragraph(label, matrix_label_style),
+            Paragraph(level or "Not assigned", risk_para_style),
+            Paragraph(status_text, status_para_style),
+        ])
+        if level:
+            matrix_style_cmds.append(("BACKGROUND", (1, row_idx), (1, row_idx), bg))
+        if fired:
+            matrix_style_cmds.append(("BACKGROUND", (2, row_idx), (2, row_idx), colors.HexColor("#fef2f2")))
+
+    matrix_table = Table(matrix_rows, colWidths=[110 * mm, 34 * mm, 30 * mm], hAlign="LEFT")
+    matrix_table.setStyle(TableStyle(matrix_style_cmds))
+    story.append(matrix_table)
 
     doc.build(story)
     buffer.seek(0)
@@ -2051,10 +2431,27 @@ DEFAULT_APP_SETTINGS = {
     "home_country": "Australia",
     "country_risk_assignments": "{}",
     "dark_mode": "false",
+    "category_required": "true",
     "signatory_alerts": json.dumps({
         "IT Director": ["sso", "cve", "no_tc", "no_support", "not_tested", "no_updates", "high_risk_locations", "no_category"],
-        "Privacy Officer": ["dpa_not_obtained", "high_risk_locations", "no_privacy_policy", "unspecified_locations"],
+        "Privacy Officer": ["dpa_not_obtained", "app_collection_notice", "high_risk_locations", "no_privacy_policy", "unspecified_locations"],
         "College Principal": ["age_restriction", "no_category"],
+    }),
+    "alert_risk_levels": json.dumps({
+        "no_category": "Low",
+        "age_restriction": "High",
+        "high_risk_locations": "High",
+        "no_tc": "Moderate",
+        "no_support": "Low",
+        "unspecified_locations": "Moderate",
+        "no_privacy_policy": "Moderate",
+        "dpa_not_obtained": "High",
+        "app_collection_notice": "Low",
+        "not_tested": "Moderate",
+        "no_updates": "Moderate",
+        "sso": "Low",
+        "cve": "Very High",
+        "no_it_recommendation": "Moderate",
     }),
 }
 SOFTWARE_ITEMS = []
@@ -2074,6 +2471,15 @@ RISK_CATEGORY_OPTIONS = (
     "High",
     "Very High",
 )
+RISK_LEVEL_LEGACY_MAP = {
+    "Medium": "Moderate",
+    "Critical": "Very High",
+}
+
+
+def normalize_risk_level(value):
+    cleaned = str(value or "").strip()
+    return RISK_LEVEL_LEGACY_MAP.get(cleaned, cleaned)
 RISK_CATEGORY_MAP_COLORS = {
     "Low": "#22c55e",
     "Moderate": "#facc15",
@@ -2091,10 +2497,12 @@ PDF_ALERT_LABELS = {
     "unspecified_locations": "Unspecified data hosting locations",
     "no_privacy_policy": "No vendor privacy policy",
     "dpa_not_obtained": "Data Processing Agreement not obtained",
+    "app_collection_notice": "APP Collection Notice reminder",
     "not_tested": "Software not tested",
     "no_updates": "No product or security updates",
     "sso": "SSO not available via Microsoft Entra",
     "cve": "Known vulnerabilities (CVE)",
+    "no_it_recommendation": "No IT recommendation recorded",
 }
 
 
@@ -2418,7 +2826,10 @@ def load_software_items():
                 record[field] = loaded_record[field]
         record["deployed"] = bool(loaded_record["deployed"]) if "deployed" in loaded_record else True
         record["tested"] = bool(loaded_record.get("tested", False))
-        record["risk_level"] = loaded_record.get("risk_level", "")
+        record["risk_level"] = normalize_risk_level(loaded_record.get("risk_level", ""))
+        record["software_type"] = loaded_record.get("software_type", "")
+        record["support_notes"] = loaded_record.get("support_notes", "")
+        record["software_support"] = loaded_record.get("software_support", "")
         record["id"] = row["id"]
         record["software_id"] = row["id"]
         record["software_name"] = record.get("software_name") or row["software_name"]
@@ -2508,6 +2919,9 @@ def _software_record_to_json(record):
     data["deployed"] = bool(record.get("deployed", False))
     data["tested"] = bool(record.get("tested", False))
     data["risk_level"] = record.get("risk_level", "")
+    data["software_type"] = record.get("software_type", "")
+    data["support_notes"] = record.get("support_notes", "")
+    data["software_support"] = record.get("software_support", "")
     return json.dumps(data)
 
 
@@ -2682,6 +3096,14 @@ def load_vendor_records():
 
 
 def persist_vendor_records():
+    # Deduplicate in-memory list by normalised name (last write wins)
+    seen: dict = {}
+    for vendor in VENDOR_RECORDS:
+        key = normalized_name(vendor.get("vendor_name", ""))
+        if key:
+            seen[key] = vendor
+    VENDOR_RECORDS[:] = list(seen.values())
+
     with get_db_connection() as connection:
         connection.execute("DELETE FROM vendors")
         connection.executemany(
@@ -2790,6 +3212,10 @@ def load_app_settings():
     settings["signatory_alerts"] = json.dumps(
         normalize_signatory_alerts(settings.get("signatory_alerts", "{}"))
     )
+    default_alert_risk_levels = normalize_alert_risk_levels(DEFAULT_APP_SETTINGS["alert_risk_levels"])
+    loaded_alert_risk_levels = normalize_alert_risk_levels(settings.get("alert_risk_levels", "{}"))
+    merged = {**default_alert_risk_levels, **loaded_alert_risk_levels}
+    settings["alert_risk_levels"] = json.dumps(merged)
     return settings
 
 
@@ -2980,7 +3406,35 @@ def require_login():
 def build_vendor_list(active_only=False):
     vendors_by_name = {}
 
-    for record in build_software_catalog(active_only=active_only):
+    item_fields_by_name = {
+        normalized_name(item.get("software_name", "")): item
+        for item in SOFTWARE_ITEMS
+        if item.get("software_name")
+    }
+    latest_by_name = {}
+    for record in SOFTWARE_RECORDS:
+        software_name = record.get("software_name", "").strip()
+        if not software_name:
+            continue
+        key = normalized_name(software_name)
+        current = latest_by_name.get(key)
+        record_rank = (bool(record.get("is_assessment")), record.get("assessment_date", ""), record.get("id", 0))
+        if current is None:
+            latest_by_name[key] = record
+            continue
+        current_rank = (bool(current.get("is_assessment")), current.get("assessment_date", ""), current.get("id", 0))
+        if record_rank > current_rank:
+            latest_by_name[key] = record
+
+    software_records_for_vendors = []
+    for key, record in latest_by_name.items():
+        if active_only:
+            item = item_fields_by_name.get(key, {})
+            if not bool(item.get("deployed", True)):
+                continue
+        software_records_for_vendors.append(record)
+
+    for record in software_records_for_vendors:
         vendor_name = record.get("vendor_name", "").strip()
         if not vendor_name:
             continue
@@ -3155,6 +3609,13 @@ def build_software_catalog(active_only=False):
         if record_rank > current_rank:
             latest_by_name[key] = record
 
+    home_country = get_home_country()
+    vendor_by_name = {
+        normalized_name(v.get("vendor_name", "")): v
+        for v in build_vendor_list()
+        if v.get("vendor_name")
+    }
+
     result = []
     for key, record in latest_by_name.items():
         item = item_fields_by_name.get(key, {})
@@ -3166,13 +3627,20 @@ def build_software_catalog(active_only=False):
         # These fields live on the software item, not per-assessment
         annotated["next_audit_date"] = item.get("next_audit_date", "") or record.get("next_audit_date", "")
         annotated["audit_reminder_frequency"] = item.get("audit_reminder_frequency", "") or record.get("audit_reminder_frequency", "")
-        annotated["risk_level"] = item.get("risk_level", "") or record.get("risk_level", "")
         annotated["category"] = item.get("category", "") or record.get("category", "")
         if item:
             annotated["product_updates"] = item.get("product_updates", False)
             annotated["security_updates"] = item.get("security_updates", False)
             annotated["support_notes"] = item.get("support_notes", "")
             annotated["tested"] = item.get("tested", False)
+            annotated["software_type"] = item.get("software_type", record.get("software_type", ""))
+        vendor_name = record.get("vendor_name", "").strip()
+        vendor_record = vendor_by_name.get(normalized_name(vendor_name)) if vendor_name else None
+        vendor_map = build_vendor_data_storage_map(vendor_name) if vendor_name else {
+            "high_risk_locations": [], "locations": [], "no_privacy_policy": False, "dpa_status": "",
+        }
+        alert_keys = compute_software_alert_keys(annotated, vendor_record, vendor_map, home_country, item)
+        annotated["risk_level"] = highest_risk_from_alerts(alert_keys)
         result.append(annotated)
     return sorted(result, key=lambda record: normalized_name(record.get("software_name", "")))
 
@@ -4007,7 +4475,10 @@ def sync_vendor_from_assessment(record):
 
 def build_dashboard_context(show_all_upcoming_audits=False):
     software_catalog = build_software_catalog(active_only=True)
-    risk_counts = Counter(record["risk_level"] for record in software_catalog if is_submitted_assessment(record))
+    risk_counts = Counter()
+    for _rc_record in software_catalog:
+        _rc_risk = normalize_risk_level(_rc_record.get("risk_level") or "")
+        risk_counts[_rc_risk if _rc_risk in RISK_CATEGORY_OPTIONS else "Not Assigned"] += 1
     today = date.today()
     draft_assessments = sorted(
         [
@@ -4366,6 +4837,7 @@ def build_vendor_data_storage_map(vendor_name):
         if loc["risk_level"] in ("High", "Very High")
     ]
 
+    privacy_laws = str(latest_assessment.get("privacy_laws_adhered_to", "") or "").strip()
     return {
         "has_audit": True,
         "has_locations": bool(locations),
@@ -4375,6 +4847,7 @@ def build_vendor_data_storage_map(vendor_name):
         "vendor_assessment_date": latest_assessment.get("vendor_assessment_date", ""),
         "no_privacy_policy": bool(latest_assessment.get("no_vendor_privacy_policy", False)),
         "dpa_status": latest_assessment.get("dpa_status", ""),
+        "no_privacy_laws": not bool(privacy_laws),
     }
 
 
@@ -4525,11 +4998,12 @@ def build_age_restriction_chart_data():
     LABEL_MAP = {
         "None": "None",
         "13+": "13+",
+        "15+": "15+",
         "16+": "16+",
         "18+": "18+",
         LEGAL_AGE_VALUE: "Legal age in country",
     }
-    categories = ["None", "13+", "16+", "18+", "Legal age in country", "Not set"]
+    categories = ["None", "13+", "15+", "16+", "18+", "Legal age in country", "Not set"]
     buckets = {cat: [] for cat in categories}
 
     for record in build_software_catalog(active_only=True):
@@ -4653,7 +5127,7 @@ def new_software():
     category_error = None
     if request.method == "POST":
         software_details = collect_software_form_data(request.form)
-        if not software_details["category"]:
+        if is_category_required() and not software_details["category"]:
             category_error = "A category is required."
         elif software_details["software_name"] and software_details["vendor_name"]:
             record = blank_assessment()
@@ -4684,6 +5158,7 @@ def new_software():
         submit_label="Save Software",
         is_new=True,
         category_error=category_error,
+        category_required=is_category_required(),
         categories=CATEGORIES,
         **FORM_OPTION_CONTEXT,
     )
@@ -4712,6 +5187,7 @@ def edit_software(software_name):
         form_record["tested"] = software_item.get("tested", False)
         form_record["category"] = software_item.get("category", "") or form_record.get("category", "")
         form_record["software_type"] = software_item.get("software_type", "")
+        form_record["software_support"] = software_item.get("software_support", "")
 
     return render_template(
         "software_edit.html",
@@ -4720,6 +5196,7 @@ def edit_software(software_name):
         submit_label="Update Software",
         is_new=False,
         category_error=None,
+        category_required=is_category_required(),
         categories=CATEGORIES,
         **FORM_OPTION_CONTEXT,
     )
@@ -4755,7 +5232,6 @@ def software_detail(software_name):
     software_item = get_software_item_by_name(software_name)
     display_record = dict(software_record)
     if software_item:
-        display_record["risk_level"] = software_item.get("risk_level", "")
         display_record["next_audit_date"] = software_item.get("next_audit_date", "") or display_record.get("next_audit_date", "")
         display_record["audit_reminder_frequency"] = software_item.get("audit_reminder_frequency", "") or display_record.get("audit_reminder_frequency", "")
         display_record["category"] = software_item.get("category", "") or display_record.get("category", "")
@@ -4764,6 +5240,9 @@ def software_detail(software_name):
         display_record["support_notes"] = software_item.get("support_notes", "")
         display_record["tested"] = software_item.get("tested", False)
         display_record["software_type"] = software_item.get("software_type", "")
+        display_record["software_support"] = software_item.get("software_support", "")
+    alert_keys = compute_software_alert_keys(display_record, vendor_record, vendor_map, get_home_country(), software_item)
+    display_record["risk_level"] = highest_risk_from_alerts(alert_keys)
 
     return render_template(
         "software_detail.html",
@@ -4773,6 +5252,7 @@ def software_detail(software_name):
         vendor_high_risk_locations=vendor_map["high_risk_locations"],
         vendor_data_storage_locations=vendor_map["locations"],
         vendor_no_privacy_policy=vendor_map.get("no_privacy_policy", False),
+        vendor_no_privacy_laws=vendor_map.get("has_audit", False) and vendor_map.get("no_privacy_laws", False),
         vendor_dpa_status=vendor_map.get("dpa_status", ""),
         vendor_terms_conditions_link=vendor_terms_conditions_link,
         vendor_age_restrictions=vendor_age_restrictions,
@@ -4990,11 +5470,16 @@ def settings():
             normalize_country_risk_assignments(request.form.get("country_risk_assignments", "{}"))
         )
         APP_SETTINGS["dark_mode"] = "true" if request.form.get("dark_mode") == "true" else "false"
+        APP_SETTINGS["category_required"] = "true" if request.form.get("category_required") == "true" else "false"
         raw_signatory = {}
         for role in SIGNATORY_ROLES:
             key = "signatory_" + role.lower().replace(" ", "_")
             raw_signatory[role] = request.form.getlist(key)
         APP_SETTINGS["signatory_alerts"] = json.dumps(normalize_signatory_alerts(raw_signatory))
+        raw_alert_risks = {}
+        for alert_key in PDF_ALERT_LABELS:
+            raw_alert_risks[alert_key] = request.form.get("alert_risk_" + alert_key, "").strip()
+        APP_SETTINGS["alert_risk_levels"] = json.dumps(normalize_alert_risk_levels(raw_alert_risks))
         persist_app_settings()
         saved = True
 
@@ -5008,6 +5493,7 @@ def settings():
         signatory_roles=SIGNATORY_ROLES,
         pdf_alert_labels=PDF_ALERT_LABELS,
         signatory_alerts=get_signatory_alerts(),
+        alert_risk_levels=get_alert_risk_levels(),
     )
 
 

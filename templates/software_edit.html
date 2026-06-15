@@ -169,6 +169,10 @@
                 <input class="form-control" type="url" id="software_website" name="software_website" value="{{ software.software_website }}">
             </div>
             <div class="col-md-6">
+                <label for="software_support" class="form-label fw-semibold">Software Support</label>
+                <input class="form-control" type="url" id="software_support" name="software_support" value="{{ software.software_support }}">
+            </div>
+            <div class="col-md-6">
                 <label for="purchase_link" class="form-label fw-semibold">Purchase Link</label>
                 <input class="form-control" type="url" id="purchase_link" name="purchase_link" value="{{ software.purchase_link }}">
             </div>
@@ -193,31 +197,8 @@
                 <input class="form-control" type="date" id="next_audit_date" name="next_audit_date" value="{{ software.next_audit_date }}">
             </div>
             <div class="col-md-6">
-                <label for="deployment_date" class="form-label fw-semibold">Deployment Date</label>
-                <input class="form-control" type="date" id="deployment_date" name="deployment_date" value="{{ software.deployment_date }}">
-            </div>
-            <div class="col-md-6">
-                <label for="deployment_type" class="form-label fw-semibold">Deployment Type</label>
-                <select class="form-select" id="deployment_type" name="deployment_type">
-                    <option value="">Select deployment type</option>
-                    <option value="Remote deployment" {% if software.deployment_type == "Remote deployment" %}selected{% endif %}>Remote deployment</option>
-                    <option value="Manual deployment" {% if software.deployment_type == "Manual deployment" %}selected{% endif %}>Manual deployment</option>
-                    <option value="Other" {% if software.deployment_type == "Other" %}selected{% endif %}>Other</option>
-                </select>
-            </div>
-            <div class="col-md-6">
-                <label for="risk_level" class="form-label fw-semibold">Risk Level</label>
-                <select class="form-select" id="risk_level" name="risk_level">
-                    <option value="">Select risk level</option>
-                    <option value="Low" {% if software.risk_level == "Low" %}selected{% endif %}>Low</option>
-                    <option value="Medium" {% if software.risk_level == "Medium" %}selected{% endif %}>Medium</option>
-                    <option value="High" {% if software.risk_level == "High" %}selected{% endif %}>High</option>
-                    <option value="Critical" {% if software.risk_level == "Critical" %}selected{% endif %}>Critical</option>
-                </select>
-            </div>
-            <div class="col-md-6">
-                <label for="category" class="form-label fw-semibold">Category <span class="text-danger">*</span></label>
-                <select class="form-select {% if category_error %}is-invalid{% endif %}" id="category" name="category" {% if is_new %}required{% endif %}>
+                <label for="category" class="form-label fw-semibold">Category {% if category_required %}<span class="text-danger">*</span>{% endif %}</label>
+                <select class="form-select {% if category_error %}is-invalid{% endif %}" id="category" name="category" {% if is_new and category_required %}required{% endif %}>
                     <option value="">— Select a category —</option>
                     {% for cat in categories %}
                     <option value="{{ cat.name }}" {% if software.category == cat.name %}selected{% endif %}>{{ cat.name }}</option>
@@ -237,6 +218,19 @@
                     <option value="SaaS" {% if software.software_type == "SaaS" %}selected{% endif %}>SaaS</option>
                     <option value="Desktop Application" {% if software.software_type == "Desktop Application" %}selected{% endif %}>Desktop Application</option>
                 </select>
+            </div>
+            <div class="col-md-6" id="deployment_type_row">
+                <label for="deployment_type" class="form-label fw-semibold">Deployment Type</label>
+                <select class="form-select" id="deployment_type" name="deployment_type">
+                    <option value="">Select deployment type</option>
+                    <option value="Remote deployment" {% if software.deployment_type == "Remote deployment" %}selected{% endif %}>Remote deployment</option>
+                    <option value="Manual deployment" {% if software.deployment_type == "Manual deployment" %}selected{% endif %}>Manual deployment</option>
+                    <option value="Other" {% if software.deployment_type == "Other" %}selected{% endif %}>Other</option>
+                </select>
+            </div>
+            <div class="col-md-6" id="deployment_date_row">
+                <label for="deployment_date" class="form-label fw-semibold">Deployment Date</label>
+                <input class="form-control" type="date" id="deployment_date" name="deployment_date" value="{{ software.deployment_date }}">
             </div>
             <div class="col-12" id="software_updates_row">
                 <label class="form-label fw-semibold d-block">Software Updates</label>
@@ -429,12 +423,18 @@
 
     const softwareTypeSelect = document.getElementById("software_type");
     const softwareUpdatesRow = document.getElementById("software_updates_row");
+    const deploymentTypeRow = document.getElementById("deployment_type_row");
+    const deploymentDateRow = document.getElementById("deployment_date_row");
 
-    function updateSoftwareUpdatesVisibility() {
-        softwareUpdatesRow.style.display = softwareTypeSelect.value === "SaaS" ? "none" : "";
+    function updateSoftwareTypeVisibility() {
+        const isDesktop = softwareTypeSelect.value === "Desktop Application";
+        const isSaaS = softwareTypeSelect.value === "SaaS";
+        softwareUpdatesRow.style.display = isSaaS ? "none" : "";
+        deploymentTypeRow.style.display = isDesktop ? "" : "none";
+        deploymentDateRow.style.display = isDesktop ? "" : "none";
     }
 
-    softwareTypeSelect.addEventListener("change", updateSoftwareUpdatesVisibility);
-    updateSoftwareUpdatesVisibility();
+    softwareTypeSelect.addEventListener("change", updateSoftwareTypeVisibility);
+    updateSoftwareTypeVisibility();
 </script>
 {% endblock %}

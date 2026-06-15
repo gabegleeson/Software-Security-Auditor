@@ -122,7 +122,7 @@
         <div>
             <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Software Register</span>
             <h1 class="display-6 fw-semibold mb-2">Tracked software products</h1>
-            <p class="text-secondary mb-0">A clearer list of platforms, owners, risk level, and deployment state.</p>
+            <p class="text-secondary mb-0">{{ software_records | length }} software title{{ 's' if software_records | length != 1 else '' }} &mdash; platforms, owners, risk level, and deployment state.</p>
         </div>
         <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_software') }}">Add Software</a>
     </div>
@@ -139,11 +139,11 @@
             style="max-width: 360px;"
         >
         <div class="status-filter" role="group" aria-label="Filter by status">
-            <input type="radio" name="active_filter" id="filter_active" value="active" checked>
+            <input type="radio" name="active_filter" id="filter_active" value="active">
             <label for="filter_active">Active</label>
             <input type="radio" name="active_filter" id="filter_inactive" value="inactive">
             <label for="filter_inactive">Inactive</label>
-            <input type="radio" name="active_filter" id="filter_all" value="all">
+            <input type="radio" name="active_filter" id="filter_all" value="all" checked>
             <label for="filter_all">All</label>
         </div>
     </div>
@@ -167,7 +167,7 @@
                     data-software-name="{{ record.software_name|lower }}"
                     data-software-key="{{ record.software_name }}"
                     data-vendor-name="{{ record.vendor_name|lower }}"
-                    data-risk-level-name="{{ {'Low': '1', 'Medium': '2', 'High': '3', 'Critical': '4'}.get(record.risk_level, '0') }}"
+                    data-risk-level-name="{{ {'Low': '1', 'Moderate': '2', 'Medium': '2', 'High': '3', 'Very High': '4', 'Critical': '4'}.get(record.risk_level, '0') }}"
                     data-next-audit-name="{{ record.next_audit_date or '9999-12-31' }}"
                     data-active="{{ 'true' if record.deployed else 'false' }}"
                 >

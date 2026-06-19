@@ -5,28 +5,45 @@ from io import BytesIO
 import json
 import os
 from pathlib import Path
+import re
 import sqlite3
 import time
 import urllib.parse
+import uuid
 import urllib.request
 from xml.sax.saxutils import escape
 
 from flask import Flask, abort, jsonify, redirect, render_template, request, send_file, session, url_for
+from markupsafe import Markup, escape as html_escape
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import mm
 from reportlab.platypus import Image as PlatypusImage, PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from pypdf import PdfReader, PdfWriter
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
 app.config["SECRET_KEY"] = os.environ.get("APP_SECRET_KEY", "change-this-secret-key")
+
+_URL_RE = re.compile(r"(https?://[^\s<>\"']+)")
+
+@app.template_filter("linkify")
+def linkify_filter(text):
+    escaped = str(html_escape(text or ""))
+    linked = _URL_RE.sub(
+        r'<a href="\1" target="_blank" rel="noopener noreferrer">\1</a>',
+        escaped,
+    )
+    return Markup(linked.replace("\n", "<br>"))
 NVD_API_KEY = os.environ.get("NVD_API_KEY", "")
 NVD_CACHE_TTL = 3600
 _nvd_cache: dict = {}
 DB_DIRECTORY = Path(__file__).resolve().parent / ".venv" / "data"
 DB_PATH = DB_DIRECTORY / "software_auditor.db"
+UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
+UPLOADS_DIR.mkdir(exist_ok=True)
 PDF_LOGO_PATH = Path(r"C:\Users\ggleeson\OneDrive - St Patricks College\Visual Studio Projects\Ticketpad\static\images\crest.png")
 LOGIN_USERNAME = os.environ.get("APP_USERNAME", "admin")
 LOGIN_PASSWORD_HASH = generate_password_hash(os.environ.get("APP_PASSWORD", "change-me"))
@@ -83,12 +100,16 @@ ASSESSMENT_FIELDS = (
     "category",
     "unrelated_cves",
     "it_recommendation",
+    "st4s_compliant",
+    "essential_eight_compliant",
+    "no_vendor_terms_conditions",
 )
 
 CHECKBOX_FIELDS = {
     "free_software",
     "product_updates",
     "security_updates",
+    "no_vendor_terms_conditions",
 }
 VENDOR_PRIVACY_FIELDS = (
     "no_vendor_privacy_policy",
@@ -120,6 +141,8 @@ VENDOR_PROFILE_FIELDS = (
     "vendor_age_restrictions",
     "vendor_terms_conditions_notes",
     "vendor_allows_acceptance_on_behalf_of_entity",
+    "privacy_policy_pdf_filename",
+    "privacy_policy_pdf_original_name",
 )
 VENDOR_ASSESSMENT_FIELDS = (
     "vendor_name",
@@ -175,6 +198,7 @@ INTERNATIONAL_PRIVACY_LAW_OPTIONS = (
     "APPI (Japan)",
     "FDPA (Germany)",
     "LGPD (Brazil)",
+    "New Zealand Privacy Act 2020",
     "PDPA (Singapore)",
     "PIPEDA (Canada)",
     "PIPA (South Korea)",
@@ -681,6 +705,8 @@ PDF_FIELD_LABELS = {
     "next_audit_date": "Next Audit Date",
     "risk_level": "Risk Level",
     "it_recommendation": "IT Recommendation",
+    "st4s_compliant": "ST4S Compliance",
+    "essential_eight_compliant": "Essential 8 Compliance",
 }
 
 PDF_SECTION_FIELDS = [
@@ -734,6 +760,8 @@ PDF_SECTION_FIELDS = [
         "infrastructure_notes",
         "supports_m365_sso",
         "integration_notes",
+        "st4s_compliant",
+        "essential_eight_compliant",
         "risk_level",
     ]),
 ]
@@ -1128,11 +1156,32 @@ def normalize_country_risk_assignments(value):
 
 
 def get_country_risk_assignments():
-    return normalize_country_risk_assignments(APP_SETTINGS.get("country_risk_assignments", "{}"))
+    settings_assignments = normalize_country_risk_assignments(APP_SETTINGS.get("country_risk_assignments", "{}"))
+    log_assignments = get_all_country_risk_from_log()
+    return {**settings_assignments, **log_assignments}
 
 
 def get_country_risk_level(country_name):
     return get_country_risk_assignments().get(str(country_name).strip(), "")
+
+
+def get_all_country_risk_from_log():
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            "SELECT country, risk_level FROM country_risk_comments "
+            "WHERE id IN (SELECT MAX(id) FROM country_risk_comments GROUP BY country)"
+        ).fetchall()
+    return {row["country"]: row["risk_level"] for row in rows}
+
+
+def get_country_risk_comments(country_name):
+    with get_db_connection() as conn:
+        rows = conn.execute(
+            "SELECT id, risk_level, comment, created_at FROM country_risk_comments "
+            "WHERE country = ? ORDER BY created_at DESC, id DESC",
+            (country_name,),
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def normalize_signatory_alerts(value):
@@ -1176,6 +1225,25 @@ def normalize_alert_risk_levels(value):
 
 def get_alert_risk_levels():
     return normalize_alert_risk_levels(APP_SETTINGS.get("alert_risk_levels", "{}"))
+
+
+def normalize_alert_pdf_visibility(value):
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value) if value.strip() else {}
+        except json.JSONDecodeError:
+            parsed = {}
+    elif isinstance(value, dict):
+        parsed = value
+    else:
+        parsed = {}
+    valid_alerts = set(PDF_ALERT_LABELS)
+    return {key: bool(val) for key, val in parsed.items() if key in valid_alerts}
+
+
+def get_alert_pdf_visibility():
+    stored = normalize_alert_pdf_visibility(APP_SETTINGS.get("alert_pdf_visibility", "{}"))
+    return {key: stored.get(key, True) for key in PDF_ALERT_LABELS}
 
 
 def compute_software_alert_keys(record, vendor_record, vendor_map, home_country, item=None):
@@ -1244,6 +1312,12 @@ def compute_software_alert_keys(record, vendor_record, vendor_map, home_country,
 
     if is_assessment and not record.get("it_recommendation", ""):
         alert_keys.add("no_it_recommendation")
+
+    if is_assessment and not record.get("st4s_compliant", ""):
+        alert_keys.add("st4s_not_assessed")
+
+    if is_assessment and not record.get("essential_eight_compliant", ""):
+        alert_keys.add("essential_eight_not_assessed")
 
     return alert_keys
 
@@ -1490,6 +1564,7 @@ def build_assessment_pdf(record, cve_data=None):
     story.append(Spacer(1, 8))
 
     fired_alerts = set()
+    alert_visibility = get_alert_pdf_visibility()
     for section_title, fields in PDF_SECTION_FIELDS:
         table_rows = []
         for field in fields:
@@ -2018,6 +2093,93 @@ def build_assessment_pdf(record, cve_data=None):
         story.append(not_tested_table)
         story.append(Spacer(1, 10))
 
+    if record.get("is_assessment") and not record.get("st4s_compliant", ""):
+        st4s_heading_style = ParagraphStyle(
+            "ST4SHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        st4s_body_style = ParagraphStyle(
+            "ST4SBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        st4s_cell = [
+            Paragraph("ST4S compliance not assessed.", st4s_heading_style),
+            Paragraph(
+                "This software has not been assessed against the ST4S framework. "
+                "An ST4S compliance status should be recorded before this report is finalised.",
+                st4s_body_style,
+            ),
+        ]
+        st4s_table = Table([[st4s_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        st4s_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        fired_alerts.add("st4s_not_assessed")
+        story.append(st4s_table)
+        story.append(Spacer(1, 10))
+
+    if record.get("is_assessment") and not record.get("essential_eight_compliant", ""):
+        e8_heading_style = ParagraphStyle(
+            "E8Heading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        e8_body_style = ParagraphStyle(
+            "E8Body",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        e8_cell = [
+            Paragraph("Essential 8 compliance not assessed.", e8_heading_style),
+            Paragraph(
+                "This software has not been assessed against the Australian Cyber Security Centre's "
+                "Essential Eight mitigation strategies. An Essential 8 compliance status should be "
+                "recorded before this report is finalised.",
+                e8_body_style,
+            ),
+        ]
+        e8_table = Table([[e8_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        e8_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        fired_alerts.add("essential_eight_not_assessed")
+        story.append(e8_table)
+        story.append(Spacer(1, 10))
+
     if record.get("is_assessment") and not record.get("product_updates") and not record.get("security_updates") and record.get("software_type") != "SaaS":
         no_updates_heading_style = ParagraphStyle(
             "NoUpdatesHeading",
@@ -2356,7 +2518,8 @@ def build_assessment_pdf(record, cve_data=None):
         def sort_key(k):
             level = alert_risk_levels.get(k, "")
             return (risk_order.get(level, len(RISK_CATEGORY_OPTIONS)), PDF_ALERT_LABELS[k])
-        return sorted(PDF_ALERT_LABELS.keys(), key=sort_key, reverse=False)
+        visible_keys = [k for k in PDF_ALERT_LABELS if alert_visibility.get(k, True)]
+        return sorted(visible_keys, key=sort_key, reverse=False)
 
     matrix_rows = [[
         Paragraph("Alert", matrix_header_style),
@@ -2414,7 +2577,51 @@ def build_assessment_pdf(record, cve_data=None):
 
     doc.build(story)
     buffer.seek(0)
-    return buffer
+    result = buffer
+
+    vendor_name = record.get("vendor_name", "")
+    if vendor_name:
+        vendor = get_vendor_record_or_none(vendor_name)
+        if vendor:
+            pdf_filename = vendor.get("privacy_policy_pdf_filename", "")
+            if pdf_filename:
+                pdf_path = UPLOADS_DIR / pdf_filename
+                if pdf_path.exists():
+                    try:
+                        writer = PdfWriter()
+                        for page in PdfReader(result).pages:
+                            writer.add_page(page)
+                        for page in PdfReader(str(pdf_path)).pages:
+                            writer.add_page(page)
+                        merged = BytesIO()
+                        writer.write(merged)
+                        merged.seek(0)
+                        result = merged
+                    except Exception:
+                        result.seek(0)
+
+    software_name = record.get("software_name", "")
+    if software_name:
+        software_item = get_software_item_by_name(software_name)
+        if software_item:
+            eula_filename = software_item.get("eula_pdf_filename", "")
+            if eula_filename:
+                eula_path = UPLOADS_DIR / eula_filename
+                if eula_path.exists():
+                    try:
+                        writer = PdfWriter()
+                        for page in PdfReader(result).pages:
+                            writer.add_page(page)
+                        for page in PdfReader(str(eula_path)).pages:
+                            writer.add_page(page)
+                        merged = BytesIO()
+                        writer.write(merged)
+                        merged.seek(0)
+                        result = merged
+                    except Exception:
+                        result.seek(0)
+
+    return result
 
 
 def create_assessment(record_id, **values):
@@ -2448,11 +2655,14 @@ DEFAULT_APP_SETTINGS = {
         "dpa_not_obtained": "High",
         "app_collection_notice": "Low",
         "not_tested": "Moderate",
+        "st4s_not_assessed": "Moderate",
+        "essential_eight_not_assessed": "Moderate",
         "no_updates": "Moderate",
         "sso": "Low",
         "cve": "Very High",
         "no_it_recommendation": "Moderate",
     }),
+    "alert_pdf_visibility": json.dumps({}),
 }
 SOFTWARE_ITEMS = []
 SOFTWARE_ASSESSMENT_RECORDS = []
@@ -2499,6 +2709,8 @@ PDF_ALERT_LABELS = {
     "dpa_not_obtained": "Data Processing Agreement not obtained",
     "app_collection_notice": "APP Collection Notice reminder",
     "not_tested": "Software not tested",
+    "st4s_not_assessed": "ST4S not assessed",
+    "essential_eight_not_assessed": "Essential 8 not assessed",
     "no_updates": "No product or security updates",
     "sso": "SSO not available via Microsoft Entra",
     "cve": "Known vulnerabilities (CVE)",
@@ -2624,6 +2836,17 @@ def init_db():
                 id INTEGER PRIMARY KEY,
                 name TEXT NOT NULL UNIQUE,
                 genuine_need TEXT NOT NULL DEFAULT ''
+            )
+            """
+        )
+        connection.execute(
+            """
+            CREATE TABLE IF NOT EXISTS country_risk_comments (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                country TEXT NOT NULL,
+                risk_level TEXT NOT NULL,
+                comment TEXT NOT NULL DEFAULT '',
+                created_at TEXT NOT NULL
             )
             """
         )
@@ -2830,6 +3053,8 @@ def load_software_items():
         record["software_type"] = loaded_record.get("software_type", "")
         record["support_notes"] = loaded_record.get("support_notes", "")
         record["software_support"] = loaded_record.get("software_support", "")
+        record["eula_pdf_filename"] = loaded_record.get("eula_pdf_filename", "")
+        record["eula_pdf_original_name"] = loaded_record.get("eula_pdf_original_name", "")
         record["id"] = row["id"]
         record["software_id"] = row["id"]
         record["software_name"] = record.get("software_name") or row["software_name"]
@@ -2922,6 +3147,8 @@ def _software_record_to_json(record):
     data["software_type"] = record.get("software_type", "")
     data["support_notes"] = record.get("support_notes", "")
     data["software_support"] = record.get("software_support", "")
+    data["eula_pdf_filename"] = record.get("eula_pdf_filename", "")
+    data["eula_pdf_original_name"] = record.get("eula_pdf_original_name", "")
     return json.dumps(data)
 
 
@@ -3087,6 +3314,8 @@ def load_vendor_records():
             "vendor_age_restrictions": loaded_vendor.get("vendor_age_restrictions", ""),
             "vendor_terms_conditions_notes": loaded_vendor.get("vendor_terms_conditions_notes", ""),
             "vendor_allows_acceptance_on_behalf_of_entity": loaded_vendor.get("vendor_allows_acceptance_on_behalf_of_entity", ""),
+            "privacy_policy_pdf_filename": loaded_vendor.get("privacy_policy_pdf_filename", ""),
+            "privacy_policy_pdf_original_name": loaded_vendor.get("privacy_policy_pdf_original_name", ""),
         }
         for field in ("vendor_security_assessment", *VENDOR_PRIVACY_FIELDS):
             if loaded_vendor.get(field):
@@ -3502,6 +3731,8 @@ def build_vendor_list(active_only=False):
         existing["vendor_terms_conditions_notes"] = existing.get("vendor_terms_conditions_notes") or vendor.get("vendor_terms_conditions_notes", "")
         existing["vendor_allows_acceptance_on_behalf_of_entity"] = existing.get("vendor_allows_acceptance_on_behalf_of_entity") or vendor.get("vendor_allows_acceptance_on_behalf_of_entity", "")
         existing["no_vendor_terms_conditions"] = existing.get("no_vendor_terms_conditions") or vendor.get("no_vendor_terms_conditions", False)
+        existing["privacy_policy_pdf_filename"] = existing.get("privacy_policy_pdf_filename") or vendor.get("privacy_policy_pdf_filename", "")
+        existing["privacy_policy_pdf_original_name"] = existing.get("privacy_policy_pdf_original_name") or vendor.get("privacy_policy_pdf_original_name", "")
 
     built_vendors = []
     for vendor_name in sorted(vendors_by_name):
@@ -3521,6 +3752,8 @@ def build_vendor_list(active_only=False):
                 "vendor_terms_conditions_notes": vendor.get("vendor_terms_conditions_notes", ""),
                 "vendor_allows_acceptance_on_behalf_of_entity": vendor.get("vendor_allows_acceptance_on_behalf_of_entity", ""),
                 "no_vendor_terms_conditions": vendor.get("no_vendor_terms_conditions", False),
+                "privacy_policy_pdf_filename": vendor.get("privacy_policy_pdf_filename", ""),
+                "privacy_policy_pdf_original_name": vendor.get("privacy_policy_pdf_original_name", ""),
                 "product_count": vendor["product_count"],
             }
         )
@@ -3701,7 +3934,8 @@ def update_software_details(original_software_name, updated_details):
     for record in SOFTWARE_RECORDS:
         if normalized_name(record.get("software_name", "")) == original_normalized:
             for field in SOFTWARE_DETAIL_FIELDS:
-                record[field] = updated_details[field]
+                if field in updated_details:
+                    record[field] = updated_details[field]
             record["review_date"] = updated_details["next_audit_date"] or calculate_review_date(
                 updated_details["deployment_date"],
                 updated_details["audit_reminder_frequency"],
@@ -3849,6 +4083,8 @@ def blank_vendor():
         "vendor_age_restrictions": "",
         "vendor_terms_conditions_notes": "",
         "vendor_allows_acceptance_on_behalf_of_entity": "",
+        "privacy_policy_pdf_filename": "",
+        "privacy_policy_pdf_original_name": "",
     }
 
 
@@ -5371,6 +5607,64 @@ def render_new_vendor_assessment_form(vendor):
     )
 
 
+def get_vendor_record_in_memory(vendor_name):
+    n = normalized_name(vendor_name)
+    return next((v for v in VENDOR_RECORDS if normalized_name(v.get("vendor_name", "")) == n), None)
+
+
+def _delete_vendor_pdf_file(vendor_rec):
+    old = vendor_rec.get("privacy_policy_pdf_filename", "")
+    if old:
+        try:
+            (UPLOADS_DIR / old).unlink()
+        except OSError:
+            pass
+
+
+def handle_vendor_privacy_policy_upload(vendor_rec):
+    if vendor_rec is None:
+        return
+    pdf_file = request.files.get("privacy_policy_pdf")
+    if not pdf_file or not pdf_file.filename or not pdf_file.filename.lower().endswith(".pdf"):
+        return
+    _delete_vendor_pdf_file(vendor_rec)
+    filename = f"{uuid.uuid4().hex}.pdf"
+    pdf_file.save(str(UPLOADS_DIR / filename))
+    vendor_rec["privacy_policy_pdf_filename"] = filename
+    vendor_rec["privacy_policy_pdf_original_name"] = pdf_file.filename
+    persist_vendor_records()
+
+
+def _delete_software_eula_pdf_file(software_rec):
+    old = software_rec.get("eula_pdf_filename", "")
+    if old:
+        try:
+            (UPLOADS_DIR / old).unlink()
+        except OSError:
+            pass
+
+
+def handle_software_eula_pdf_upload(software_rec):
+    if software_rec is None:
+        return False
+    pdf_file = request.files.get("eula_pdf")
+    if not pdf_file or not pdf_file.filename or not pdf_file.filename.lower().endswith(".pdf"):
+        return False
+    _delete_software_eula_pdf_file(software_rec)
+    filename = f"{uuid.uuid4().hex}.pdf"
+    pdf_file.save(str(UPLOADS_DIR / filename))
+    software_rec["eula_pdf_filename"] = filename
+    software_rec["eula_pdf_original_name"] = pdf_file.filename
+    return True
+
+
+def get_software_eula_pdf_for_record(record):
+    software = get_software_item_by_name(record.get("software_name", ""))
+    if software is None:
+        return ""
+    return software.get("eula_pdf_original_name", "")
+
+
 def save_new_vendor_assessment(vendor_name):
     global NEXT_VENDOR_ASSESSMENT_ID
 
@@ -5382,6 +5676,8 @@ def save_new_vendor_assessment(vendor_name):
         )
         update_vendor_details(vendor_name, updated_vendor)
         vendor = get_vendor_record_or_none(updated_vendor["vendor_name"]) or updated_vendor
+
+    handle_vendor_privacy_policy_upload(get_vendor_record_in_memory(vendor["vendor_name"]))
 
     assessment = collect_vendor_assessment_form_data(request.form, NEXT_VENDOR_ASSESSMENT_ID)
     assessment["vendor_name"] = vendor["vendor_name"]
@@ -5422,6 +5718,18 @@ def vendor_detail(vendor_name):
     )
 
 
+@app.route("/countries/<path:country_name>/comments/<int:comment_id>/delete", methods=["POST"])
+def delete_country_risk_comment(country_name, comment_id):
+    if country_name not in COUNTRY_OPTIONS:
+        abort(404)
+    with get_db_connection() as conn:
+        conn.execute(
+            "DELETE FROM country_risk_comments WHERE id = ? AND country = ?",
+            (comment_id, country_name),
+        )
+    return redirect(url_for("country_detail", country_name=country_name))
+
+
 @app.route("/countries/<path:country_name>", methods=["GET", "POST"])
 def country_detail(country_name):
     if country_name not in COUNTRY_OPTIONS:
@@ -5429,13 +5737,13 @@ def country_detail(country_name):
 
     if request.method == "POST":
         new_risk = request.form.get("risk_level", "").strip()
-        assignments = get_country_risk_assignments()
+        comment = request.form.get("comment", "").strip()
         if new_risk in RISK_CATEGORY_OPTIONS:
-            assignments[country_name] = new_risk
-        else:
-            assignments.pop(country_name, None)
-        APP_SETTINGS["country_risk_assignments"] = json.dumps(assignments)
-        persist_app_settings()
+            with get_db_connection() as conn:
+                conn.execute(
+                    "INSERT INTO country_risk_comments (country, risk_level, comment, created_at) VALUES (?, ?, ?, ?)",
+                    (country_name, new_risk, comment, datetime.now().strftime("%Y-%m-%d %H:%M")),
+                )
         return redirect(url_for("country_detail", country_name=country_name))
 
     vendors_hosting = []
@@ -5453,6 +5761,7 @@ def country_detail(country_name):
         "country_detail.html",
         country_name=country_name,
         risk_level=get_country_risk_level(country_name),
+        risk_comments=get_country_risk_comments(country_name),
         vendors_hosting=vendors_hosting,
         vendors_based=vendors_based,
         risk_category_options=RISK_CATEGORY_OPTIONS,
@@ -5480,6 +5789,8 @@ def settings():
         for alert_key in PDF_ALERT_LABELS:
             raw_alert_risks[alert_key] = request.form.get("alert_risk_" + alert_key, "").strip()
         APP_SETTINGS["alert_risk_levels"] = json.dumps(normalize_alert_risk_levels(raw_alert_risks))
+        raw_visibility = {alert_key: request.form.get("alert_visible_" + alert_key) == "true" for alert_key in PDF_ALERT_LABELS}
+        APP_SETTINGS["alert_pdf_visibility"] = json.dumps(normalize_alert_pdf_visibility(raw_visibility))
         persist_app_settings()
         saved = True
 
@@ -5494,6 +5805,7 @@ def settings():
         pdf_alert_labels=PDF_ALERT_LABELS,
         signatory_alerts=get_signatory_alerts(),
         alert_risk_levels=get_alert_risk_levels(),
+        alert_pdf_visibility=get_alert_pdf_visibility(),
     )
 
 
@@ -5567,6 +5879,8 @@ def edit_vendor_assessment(assessment_id):
             update_vendor_details(vendor["vendor_name"], updated_vendor)
             vendor = get_vendor_record_or_none(updated_vendor["vendor_name"]) or updated_vendor
 
+        handle_vendor_privacy_policy_upload(get_vendor_record_in_memory(vendor["vendor_name"]))
+
         updated_assessment = collect_vendor_assessment_form_data(request.form, assessment_id)
         updated_assessment["vendor_name"] = vendor["vendor_name"]
         index = VENDOR_ASSESSMENT_RECORDS.index(assessment)
@@ -5604,6 +5918,32 @@ def save_vendor_privacy_policy(vendor_name):
     privacy_policy_link = request.form.get("vendor_privacy_policy_link", "").strip()
     save_vendor_privacy_policy_link(vendor_name, privacy_policy_link)
     return jsonify({"ok": True, "vendor_privacy_policy_link": privacy_policy_link})
+
+
+@app.route("/vendor-privacy-policy/clear", methods=["POST"])
+def clear_vendor_privacy_policy_pdf():
+    vendor_name = request.form.get("vendor_name", "").strip()
+    vendor_rec = get_vendor_record_in_memory(vendor_name)
+    if vendor_rec is None:
+        return jsonify({"ok": False, "error": "Vendor not found"}), 404
+    _delete_vendor_pdf_file(vendor_rec)
+    vendor_rec["privacy_policy_pdf_filename"] = ""
+    vendor_rec["privacy_policy_pdf_original_name"] = ""
+    persist_vendor_records()
+    return jsonify({"ok": True})
+
+
+@app.route("/software-eula-pdf/clear", methods=["POST"])
+def clear_software_eula_pdf():
+    software_name = request.form.get("software_name", "").strip()
+    software_rec = get_software_item_by_name(software_name)
+    if software_rec is None:
+        return jsonify({"ok": False, "error": "Software not found"}), 404
+    _delete_software_eula_pdf_file(software_rec)
+    software_rec["eula_pdf_filename"] = ""
+    software_rec["eula_pdf_original_name"] = ""
+    persist_software_items()
+    return jsonify({"ok": True})
 
 
 @app.route("/vendors/<path:vendor_name>/website", methods=["POST"])
@@ -5644,6 +5984,7 @@ def save_vendor_online_support(vendor_name):
     support_link = request.form.get("online_support", "").strip()
     save_vendor_online_support_link(vendor_name, support_link)
     return jsonify({"ok": True, "online_support": support_link})
+
 
 
 @app.route("/api/vendors/search")
@@ -5696,6 +6037,9 @@ def new_assessment():
             advance_software_next_audit_after_submission(form_data)
         persist_software_records()
         persist_vendor_records()
+        _eula_item = get_software_item_by_name(form_data.get("software_name", ""))
+        if _eula_item is not None and handle_software_eula_pdf_upload(_eula_item):
+            persist_software_items()
         return redirect(url_for("software_detail", software_name=form_data["software_name"]))
 
     draft_id = request.args.get("draft_id", type=int)
@@ -5714,6 +6058,7 @@ def new_assessment():
                 vendor_age_restrictions=get_vendor_age_restrictions_for_record(draft_record),
                 vendor_terms_conditions_notes=get_vendor_terms_conditions_notes_for_record(draft_record),
                 vendor_allows_acceptance=get_vendor_allows_acceptance_for_record(draft_record),
+                eula_pdf_original_name=get_software_eula_pdf_for_record(draft_record),
                 form_title="New Software Assessment",
                 submit_label="Submit Assessment",
                 is_edit=False,
@@ -5769,6 +6114,9 @@ def edit_assessment(assessment_id):
             advance_software_next_audit_after_submission(updated_record)
         persist_software_records()
         persist_vendor_records()
+        _eula_item = get_software_item_by_name(updated_record.get("software_name", ""))
+        if _eula_item is not None and handle_software_eula_pdf_upload(_eula_item):
+            persist_software_items()
         return redirect(url_for("software_detail", software_name=updated_record["software_name"]))
 
     return render_template(
@@ -5782,6 +6130,7 @@ def edit_assessment(assessment_id):
         vendor_age_restrictions=get_vendor_age_restrictions_for_record(record),
         vendor_terms_conditions_notes=get_vendor_terms_conditions_notes_for_record(record),
         vendor_allows_acceptance=get_vendor_allows_acceptance_for_record(record),
+        eula_pdf_original_name=get_software_eula_pdf_for_record(record),
         form_title="Edit Software Assessment",
         submit_label="Submit Assessment",
         is_edit=True,
@@ -5806,6 +6155,9 @@ def autosave_assessment_draft(assessment_id):
     sync_vendor_from_assessment(draft_record)
     persist_software_records()
     persist_vendor_records()
+    _eula_item = get_software_item_by_name(draft_record.get("software_name", ""))
+    if _eula_item is not None and handle_software_eula_pdf_upload(_eula_item):
+        persist_software_items()
     return jsonify(
         {
             "ok": True,
@@ -5856,7 +6208,13 @@ def download_assessment_pdf(assessment_id):
          if normalized_name(item.get("software_name", "")) == normalized_name(record.get("software_name", ""))),
         None,
     )
-    pdf_record["risk_level"] = software_item.get("risk_level", "") if software_item else ""
+    _pdf_vendor_name = pdf_record.get("vendor_name", "")
+    _pdf_vendor_map = build_vendor_data_storage_map(_pdf_vendor_name) if _pdf_vendor_name else {
+        "high_risk_locations": [], "locations": [], "no_privacy_policy": False, "dpa_status": "",
+    }
+    pdf_record["risk_level"] = highest_risk_from_alerts(
+        compute_software_alert_keys(pdf_record, live_vendor or {}, _pdf_vendor_map, get_home_country(), software_item)
+    )
     pdf_record["category"] = (software_item.get("category", "") if software_item else "") or record.get("category", "")
     if software_item:
         pdf_record["product_updates"] = software_item.get("product_updates", False)

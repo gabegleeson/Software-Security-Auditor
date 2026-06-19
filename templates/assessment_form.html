@@ -261,7 +261,7 @@
     </div>
 
     <div class="table-panel p-4 p-md-5">
-    <form method="POST" id="assessment_form" data-autosave-enabled="{{ 'true' if autosave_enabled else 'false' }}">
+    <form method="POST" enctype="multipart/form-data" id="assessment_form" data-autosave-enabled="{{ 'true' if autosave_enabled else 'false' }}">
         {% if assessment_id %}
         <input type="hidden" name="assessment_id" value="{{ assessment_id }}">
         {% endif %}
@@ -466,11 +466,57 @@
                         <button class="btn btn-outline-secondary icon-action-button" type="button" id="license_agreement_link_edit_button" aria-label="Edit link" title="Edit link"></button>
                     </div>
                 </div>
+                <div class="mt-3">
+                    <label class="form-label fw-semibold d-block" for="eula_pdf">EULA PDF</label>
+                    <div class="d-flex align-items-center gap-2 mb-2" id="eula_pdf_existing_row" {% if not eula_pdf_original_name %}style="display:none"{% endif %}>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-pdf text-danger" viewBox="0 0 16 16"><path d="M4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm5 1.5v3A1.5 1.5 0 0 0 10.5 6H14v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/></svg>
+                        <span class="small text-secondary" id="eula_pdf_existing_name">{{ eula_pdf_original_name }}</span>
+                        <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" id="remove_eula_pdf_btn">Remove</button>
+                    </div>
+                    <input class="form-control form-control-sm" type="file" name="eula_pdf" id="eula_pdf" accept=".pdf">
+                    <div class="form-text">Upload a PDF copy of the EULA. It will be appended to the printed assessment report.</div>
+                </div>
             </div>
 
             <div class="field">
                 <label for="software_license_details">Software License Details</label>
                 <textarea id="software_license_details" name="software_license_details">{{ assessment.software_license_details }}</textarea>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>ST4S Compliance</h2>
+
+            <div class="field">
+                <label for="st4s_compliant">ST4S Compliance Status
+                    <a href="https://st4s.edu.au/" target="_blank" rel="noopener noreferrer" class="ms-2 small fw-normal text-decoration-none" title="View ST4S framework">&#x2139; Learn more</a>
+                </label>
+                <select id="st4s_compliant" name="st4s_compliant">
+                    <option value="">Not assessed</option>
+                    <option value="Compliant" {% if assessment.st4s_compliant == "Compliant" %}selected{% endif %}>Compliant</option>
+                    <option value="Partially Compliant" {% if assessment.st4s_compliant == "Partially Compliant" %}selected{% endif %}>Partially Compliant</option>
+                    <option value="Non-Compliant" {% if assessment.st4s_compliant == "Non-Compliant" %}selected{% endif %}>Non-Compliant</option>
+                    <option value="N/A" {% if assessment.st4s_compliant == "N/A" %}selected{% endif %}>N/A</option>
+                </select>
+                <p class="form-text">Indicate whether this software aligns with the <a href="https://st4s.edu.au/" target="_blank" rel="noopener noreferrer">ST4S framework</a>.</p>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>Essential 8 Compliance</h2>
+
+            <div class="field">
+                <label for="essential_eight_compliant">Essential 8 Compliance Status
+                    <a href="https://www.cyber.gov.au/business-government/asds-cyber-security-frameworks/essential-eight" target="_blank" rel="noopener noreferrer" class="ms-2 small fw-normal text-decoration-none" title="View Essential Eight framework">&#x2139; Learn more</a>
+                </label>
+                <select id="essential_eight_compliant" name="essential_eight_compliant">
+                    <option value="">Not assessed</option>
+                    <option value="Compliant" {% if assessment.essential_eight_compliant == "Compliant" %}selected{% endif %}>Compliant</option>
+                    <option value="Partially Compliant" {% if assessment.essential_eight_compliant == "Partially Compliant" %}selected{% endif %}>Partially Compliant</option>
+                    <option value="Non-Compliant" {% if assessment.essential_eight_compliant == "Non-Compliant" %}selected{% endif %}>Non-Compliant</option>
+                    <option value="N/A" {% if assessment.essential_eight_compliant == "N/A" %}selected{% endif %}>N/A</option>
+                </select>
+                <p class="form-text">Indicate whether this software aligns with the <a href="https://www.cyber.gov.au/business-government/asds-cyber-security-frameworks/essential-eight" target="_blank" rel="noopener noreferrer">Australian Cyber Security Centre's Essential Eight</a> mitigation strategies.</p>
             </div>
         </div>
 
@@ -482,6 +528,14 @@
         <div class="section">
             <h2>Terms of Use / License Agreement Compliance</h2>
 
+            <div class="field">
+                <label class="d-flex align-items-center gap-2">
+                    <input type="checkbox" id="no_vendor_terms_conditions" name="no_vendor_terms_conditions" value="true" {% if assessment.no_vendor_terms_conditions %}checked{% endif %}>
+                    <span>No terms and conditions available</span>
+                </label>
+            </div>
+
+            <div id="terms_conditions_wrap" {% if assessment.no_vendor_terms_conditions %}style="display:none"{% endif %}>
             <div id="vendor_terms_info" {% if not use_vendor_terms %}style="display: none;"{% endif %}>
                 <div class="field">
                     <label>Terms and Conditions</label>
@@ -530,7 +584,9 @@
                     {% endif %}
                 </div>
             </div>
+            </div>{# end terms_conditions_wrap #}
 
+            <div id="student_use_field_wrap" {% if assessment.no_vendor_terms_conditions %}style="display:none"{% endif %}>
             <div class="field">
                 <label for="student_intended_use">Software intended for student use?</label>
                 <select id="student_intended_use" name="student_intended_use">
@@ -539,6 +595,7 @@
                     <option value="No" {% if assessment.student_intended_use == "No" %}selected{% endif %}>No</option>
                 </select>
             </div>
+            </div>{# end student_use_field_wrap #}
 
             <div id="vendor_student_fields" style="display: none;">
                 <div class="field">
@@ -1585,6 +1642,41 @@
         if (!reviewDateField.value) {
             updateReviewDate();
         }
+
+        const noTcCheckbox = document.getElementById("no_vendor_terms_conditions");
+        const termsConditionsWrap = document.getElementById("terms_conditions_wrap");
+        const studentUseFieldWrap = document.getElementById("student_use_field_wrap");
+        function updateNoTcFields() {
+            const hide = noTcCheckbox?.checked;
+            if (termsConditionsWrap) termsConditionsWrap.style.display = hide ? "none" : "";
+            if (studentUseFieldWrap) studentUseFieldWrap.style.display = hide ? "none" : "";
+            if (!hide) updateStudentUseFields();
+        }
+        if (noTcCheckbox) noTcCheckbox.addEventListener("change", updateNoTcFields);
+
+        document.getElementById("remove_eula_pdf_btn")?.addEventListener("click", async function () {
+            const softwareName = document.getElementById("software_name")?.value.trim();
+            if (!softwareName) return;
+            this.disabled = true;
+            this.textContent = "Removing…";
+            try {
+                const resp = await fetch("/software-eula-pdf/clear", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: `software_name=${encodeURIComponent(softwareName)}`,
+                });
+                if (resp.ok) {
+                    document.getElementById("eula_pdf_existing_row").style.display = "none";
+                    document.getElementById("eula_pdf_existing_name").textContent = "";
+                } else {
+                    this.disabled = false;
+                    this.textContent = "Remove";
+                }
+            } catch {
+                this.disabled = false;
+                this.textContent = "Remove";
+            }
+        });
     </script>
     </div>
     </div>

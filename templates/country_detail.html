@@ -8,6 +8,8 @@
     .risk-badge-moderate  { background-color: #facc15; color: #1a1a1a; }
     .risk-badge-high      { background-color: #f97316; color: #fff; }
     .risk-badge-very-high { background-color: #dc2626; color: #fff; }
+    .comment-wall-entry { border-left: 3px solid var(--bs-border-color); padding-left: 1rem; }
+    .comment-wall-entry + .comment-wall-entry { margin-top: 1.25rem; }
 </style>
 {% endblock %}
 
@@ -28,7 +30,7 @@
         <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Country</span>
         <h1 class="display-6 fw-semibold mb-3">{{ country_name }}</h1>
         <div class="d-flex align-items-center gap-3 flex-wrap">
-            <div class="small text-secondary">Risk Level</div>
+            <div class="small text-secondary">Current Risk Level</div>
             {% if risk_level == "Low" %}
             <span class="badge rounded-pill px-3 py-2 fw-semibold risk-badge-low">Low</span>
             {% elif risk_level == "Moderate" %}
@@ -43,17 +45,65 @@
         </div>
     </div>
 
-    <form method="POST" class="d-flex align-items-center gap-2 flex-wrap">
-        <label for="risk_level_select" class="form-label mb-0 text-secondary small fw-semibold">Set risk level</label>
-        <select id="risk_level_select" name="risk_level" class="form-select form-select-sm" style="width: auto;">
-            <option value="">— None —</option>
-            {% for option in risk_category_options %}
-            <option value="{{ option }}"{% if option == risk_level %} selected{% endif %}>{{ option }}</option>
-            {% endfor %}
-        </select>
-        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4">Save</button>
+    <hr class="my-4">
+
+    <h2 class="h6 fw-semibold mb-3">Post Risk Assessment</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="comment" class="form-label text-secondary small fw-semibold mb-1">Comment</label>
+            <textarea id="comment" name="comment" class="form-control form-control-sm" rows="3"
+                placeholder="Explain the reason for this risk assessment…"></textarea>
+        </div>
+        <div class="mb-3">
+            <label for="risk_level_select" class="form-label text-secondary small fw-semibold mb-1">Risk Level</label>
+            <select id="risk_level_select" name="risk_level" class="form-select form-select-sm" required style="max-width: 200px;">
+                <option value="">— Select —</option>
+                {% for option in risk_category_options %}
+                <option value="{{ option }}">{{ option }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <button type="submit" class="btn btn-sm btn-primary rounded-pill px-4">Post</button>
     </form>
 </section>
+
+{% if risk_comments %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-4">Risk Assessment History</h2>
+    <div>
+        {% for entry in risk_comments %}
+        <div class="comment-wall-entry">
+            <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+                <span class="text-secondary small">{{ entry.created_at }}</span>
+                {% if entry.risk_level == "Low" %}
+                <span class="badge rounded-pill px-2 py-1 fw-semibold risk-badge-low">Low</span>
+                {% elif entry.risk_level == "Moderate" %}
+                <span class="badge rounded-pill px-2 py-1 fw-semibold risk-badge-moderate">Moderate</span>
+                {% elif entry.risk_level == "High" %}
+                <span class="badge rounded-pill px-2 py-1 fw-semibold risk-badge-high">High</span>
+                {% elif entry.risk_level == "Very High" %}
+                <span class="badge rounded-pill px-2 py-1 fw-semibold risk-badge-very-high">Very High</span>
+                {% endif %}
+                <form method="POST" action="{{ url_for('delete_country_risk_comment', country_name=country_name, comment_id=entry.id) }}" class="ms-auto"
+                      onsubmit="return confirm('Delete this assessment entry?')">
+                    <button type="submit" class="btn btn-link btn-sm p-0 text-danger" title="Delete entry" aria-label="Delete entry">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M5.5 5.5A.5.5 0 0 1 6 6v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m2.5 0a.5.5 0 0 1 .5.5v6a.5.5 0 0 1-1 0V6a.5.5 0 0 1 .5-.5m3 .5a.5.5 0 0 0-1 0v6a.5.5 0 0 0 1 0z"/>
+                            <path d="M14.5 3a1 1 0 0 1-1 1H13v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4h-.5a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1H6a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1h3.5a1 1 0 0 1 1 1zM4.118 4 4 4.059V13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1V4.059L11.882 4zM2.5 3h11V2h-11z"/>
+                        </svg>
+                    </button>
+                </form>
+            </div>
+            {% if entry.comment %}
+            <p class="mb-0 small text-body">{{ entry.comment | linkify }}</p>
+            {% else %}
+            <p class="mb-0 small text-secondary fst-italic">No comment provided.</p>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <section class="table-panel p-4 mb-4">
     <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Vendors Hosting Data Here</h2>

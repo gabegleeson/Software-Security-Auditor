@@ -160,24 +160,11 @@
         margin-bottom: 4px;
     }
 
-    .location-breakdown-wrap,
     .hosting-map-selection {
         border: 1px solid var(--border-soft);
         border-radius: 8px;
         padding: 14px;
         background: var(--surface-subtle-strong);
-    }
-
-    .location-breakdown {
-        columns: 3 220px;
-        column-gap: 24px;
-        margin: 0;
-        padding-left: 18px;
-    }
-
-    .location-breakdown li {
-        break-inside: avoid;
-        margin-bottom: 6px;
     }
 
     .heatmap-legend {
@@ -231,21 +218,6 @@
         <div id="hosting_map" class="leaflet-hosting-map"></div>
         <div class="hosting-map-selection" id="hosting_map_selection">
             <div class="text-secondary">Select a map point to view vendors storing data in that location.</div>
-        </div>
-        <div class="location-breakdown-wrap">
-            <div class="fw-semibold mb-2">Location Breakdown</div>
-            <ol class="location-breakdown">
-                {% for item in data_hosting_heatmap.locations %}
-                {% if item.location != "Other countries (unspecified)" %}
-                <li>
-                    <strong><a class="text-decoration-none" href="{{ url_for('country_detail', country_name=item.location) }}">{{ item.location }}</a></strong>:
-                    {{ item.count }} vendor{% if item.count != 1 %}s{% endif %}
-                    {% if item.percentage %}&middot; {{ item.percentage }}%{% endif %}
-                    {% if not item.map_x %}<span class="text-secondary">(not plotted)</span>{% endif %}
-                </li>
-                {% endif %}
-                {% endfor %}
-            </ol>
         </div>
     </div>
     {% else %}
@@ -399,7 +371,7 @@
             .join("");
 
         hostingMapSelection.innerHTML = `
-            <div class="hosting-map-selection-title">${escapeHtml(item.location)}</div>
+            <div class="hosting-map-selection-title"><a href="/countries/${encodeURIComponent(item.location)}" class="text-decoration-none">${escapeHtml(item.location)}</a></div>
             <div>${item.count} vendor${item.count === 1 ? "" : "s"} storing data in this location</div>
             ${vendorList ? `<ol class="hosting-map-selection-list">${vendorList}</ol>` : ""}
         `;

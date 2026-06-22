@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}Software Updates Graph{% endblock %}
+
+{% block head_extra %}
+<style>
+    .updates-chart-wrap {
+        position: relative;
+        width: 100%;
+        max-width: 760px;
+    }
+
+    .updates-software-list {
+        border: 1px solid var(--border-soft);
+        border-radius: 8px;
+        padding: 14px 16px;
+        background: var(--surface-subtle-strong);
+    }
+
+    .updates-software-list-title {
+        font-weight: 700;
+        margin-bottom: 8px;
+    }
+
+    .updates-software-list ul {
+        margin: 0;
+        padding-left: 18px;
+    }
+
+    .updates-software-list li {
+        margin-bottom: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="table-panel p-4 mb-4">
+    <div class="mb-4">
+        <h2 class="h4 fw-semibold mb-2">Software Updates Graph</h2>
+        <p class="text-secondary mb-0">Active assessed software titles grouped by whether they receive product and/or security updates. Click a bar to see the software in that category.</p>
+    </div>
+
+    {% if chart_data.counts | sum > 0 %}
+    <div class="updates-chart-wrap mb-4">
+        <canvas id="updatesChart"></canvas>
+    </div>
+    <div class="updates-software-list" id="updates_software_list">
+        <div class="text-secondary small">Click a bar to see which software titles are in that category.</div>
+    </div>
+    {% else %}
+    <div class="text-secondary">No active assessed software titles yet.</div>
+    {% endif %}
+</section>
+
+{% if chart_data.counts | sum > 0 %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+<script type="application/json" id="updates_chart_data">{{ chart_data | tojson }}</script>
+<script>
+(function () {
+    const raw = JSON.parse(document.getElementById("updates_chart_data").textContent);
+    const listPanel = document.getElementById("updates_software_list");
+
+    const BAR_COLORS = [
+        "#22c55e",
+        "#2563eb",
+        "#facc15",
+        "#dc2626",
+    ];
+
+    function escapeHtml(str) {
+        const d = document.createElement("div");
+        d.appendChild(document.createTextNode(str || ""));
+        return d.innerHTML;
+    }
+
+    function showCategory(label, items) {
+        if (!listPanel) return;
+        if (!items || items.length === 0) {
+            listPanel.innerHTML = '<div class="text-secondary small">No software in this category.</div>';
+            return;
+        }
+        const listItems = items.map(function (s) {
+            const name = escapeHtml(s.software_name);
+            const vendor = s.vendor_name ? ' <span class="text-secondary small">— ' + escapeHtml(s.vendor_name) + '</span>' : "";
+            return '<li><a class="text-decoration-none" href="/software/' + encodeURIComponent(s.software_name) + '">' + name + '</a>' + vendor + '</li>';
+        }).join("");
+        listPanel.innerHTML =
+            '<div class="updates-software-list-title">' + escapeHtml(label) + ' <span class="badge text-bg-secondary rounded-pill ms-1">' + items.length + '</span></div>' +
+            '<ul>' + listItems + '</ul>';
+    }
+
+    const ctx = document.getElementById("updatesChart");
+    new Chart(ctx, {
+        type: "bar",
+        data: {
+            labels: raw.categories,
+            datasets: [{
+                label: "Software titles",
+                data: raw.counts,
+                backgroundColor: BAR_COLORS,
+                borderColor: BAR_COLORS,
+                borderWidth: 1,
+                borderRadius: 6,
+            }],
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    callbacks: {
+                        label: function (ctx) {
+                            const n = ctx.parsed.y;
+                            return " " + n + " software title" + (n === 1 ? "" : "s");
+                        },
+                    },
+                },
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1, precision: 0 },
+                    title: { display: true, text: "Software titles" },
+                },
+                x: {
+                    title: { display: true, text: "Update status" },
+                },
+            },
+            onClick: function (event, elements) {
+                if (!elements.length) return;
+                const idx = elements[0].index;
+                const label = raw.categories[idx];
+                showCategory(label, raw.software_by_category[label]);
+            },
+        },
+    });
+}());
+</script>
+{% endif %}
+{% endblock %}

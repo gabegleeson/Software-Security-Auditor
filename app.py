@@ -1305,8 +1305,10 @@ def compute_software_alert_keys(record, vendor_record, vendor_map, home_country,
     if is_assessment and not tested:
         alert_keys.add("not_tested")
 
-    if is_assessment and not product_updates and not security_updates and software_type != "SaaS":
-        alert_keys.add("no_updates")
+    if is_assessment and not product_updates and software_type != "SaaS":
+        alert_keys.add("no_product_updates")
+    if is_assessment and not security_updates and software_type != "SaaS":
+        alert_keys.add("no_security_updates")
 
     sso = record.get("supports_m365_sso", "")
     if sso in ("No SSO", "Third Party IdP"):
@@ -2182,9 +2184,9 @@ def build_assessment_pdf(record, cve_data=None):
         story.append(e8_table)
         story.append(Spacer(1, 10))
 
-    if record.get("is_assessment") and not record.get("product_updates") and not record.get("security_updates") and record.get("software_type") != "SaaS":
-        no_updates_heading_style = ParagraphStyle(
-            "NoUpdatesHeading",
+    if record.get("is_assessment") and not record.get("product_updates") and record.get("software_type") != "SaaS":
+        no_prod_heading_style = ParagraphStyle(
+            "NoProdUpdatesHeading",
             parent=styles["BodyText"],
             fontSize=9,
             leading=13,
@@ -2192,23 +2194,23 @@ def build_assessment_pdf(record, cve_data=None):
             fontName="Helvetica-Bold",
             spaceAfter=2,
         )
-        no_updates_body_style = ParagraphStyle(
-            "NoUpdatesBody",
+        no_prod_body_style = ParagraphStyle(
+            "NoProdUpdatesBody",
             parent=styles["BodyText"],
             fontSize=8.5,
             leading=12,
             textColor=colors.HexColor("#92400E"),
         )
-        no_updates_cell = [
-            Paragraph("No product or security updates available.", no_updates_heading_style),
+        no_prod_cell = [
+            Paragraph("No product updates available.", no_prod_heading_style),
             Paragraph(
-                "This software does not offer product updates or security updates. "
-                "Review whether this poses an ongoing security risk before deployment or continued use.",
-                no_updates_body_style,
+                "This software does not offer product updates. "
+                "Review whether continued use is appropriate without access to new features or bug fixes.",
+                no_prod_body_style,
             ),
         ]
-        no_updates_table = Table([[no_updates_cell]], colWidths=[174 * mm], hAlign="LEFT")
-        no_updates_table.setStyle(
+        no_prod_table = Table([[no_prod_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        no_prod_table.setStyle(
             TableStyle(
                 [
                     ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
@@ -2221,8 +2223,51 @@ def build_assessment_pdf(record, cve_data=None):
                 ]
             )
         )
-        fired_alerts.add("no_updates")
-        story.append(no_updates_table)
+        fired_alerts.add("no_product_updates")
+        story.append(no_prod_table)
+        story.append(Spacer(1, 10))
+
+    if record.get("is_assessment") and not record.get("security_updates") and record.get("software_type") != "SaaS":
+        no_sec_heading_style = ParagraphStyle(
+            "NoSecUpdatesHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        no_sec_body_style = ParagraphStyle(
+            "NoSecUpdatesBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        no_sec_cell = [
+            Paragraph("No security updates available.", no_sec_heading_style),
+            Paragraph(
+                "This software does not offer security updates. "
+                "Review whether this poses an ongoing security risk before deployment or continued use.",
+                no_sec_body_style,
+            ),
+        ]
+        no_sec_table = Table([[no_sec_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        no_sec_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        fired_alerts.add("no_security_updates")
+        story.append(no_sec_table)
         story.append(Spacer(1, 10))
 
     if record.get("supports_m365_sso") in ("No SSO", "Third Party IdP"):
@@ -2659,7 +2704,7 @@ DEFAULT_APP_SETTINGS = {
     "dark_mode": "false",
     "category_required": "true",
     "signatory_alerts": json.dumps({
-        "IT Director": ["sso", "cve", "no_tc", "no_support", "not_tested", "no_updates", "high_risk_locations", "no_category"],
+        "IT Director": ["sso", "cve", "no_tc", "no_support", "not_tested", "no_product_updates", "no_security_updates", "high_risk_locations", "no_category"],
         "Privacy Officer": ["dpa_not_obtained", "app_collection_notice", "high_risk_locations", "no_privacy_policy", "unspecified_locations"],
         "College Principal": ["age_restriction", "no_category"],
     }),
@@ -2676,7 +2721,8 @@ DEFAULT_APP_SETTINGS = {
         "not_tested": "Moderate",
         "st4s_not_assessed": "Moderate",
         "essential_eight_not_assessed": "Moderate",
-        "no_updates": "Moderate",
+        "no_product_updates": "Moderate",
+        "no_security_updates": "Moderate",
         "sso": "Low",
         "cve": "Very High",
         "no_it_recommendation": "Moderate",
@@ -2730,7 +2776,8 @@ PDF_ALERT_LABELS = {
     "not_tested": "Software not tested",
     "st4s_not_assessed": "ST4S not assessed",
     "essential_eight_not_assessed": "Essential 8 not assessed",
-    "no_updates": "No product or security updates",
+    "no_product_updates": "No product updates",
+    "no_security_updates": "No security updates",
     "sso": "SSO not available via Microsoft Entra",
     "cve": "Known vulnerabilities (CVE)",
     "no_it_recommendation": "No IT recommendation recorded",
@@ -5297,6 +5344,43 @@ def age_restriction_graph():
     return render_template(
         "age_restriction_graph.html",
         chart_data=build_age_restriction_chart_data(),
+    )
+
+
+def build_software_updates_chart_data():
+    categories = ["Both Updates", "Product Updates Only", "Security Updates Only", "No Updates"]
+    buckets = {cat: [] for cat in categories}
+
+    for record in build_software_catalog(active_only=True):
+        if not record.get("is_assessment"):
+            continue
+        product = bool(record.get("product_updates", False))
+        security = bool(record.get("security_updates", False))
+        if product and security:
+            cat = "Both Updates"
+        elif product:
+            cat = "Product Updates Only"
+        elif security:
+            cat = "Security Updates Only"
+        else:
+            cat = "No Updates"
+        buckets[cat].append({
+            "software_name": record.get("software_name", "Unknown"),
+            "vendor_name": record.get("vendor_name", ""),
+        })
+
+    return {
+        "categories": categories,
+        "counts": [len(buckets[cat]) for cat in categories],
+        "software_by_category": {cat: buckets[cat] for cat in categories},
+    }
+
+
+@app.route("/reports/software-updates")
+def software_updates_graph():
+    return render_template(
+        "software_updates_graph.html",
+        chart_data=build_software_updates_chart_data(),
     )
 
 

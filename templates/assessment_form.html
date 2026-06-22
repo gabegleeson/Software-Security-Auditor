@@ -324,7 +324,7 @@
                 </div>
             </div>
             {% else %}
-            <input type="hidden" name="software_name" value="{{ assessment.software_name }}">
+            <input type="hidden" id="software_name" name="software_name" value="{{ assessment.software_name }}">
             <input type="hidden" name="vendor_name" value="{{ assessment.vendor_name }}">
             <input type="hidden" name="vendor_country" value="{{ assessment.vendor_country }}">
             <input type="hidden" name="vendor_website" value="{{ assessment.vendor_website }}">
@@ -468,7 +468,7 @@
                 </div>
                 <div class="mt-3">
                     <label class="form-label fw-semibold d-block" for="eula_pdf">EULA PDF</label>
-                    <div class="d-flex align-items-center gap-2 mb-2" id="eula_pdf_existing_row" {% if not eula_pdf_original_name %}style="display:none"{% endif %}>
+                    <div class="{% if eula_pdf_original_name %}d-flex{% else %}d-none{% endif %} align-items-center gap-2 mb-2" id="eula_pdf_existing_row">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-file-pdf text-danger" viewBox="0 0 16 16"><path d="M4 0a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V4.5L9.5 0zm5 1.5v3A1.5 1.5 0 0 0 10.5 6H14v8a1 1 0 0 1-1 1H3a1 1 0 0 1-1-1V2a1 1 0 0 1 1-1z"/></svg>
                         <span class="small text-secondary" id="eula_pdf_existing_name">{{ eula_pdf_original_name }}</span>
                         <button type="button" class="btn btn-outline-danger btn-sm rounded-pill px-3" id="remove_eula_pdf_btn" {% if not eula_pdf_original_name %}style="display:none"{% endif %}>Remove</button>
@@ -1666,7 +1666,7 @@
                     body: `software_name=${encodeURIComponent(softwareName)}`,
                 });
                 if (resp.ok) {
-                    document.getElementById("eula_pdf_existing_row").style.display = "none";
+                    document.getElementById("eula_pdf_existing_row").classList.replace("d-flex", "d-none");
                     document.getElementById("eula_pdf_existing_name").textContent = "";
                 } else {
                     this.disabled = false;

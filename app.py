@@ -143,6 +143,8 @@ VENDOR_PROFILE_FIELDS = (
     "vendor_allows_acceptance_on_behalf_of_entity",
     "privacy_policy_pdf_filename",
     "privacy_policy_pdf_original_name",
+    "vendor_tc_pdf_filename",
+    "vendor_tc_pdf_original_name",
 )
 VENDOR_ASSESSMENT_FIELDS = (
     "vendor_name",
@@ -2600,6 +2602,23 @@ def build_assessment_pdf(record, cve_data=None):
                     except Exception:
                         result.seek(0)
 
+            tc_pdf_filename = vendor.get("vendor_tc_pdf_filename", "")
+            if tc_pdf_filename:
+                tc_pdf_path = UPLOADS_DIR / tc_pdf_filename
+                if tc_pdf_path.exists():
+                    try:
+                        writer = PdfWriter()
+                        for page in PdfReader(result).pages:
+                            writer.add_page(page)
+                        for page in PdfReader(str(tc_pdf_path)).pages:
+                            writer.add_page(page)
+                        merged = BytesIO()
+                        writer.write(merged)
+                        merged.seek(0)
+                        result = merged
+                    except Exception:
+                        result.seek(0)
+
     software_name = record.get("software_name", "")
     if software_name:
         software_item = get_software_item_by_name(software_name)
@@ -3316,6 +3335,8 @@ def load_vendor_records():
             "vendor_allows_acceptance_on_behalf_of_entity": loaded_vendor.get("vendor_allows_acceptance_on_behalf_of_entity", ""),
             "privacy_policy_pdf_filename": loaded_vendor.get("privacy_policy_pdf_filename", ""),
             "privacy_policy_pdf_original_name": loaded_vendor.get("privacy_policy_pdf_original_name", ""),
+            "vendor_tc_pdf_filename": loaded_vendor.get("vendor_tc_pdf_filename", ""),
+            "vendor_tc_pdf_original_name": loaded_vendor.get("vendor_tc_pdf_original_name", ""),
         }
         for field in ("vendor_security_assessment", *VENDOR_PRIVACY_FIELDS):
             if loaded_vendor.get(field):
@@ -3733,6 +3754,8 @@ def build_vendor_list(active_only=False):
         existing["no_vendor_terms_conditions"] = existing.get("no_vendor_terms_conditions") or vendor.get("no_vendor_terms_conditions", False)
         existing["privacy_policy_pdf_filename"] = existing.get("privacy_policy_pdf_filename") or vendor.get("privacy_policy_pdf_filename", "")
         existing["privacy_policy_pdf_original_name"] = existing.get("privacy_policy_pdf_original_name") or vendor.get("privacy_policy_pdf_original_name", "")
+        existing["vendor_tc_pdf_filename"] = existing.get("vendor_tc_pdf_filename") or vendor.get("vendor_tc_pdf_filename", "")
+        existing["vendor_tc_pdf_original_name"] = existing.get("vendor_tc_pdf_original_name") or vendor.get("vendor_tc_pdf_original_name", "")
 
     built_vendors = []
     for vendor_name in sorted(vendors_by_name):
@@ -3754,6 +3777,8 @@ def build_vendor_list(active_only=False):
                 "no_vendor_terms_conditions": vendor.get("no_vendor_terms_conditions", False),
                 "privacy_policy_pdf_filename": vendor.get("privacy_policy_pdf_filename", ""),
                 "privacy_policy_pdf_original_name": vendor.get("privacy_policy_pdf_original_name", ""),
+                "vendor_tc_pdf_filename": vendor.get("vendor_tc_pdf_filename", ""),
+                "vendor_tc_pdf_original_name": vendor.get("vendor_tc_pdf_original_name", ""),
                 "product_count": vendor["product_count"],
             }
         )
@@ -3873,7 +3898,10 @@ def build_software_catalog(active_only=False):
             "high_risk_locations": [], "locations": [], "no_privacy_policy": False, "dpa_status": "",
         }
         alert_keys = compute_software_alert_keys(annotated, vendor_record, vendor_map, home_country, item)
-        annotated["risk_level"] = highest_risk_from_alerts(alert_keys)
+        computed_risk = highest_risk_from_alerts(alert_keys)
+        if not computed_risk and annotated.get("is_assessment"):
+            computed_risk = "Low"
+        annotated["risk_level"] = computed_risk
         result.append(annotated)
     return sorted(result, key=lambda record: normalized_name(record.get("software_name", "")))
 
@@ -4085,6 +4113,8 @@ def blank_vendor():
         "vendor_allows_acceptance_on_behalf_of_entity": "",
         "privacy_policy_pdf_filename": "",
         "privacy_policy_pdf_original_name": "",
+        "vendor_tc_pdf_filename": "",
+        "vendor_tc_pdf_original_name": "",
     }
 
 
@@ -5478,7 +5508,10 @@ def software_detail(software_name):
         display_record["software_type"] = software_item.get("software_type", "")
         display_record["software_support"] = software_item.get("software_support", "")
     alert_keys = compute_software_alert_keys(display_record, vendor_record, vendor_map, get_home_country(), software_item)
-    display_record["risk_level"] = highest_risk_from_alerts(alert_keys)
+    computed_risk = highest_risk_from_alerts(alert_keys)
+    if not computed_risk and assessments:
+        computed_risk = "Low"
+    display_record["risk_level"] = computed_risk
 
     return render_template(
         "software_detail.html",
@@ -5621,6 +5654,29 @@ def _delete_vendor_pdf_file(vendor_rec):
             pass
 
 
+def _delete_vendor_tc_pdf_file(vendor_rec):
+    old = vendor_rec.get("vendor_tc_pdf_filename", "")
+    if old:
+        try:
+            (UPLOADS_DIR / old).unlink()
+        except OSError:
+            pass
+
+
+def handle_vendor_tc_pdf_upload(vendor_rec):
+    if vendor_rec is None:
+        return
+    pdf_file = request.files.get("vendor_tc_pdf")
+    if not pdf_file or not pdf_file.filename or not pdf_file.filename.lower().endswith(".pdf"):
+        return
+    _delete_vendor_tc_pdf_file(vendor_rec)
+    filename = f"{uuid.uuid4().hex}.pdf"
+    pdf_file.save(str(UPLOADS_DIR / filename))
+    vendor_rec["vendor_tc_pdf_filename"] = filename
+    vendor_rec["vendor_tc_pdf_original_name"] = pdf_file.filename
+    persist_vendor_records()
+
+
 def handle_vendor_privacy_policy_upload(vendor_rec):
     if vendor_rec is None:
         return
@@ -5678,6 +5734,7 @@ def save_new_vendor_assessment(vendor_name):
         vendor = get_vendor_record_or_none(updated_vendor["vendor_name"]) or updated_vendor
 
     handle_vendor_privacy_policy_upload(get_vendor_record_in_memory(vendor["vendor_name"]))
+    handle_vendor_tc_pdf_upload(get_vendor_record_in_memory(vendor["vendor_name"]))
 
     assessment = collect_vendor_assessment_form_data(request.form, NEXT_VENDOR_ASSESSMENT_ID)
     assessment["vendor_name"] = vendor["vendor_name"]
@@ -5880,6 +5937,7 @@ def edit_vendor_assessment(assessment_id):
             vendor = get_vendor_record_or_none(updated_vendor["vendor_name"]) or updated_vendor
 
         handle_vendor_privacy_policy_upload(get_vendor_record_in_memory(vendor["vendor_name"]))
+        handle_vendor_tc_pdf_upload(get_vendor_record_in_memory(vendor["vendor_name"]))
 
         updated_assessment = collect_vendor_assessment_form_data(request.form, assessment_id)
         updated_assessment["vendor_name"] = vendor["vendor_name"]
@@ -5929,6 +5987,19 @@ def clear_vendor_privacy_policy_pdf():
     _delete_vendor_pdf_file(vendor_rec)
     vendor_rec["privacy_policy_pdf_filename"] = ""
     vendor_rec["privacy_policy_pdf_original_name"] = ""
+    persist_vendor_records()
+    return jsonify({"ok": True})
+
+
+@app.route("/vendor-tc-pdf/clear", methods=["POST"])
+def clear_vendor_tc_pdf():
+    vendor_name = request.form.get("vendor_name", "").strip()
+    vendor_rec = get_vendor_record_in_memory(vendor_name)
+    if vendor_rec is None:
+        return jsonify({"ok": False, "error": "Vendor not found"}), 404
+    _delete_vendor_tc_pdf_file(vendor_rec)
+    vendor_rec["vendor_tc_pdf_filename"] = ""
+    vendor_rec["vendor_tc_pdf_original_name"] = ""
     persist_vendor_records()
     return jsonify({"ok": True})
 

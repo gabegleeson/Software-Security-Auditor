@@ -5352,7 +5352,7 @@ def build_software_updates_chart_data():
     buckets = {cat: [] for cat in categories}
 
     for record in build_software_catalog(active_only=True):
-        if not record.get("is_assessment"):
+        if record.get("software_type") == "SaaS":
             continue
         product = bool(record.get("product_updates", False))
         security = bool(record.get("security_updates", False))

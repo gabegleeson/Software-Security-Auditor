@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Reports{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <h1 class="display-6 fw-semibold mb-2">Reports</h1>
+    <p class="text-secondary mb-0">Analytics and visualisations across your software and vendor data.</p>
+</section>
+
+<div class="row g-3">
+    <div class="col-12 col-md-6">
+        <a class="text-decoration-none" href="{{ url_for('data_hosting') }}">
+            <div class="glass-panel rounded-4 p-4 h-100" style="transition: box-shadow 0.15s ease;">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 flex-shrink-0"
+                         style="width:44px;height:44px;background:linear-gradient(135deg,var(--navy),var(--teal));">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M0 0h16v16H0zm1 1v6h6V1zm0 7v7h6V8zm7 0v7h7V8zm0-7v6h7V1z"/>
+                        </svg>
+                    </div>
+                    <h2 class="h6 fw-semibold mb-0">Global Data Hosting Map</h2>
+                </div>
+                <p class="text-secondary small mb-0">A heatmap showing the countries where your vendors store and process data.</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <a class="text-decoration-none" href="{{ url_for('vendor_origins') }}">
+            <div class="glass-panel rounded-4 p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 flex-shrink-0"
+                         style="width:44px;height:44px;background:linear-gradient(135deg,var(--navy),var(--teal));">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M8 0a8 8 0 1 0 0 16A8 8 0 0 0 8 0M4.882 1.731a.482.482 0 0 0 .14.291.487.487 0 0 1-.126.78l-.291.146a.721.721 0 0 0-.188.135l-.48.48a1 1 0 0 1-1.023.242l-.02-.007a.996.996 0 0 0-.462-.04 7 7 0 0 1 2.45-2.027m-3 9.674.86-.216a1 1 0 0 0 .758-.97v-.184a1 1 0 0 1 .445-.832l.04-.026a1 1 0 0 0 .152-1.54L3.121 8l-.003.002-.8.8a1 1 0 0 0-.293.707v1.171a.999.999 0 0 0 .77.962l.003.001zM5 13.5v-.205a1 1 0 0 0-.717-.96l-.91-.303a1 1 0 0 1-.678-.679l-.2-.604a1 1 0 0 0-1.2-.656 7 7 0 0 0 5.362 3.692 1 1 0 0 1-.657-.285m2.5.175v-.625a1 1 0 0 0-.8-.977L6 11.8l-.02-.004.028-.04a1 1 0 0 0 .15-.538v-.175a1 1 0 0 0-.309-.711L5 9.5a1 1 0 0 0-.914-.143l-.01.003a1 1 0 0 1-.916-.14l-.003-.002-.4-.3a1 1 0 0 0-1.43.258l-.005.008a7 7 0 0 0 6.178 4.316m1.5 0a7 7 0 0 0 6.178-4.316l-.005-.008a1 1 0 0 0-1.43-.258l-.4.3-.003.002a1 1 0 0 1-.916.14l-.01-.003a1 1 0 0 0-.914.143l-.85.851a1 1 0 0 0-.309.71v.175a1 1 0 0 0 .15.539l.029.04-.021.004L9.8 11.8l-.7.168a1 1 0 0 0-.8.977v.625a7 7 0 0 0 .2.105M11 13.295v.205a1 1 0 0 1-.657.285 7 7 0 0 0 5.362-3.692 1 1 0 0 0-1.2.656l-.2.604a1 1 0 0 1-.678.679l-.91.303a1 1 0 0 0-.717.96M12.5 7.5v1.171a.999.999 0 0 0 .77.962l.003.001.86.216a.999.999 0 0 0 .77-.962V7.707a1 1 0 0 0-.293-.707l-.8-.8-.003-.002-1.016 1.016a1 1 0 0 0-.291.286m-2.5-4.63a7 7 0 0 1 3.615 2.28 1 1 0 0 0-.462.041l-.02.007a1 1 0 0 1-1.023-.242l-.48-.48a.721.721 0 0 0-.188-.135l-.291-.146a.487.487 0 0 1-.126-.78.482.482 0 0 0 .14-.29l-.165-.001A7 7 0 0 1 8 1a7 7 0 0 1 2 .87"/>
+                        </svg>
+                    </div>
+                    <h2 class="h6 fw-semibold mb-0">Vendor Country of Origin</h2>
+                </div>
+                <p class="text-secondary small mb-0">A map of where your software vendors are headquartered or based.</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <a class="text-decoration-none" href="{{ url_for('age_restriction_graph') }}">
+            <div class="glass-panel rounded-4 p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 flex-shrink-0"
+                         style="width:44px;height:44px;background:linear-gradient(135deg,var(--navy),var(--teal));">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M7 2.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 .5.5v1a.5.5 0 0 1-.5.5h-7a.5.5 0 0 1-.5-.5zM0 12a3 3 0 1 1 6 0 3 3 0 0 1-6 0m7 1.5a.5.5 0 0 1 .5-.5h7a.5.5 0 0 1 0 1h-7a.5.5 0 0 1-.5-.5m0-5a.5.5 0 0 1 .5-.5h5a.5.5 0 0 1 0 1h-5a.5.5 0 0 1-.5-.5M0 7a3 3 0 1 1 6 0 3 3 0 0 1-6 0"/>
+                        </svg>
+                    </div>
+                    <h2 class="h6 fw-semibold mb-0">Age Restriction Graph</h2>
+                </div>
+                <p class="text-secondary small mb-0">A breakdown of software by age restriction requirements and student consent status.</p>
+            </div>
+        </a>
+    </div>
+
+    <div class="col-12 col-md-6">
+        <a class="text-decoration-none" href="{{ url_for('software_updates_graph') }}">
+            <div class="glass-panel rounded-4 p-4 h-100">
+                <div class="d-flex align-items-center gap-3 mb-3">
+                    <div class="d-flex align-items-center justify-content-center rounded-3 flex-shrink-0"
+                         style="width:44px;height:44px;background:linear-gradient(135deg,var(--navy),var(--teal));">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="white" viewBox="0 0 16 16" aria-hidden="true">
+                            <path d="M4 11H2v3h2zm5-4H7v7h2zm5-5v12h-2V2zm-2-1a1 1 0 0 0-1 1v12a1 1 0 0 0 1 1h2a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1zM6 7a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v7a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1zm-5 4a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v3a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1z"/>
+                        </svg>
+                    </div>
+                    <h2 class="h6 fw-semibold mb-0">Software Updates Graph</h2>
+                </div>
+                <p class="text-secondary small mb-0">An overview of which software titles have product and security updates enabled.</p>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

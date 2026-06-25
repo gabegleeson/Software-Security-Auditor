@@ -2,47 +2,74 @@
 
 {% block title %}Categories{% endblock %}
 
+{% block head_extra %}
+<style>
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .sortable-header::after {
+        content: " \2195";
+        font-size: 0.85em;
+        color: #7b8794;
+    }
+
+    .sortable-header.sort-asc::after {
+        content: " \2191";
+        color: #16324f;
+    }
+
+    .sortable-header.sort-desc::after {
+        content: " \2193";
+        color: #16324f;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
+    <div class="d-flex justify-content-between align-items-center">
         <div>
-            <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Categories</span>
             <h1 class="display-6 fw-semibold mb-2">Categories</h1>
             <p class="text-secondary mb-0">{{ categories | length }} categor{{ 'ies' if categories | length != 1 else 'y' }} defined.</p>
         </div>
         <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_category') }}">Add Category</a>
     </div>
-    {% if categories %}
-    <div class="mb-4" style="max-width: 360px;">
+</section>
+
+{% if categories %}
+<section class="table-panel p-4 mb-4">
+    <div class="mb-4">
         <input
             class="form-control"
             type="search"
             id="category_search"
             placeholder="Search categories"
             aria-label="Search categories"
+            style="max-width: 360px;"
         >
     </div>
     <div class="table-responsive">
-        <table class="table align-middle mb-0" id="categories-table">
+        <table class="table align-middle mb-0">
             <thead>
                 <tr>
-                    <th class="sortable-header" data-col="0" style="cursor:pointer; user-select:none; white-space:nowrap;">
-                        Category <span class="sort-icon ms-1 text-secondary" data-col="0">&#8597;</span>
-                    </th>
-                    <th class="sortable-header" data-col="1" style="cursor:pointer; user-select:none; white-space:nowrap;">
-                        Software <span class="sort-icon ms-1 text-secondary" data-col="1">&#8597;</span>
-                    </th>
+                    <th class="sortable-header" data-sort-key="name">Category</th>
+                    <th class="sortable-header" data-sort-key="count">Software</th>
                 </tr>
             </thead>
-            <tbody>
+            <tbody id="category_table_body">
                 {% for cat in categories %}
-                <tr>
+                <tr
+                    data-name-sort="{{ cat.name | lower }}"
+                    data-count-sort="{{ '%010d' % software_counts.get(cat.name, 0) }}"
+                    data-name="{{ cat.name | lower }}"
+                >
                     <td class="fw-semibold">
-                        <a class="text-decoration-none" href="{{ url_for('category_detail', category_name=cat.name) }}">{{ cat.name }}</a>
+                        <a class="text-decoration-none link-dark" href="{{ url_for('category_detail', category_name=cat.name) }}">{{ cat.name }}</a>
                     </td>
-                    <td data-count="{{ software_counts.get(cat.name, 0) }}">
-                        <span class="badge rounded-pill text-bg-secondary">{{ software_counts.get(cat.name, 0) }}</span>
-                    </td>
+                    <td>{{ software_counts.get(cat.name, 0) }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -51,83 +78,17 @@
     <div id="category_search_empty" class="text-secondary mt-3" style="display: none;">
         No categories match your search.
     </div>
-    <script>
-    (function () {
-        const table = document.getElementById("categories-table");
-        const tbody = table.querySelector("tbody");
-        const headers = table.querySelectorAll(".sortable-header");
-        const searchField = document.getElementById("category_search");
-        const searchEmpty = document.getElementById("category_search_empty");
-        let allRows = Array.from(tbody.querySelectorAll("tr"));
-        let currentCol = null;
-        let currentAsc = true;
-
-        headers.forEach(function (th) {
-            th.addEventListener("click", function () {
-                const col = parseInt(th.dataset.col, 10);
-                if (currentCol === col) {
-                    currentAsc = !currentAsc;
-                } else {
-                    currentCol = col;
-                    currentAsc = true;
-                }
-                sortTable(col, currentAsc);
-                updateIcons(col, currentAsc);
-            });
-        });
-
-        function sortTable(col, asc) {
-            allRows.sort(function (a, b) {
-                let aVal, bVal;
-                if (col === 1) {
-                    aVal = parseInt(a.cells[1].dataset.count || "0", 10);
-                    bVal = parseInt(b.cells[1].dataset.count || "0", 10);
-                    return asc ? aVal - bVal : bVal - aVal;
-                } else {
-                    aVal = (a.cells[0].textContent || "").trim().toLowerCase();
-                    bVal = (b.cells[0].textContent || "").trim().toLowerCase();
-                    return asc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-                }
-            });
-            allRows.forEach(function (row) { tbody.appendChild(row); });
-            filterRows();
-        }
-
-        function filterRows() {
-            const query = searchField.value.trim().toLowerCase();
-            let visibleCount = 0;
-            allRows.forEach(function (row) {
-                const name = (row.cells[0].textContent || "").trim().toLowerCase();
-                const matches = !query || name.includes(query);
-                row.style.display = matches ? "" : "none";
-                if (matches) visibleCount += 1;
-            });
-            searchEmpty.style.display = visibleCount ? "none" : "block";
-        }
-
-        function updateIcons(activeCol, asc) {
-            document.querySelectorAll(".sort-icon").forEach(function (icon) {
-                const col = parseInt(icon.dataset.col, 10);
-                if (col === activeCol) {
-                    icon.innerHTML = asc ? "&#8593;" : "&#8595;";
-                    icon.classList.remove("text-secondary");
-                } else {
-                    icon.innerHTML = "&#8597;";
-                    icon.classList.add("text-secondary");
-                }
-            });
-        }
-
-        searchField.addEventListener("input", filterRows);
-    }());
-    </script>
-    {% else %}
-    <p class="text-secondary mb-0">No categories yet. <a href="{{ url_for('new_category') }}">Add the first one.</a></p>
-    {% endif %}
 </section>
+{% else %}
+<section class="table-panel p-4 mb-4">
+    <p class="text-secondary mb-0">No categories yet. <a href="{{ url_for('new_category') }}">Add the first one.</a></p>
+</section>
+{% endif %}
 
 <section class="table-panel p-4">
-    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">Uncategorised Apps <span class="badge text-bg-secondary rounded-pill ms-1">{{ uncategorised | length }}</span></h2>
+    <h2 class="h6 fw-semibold text-secondary text-uppercase letter-spacing-wide mb-3">
+        Uncategorised Apps <span class="badge text-bg-secondary rounded-pill ms-1">{{ uncategorised | length }}</span>
+    </h2>
     {% if uncategorised %}
     <div class="table-responsive">
         <table class="table align-middle mb-0">
@@ -141,7 +102,7 @@
                 {% for s in uncategorised %}
                 <tr>
                     <td class="fw-semibold">
-                        <a class="text-decoration-none" href="{{ url_for('software_detail', software_name=s.software_name) }}">{{ s.software_name }}</a>
+                        <a class="text-decoration-none link-dark" href="{{ url_for('software_detail', software_name=s.software_name) }}">{{ s.software_name }}</a>
                     </td>
                     <td class="text-secondary">
                         {% if s.vendor_name %}
@@ -157,4 +118,53 @@
     <p class="text-secondary mb-0">All software has been assigned to a category.</p>
     {% endif %}
 </section>
+
+<script>
+    const searchField = document.getElementById("category_search");
+    const tableBody = document.getElementById("category_table_body");
+    const rows = tableBody ? Array.from(tableBody.querySelectorAll("tr")) : [];
+    const emptyMsg = document.getElementById("category_search_empty");
+    const sortableHeaders = Array.from(document.querySelectorAll(".sortable-header"));
+    let sortState = { key: "", direction: "asc" };
+
+    function sortRows(sortKey) {
+        const nextDirection =
+            sortState.key === sortKey && sortState.direction === "asc" ? "desc" : "asc";
+
+        rows.sort((a, b) => {
+            const av = (a.dataset[`${sortKey}Sort`] || "").toLowerCase();
+            const bv = (b.dataset[`${sortKey}Sort`] || "").toLowerCase();
+            const cmp = av.localeCompare(bv);
+            return nextDirection === "asc" ? cmp : -cmp;
+        });
+
+        rows.forEach((row) => tableBody.appendChild(row));
+        sortState = { key: sortKey, direction: nextDirection };
+
+        sortableHeaders.forEach((h) => {
+            h.classList.remove("sort-asc", "sort-desc");
+            if (h.dataset.sortKey === sortKey) {
+                h.classList.add(nextDirection === "asc" ? "sort-asc" : "sort-desc");
+            }
+        });
+
+        filterRows();
+    }
+
+    function filterRows() {
+        if (!searchField) return;
+        const query = searchField.value.trim().toLowerCase();
+        let visible = 0;
+        rows.forEach((row) => {
+            const name = row.dataset.name || "";
+            const show = !query || name.includes(query);
+            row.style.display = show ? "" : "none";
+            if (show) visible++;
+        });
+        if (emptyMsg) emptyMsg.style.display = visible ? "none" : "block";
+    }
+
+    if (searchField) searchField.addEventListener("input", filterRows);
+    sortableHeaders.forEach((h) => h.addEventListener("click", () => sortRows(h.dataset.sortKey)));
+</script>
 {% endblock %}

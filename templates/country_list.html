@@ -1,0 +1,192 @@
+{% extends "base.html" %}
+
+{% block title %}Countries{% endblock %}
+
+{% block head_extra %}
+<style>
+    .sortable-header {
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .sortable-header::after {
+        content: " \2195";
+        font-size: 0.85em;
+        color: #7b8794;
+    }
+
+    .sortable-header.sort-asc::after {
+        content: " \2191";
+        color: #16324f;
+    }
+
+    .sortable-header.sort-desc::after {
+        content: " \2193";
+        color: #16324f;
+    }
+
+    .status-filter {
+        display: inline-flex;
+        background: var(--surface-subtle);
+        border: 1px solid var(--border-soft);
+        border-radius: 999px;
+        padding: 3px;
+        gap: 2px;
+    }
+
+    .status-filter input[type="radio"] {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .status-filter label {
+        padding: 5px 16px;
+        border-radius: 999px;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        color: var(--muted-text);
+        cursor: pointer;
+        transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+        white-space: nowrap;
+        user-select: none;
+        margin: 0;
+        line-height: 1.5;
+    }
+
+    .status-filter input[type="radio"]:checked + label {
+        background: var(--surface-subtle-strong);
+        color: var(--navy);
+        box-shadow: 0 1px 4px rgba(15, 23, 42, 0.14);
+    }
+
+    .status-filter label:hover {
+        color: var(--navy);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
+    <div>
+        <h1 class="display-6 fw-semibold mb-2">Countries</h1>
+        <p class="text-secondary mb-0">{{ active_count }} active countr{{ 'ies' if active_count != 1 else 'y' }} out of {{ countries | length }}</p>
+    </div>
+</section>
+
+<section class="table-panel p-4">
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <input
+            class="form-control"
+            type="search"
+            id="country_search"
+            placeholder="Search countries"
+            aria-label="Search countries"
+            style="max-width: 360px;"
+        >
+        <div class="status-filter" role="group" aria-label="Filter by status">
+            <input type="radio" name="active_filter" id="filter_active" value="active" checked>
+            <label for="filter_active">Active</label>
+            <input type="radio" name="active_filter" id="filter_all" value="all">
+            <label for="filter_all">All</label>
+        </div>
+    </div>
+    <div class="table-responsive">
+        <table class="table align-middle mb-0">
+            <thead>
+                <tr>
+                    <th class="sortable-header" data-sort-key="name">Country</th>
+                    <th class="sortable-header" data-sort-key="risk">Risk Level</th>
+                </tr>
+            </thead>
+            <tbody id="country_table_body">
+                {% for country in countries %}
+                <tr
+                    data-name="{{ country.name | lower }}"
+                    data-name-sort="{{ country.name | lower }}"
+                    data-role-sort="{{ ('0' if country.is_hosting and country.is_vendor_based else ('1' if country.is_hosting else ('2' if country.is_vendor_based else '3'))) }}"
+                    data-risk-sort="{{ country.risk_level | lower }}"
+                    data-active="{{ 'true' if country.is_active else 'false' }}"
+                >
+                    <td>
+                        <a class="fw-semibold text-decoration-none link-dark" href="{{ url_for('country_detail', country_name=country.name) }}">
+                            {{ country.name }}
+                        </a>
+                    </td>
+                    <td>
+                        {% if country.risk_level %}
+                            {{ country.risk_level }}
+                        {% else %}
+                            <span class="text-secondary">—</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div id="country_search_empty" class="text-secondary mt-3" style="display: none;">
+        No countries match your search.
+    </div>
+</section>
+
+<script>
+    const searchField = document.getElementById("country_search");
+    const tableBody = document.getElementById("country_table_body");
+    const rows = Array.from(document.querySelectorAll("#country_table_body tr"));
+    const emptyMsg = document.getElementById("country_search_empty");
+    const filterInputs = Array.from(document.querySelectorAll("input[name='active_filter']"));
+    const sortableHeaders = Array.from(document.querySelectorAll(".sortable-header"));
+    let sortState = { key: "", direction: "asc" };
+
+    function sortRows(sortKey) {
+        const nextDirection =
+            sortState.key === sortKey && sortState.direction === "asc" ? "desc" : "asc";
+
+        rows.sort((a, b) => {
+            const av = (a.dataset[`${sortKey}Sort`] || "").toLowerCase();
+            const bv = (b.dataset[`${sortKey}Sort`] || "").toLowerCase();
+            const cmp = av.localeCompare(bv);
+            return nextDirection === "asc" ? cmp : -cmp;
+        });
+
+        rows.forEach((row) => tableBody.appendChild(row));
+        sortState = { key: sortKey, direction: nextDirection };
+
+        sortableHeaders.forEach((h) => {
+            h.classList.remove("sort-asc", "sort-desc");
+            if (h.dataset.sortKey === sortKey) {
+                h.classList.add(nextDirection === "asc" ? "sort-asc" : "sort-desc");
+            }
+        });
+
+        filterRows();
+    }
+
+    function filterRows() {
+        const query = searchField.value.trim().toLowerCase();
+        const activeFilter = filterInputs.find((i) => i.checked)?.value || "active";
+        let visible = 0;
+
+        rows.forEach((row) => {
+            const name = row.dataset.name || "";
+            const isActive = row.dataset.active === "true";
+            const matchesSearch = !query || name.includes(query);
+            const matchesFilter = activeFilter === "all" || (activeFilter === "active" && isActive);
+            const show = matchesSearch && matchesFilter;
+            row.style.display = show ? "" : "none";
+            if (show) visible++;
+        });
+
+        emptyMsg.style.display = visible ? "none" : "block";
+    }
+
+    searchField.addEventListener("input", filterRows);
+    filterInputs.forEach((i) => i.addEventListener("change", filterRows));
+    sortableHeaders.forEach((h) => h.addEventListener("click", () => sortRows(h.dataset.sortKey)));
+
+    filterRows();
+</script>
+{% endblock %}

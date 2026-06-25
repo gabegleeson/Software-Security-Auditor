@@ -5290,6 +5290,11 @@ def bulk_software_status():
 
 @app.route("/reports")
 def reports():
+    return render_template("reports_index.html", dark_mode_enabled=is_dark_mode_enabled())
+
+
+@app.route("/reports/data-hosting")
+def data_hosting():
     return render_template(
         "reports.html",
         data_hosting_heatmap=build_data_hosting_heatmap(),
@@ -5856,6 +5861,41 @@ def vendor_detail(vendor_name):
         linked_software=linked_software,
         vendor_assessments=get_vendor_assessments(vendor_name),
         vendor_data_storage_map=build_vendor_data_storage_map(vendor_name),
+    )
+
+
+@app.route("/countries")
+def country_list():
+    active_hosting = set()
+    active_based = set()
+
+    for vendor in build_vendor_list():
+        country = vendor.get("vendor_country", "").strip()
+        if country and country in COUNTRY_OPTIONS:
+            active_based.add(country)
+        assessment = get_latest_vendor_assessment(vendor.get("vendor_name", ""))
+        for loc in get_selected_values((assessment or {}).get("data_storage_location", "")):
+            if loc in COUNTRY_OPTIONS:
+                active_hosting.add(loc)
+
+    active_countries = active_hosting | active_based
+    country_risk_assignments = get_country_risk_assignments()
+
+    countries = []
+    for name in COUNTRY_OPTIONS:
+        countries.append({
+            "name": name,
+            "is_active": name in active_countries,
+            "is_hosting": name in active_hosting,
+            "is_vendor_based": name in active_based,
+            "risk_level": country_risk_assignments.get(name, ""),
+        })
+
+    return render_template(
+        "country_list.html",
+        countries=countries,
+        active_count=sum(1 for c in countries if c["is_active"]),
+        dark_mode_enabled=is_dark_mode_enabled(),
     )
 
 

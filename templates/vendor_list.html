@@ -32,9 +32,8 @@
 <section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
     <div class="d-flex flex-column flex-lg-row justify-content-between gap-4 align-items-lg-start">
         <div>
-            <span class="badge text-bg-secondary rounded-pill px-3 py-2 mb-3">Vendor Register</span>
-            <h1 class="display-6 fw-semibold mb-2">Software vendors and suppliers</h1>
-            <p class="text-secondary mb-0">{{ vendors | length }} vendor{{ 's' if vendors | length != 1 else '' }} &mdash; footprint, product count, and audit scheduling.</p>
+            <h1 class="display-6 fw-semibold mb-2">Vendors</h1>
+            <p class="text-secondary mb-0">{{ vendors | length }} vendor{{ 's' if vendors | length != 1 else '' }}</p>
         </div>
         <a class="btn btn-primary rounded-pill px-4" href="{{ url_for('new_vendor') }}" target="_blank" rel="noreferrer">Add Vendor</a>
     </div>

@@ -4,10 +4,6 @@
 
 {% block content %}
 <style>
-    .settings-form-grid {
-        max-width: 1080px;
-    }
-
     .settings-section {
         border: 1px solid var(--border-soft);
         border-radius: 8px;
@@ -71,9 +67,7 @@
         background: var(--surface-field);
     }
 
-    .assignment-item input {
-        margin: 0;
-    }
+    .assignment-item input { margin: 0; }
 
     .assignment-controls {
         display: flex;
@@ -98,20 +92,76 @@
     }
 
     @media (max-width: 991.98px) {
-        .assignment-layout {
-            grid-template-columns: 1fr;
-        }
+        .assignment-layout { grid-template-columns: 1fr; }
+        .assignment-controls { flex-direction: row; justify-content: flex-start; }
+        .assignment-pane { height: 260px; }
+    }
 
-        .assignment-controls {
+    .settings-layout {
+        display: flex;
+        gap: 1.25rem;
+        align-items: flex-start;
+    }
+
+    .settings-sidenav {
+        width: 160px;
+        flex-shrink: 0;
+        background: linear-gradient(180deg, var(--nav-bg-from) 0%, var(--nav-bg-to) 100%);
+        border-radius: 1rem;
+        padding: 0.65rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+        position: sticky;
+        top: calc(var(--header-height) + 1.5rem);
+    }
+
+    .settings-nav-link {
+        display: flex;
+        align-items: center;
+        padding: 0.65rem 0.85rem;
+        border-radius: 0.75rem;
+        color: rgba(255, 255, 255, 0.78);
+        font-size: 0.9rem;
+        font-weight: 500;
+        transition: background 0.16s ease, color 0.16s ease;
+        cursor: pointer;
+        border: none;
+        background: transparent;
+        width: 100%;
+        text-align: left;
+    }
+
+    .settings-nav-link:hover,
+    .settings-nav-link:focus {
+        background: rgba(255, 255, 255, 0.1);
+        color: #fff;
+        outline: none;
+    }
+
+    .settings-nav-link.active {
+        background: rgba(255, 255, 255, 0.16);
+        color: #fff;
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+    }
+
+    .settings-main {
+        flex: 1;
+        min-width: 0;
+    }
+
+    @media (max-width: 767.98px) {
+        .settings-layout { flex-direction: column; }
+        .settings-sidenav {
+            width: 100%;
             flex-direction: row;
-            justify-content: flex-start;
+            flex-wrap: wrap;
+            position: static;
         }
-
-        .assignment-pane {
-            height: 260px;
-        }
+        .settings-nav-link { width: auto; }
     }
 </style>
+
 <section class="glass-panel rounded-5 p-4 p-md-5 mb-4">
     <div>
         <span class="badge text-bg-primary rounded-pill px-3 py-2 mb-3">Settings</span>
@@ -120,31 +170,26 @@
     </div>
 </section>
 
-<section class="table-panel p-4 p-md-5">
-    {% if saved %}
-    <div class="alert alert-success rounded-4" role="alert">
-        Settings updated.
-    </div>
-    {% endif %}
+<form method="POST">
+<div class="settings-layout">
 
-    <form method="POST" class="settings-form-grid">
+    <nav class="settings-sidenav" aria-label="Settings navigation">
+        <button type="button" class="settings-nav-link active" data-settings-tab="tab-general">General</button>
+        <button type="button" class="settings-nav-link" data-settings-tab="tab-alerts">Alerts</button>
+        <button type="button" class="settings-nav-link" data-settings-tab="tab-countries">Countries</button>
+    </nav>
 
-        <ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="tab-general-btn" data-bs-toggle="tab" data-bs-target="#tab-general" type="button" role="tab" aria-controls="tab-general" aria-selected="true">General</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-alerts-btn" data-bs-toggle="tab" data-bs-target="#tab-alerts" type="button" role="tab" aria-controls="tab-alerts" aria-selected="false">Alerts</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="tab-countries-btn" data-bs-toggle="tab" data-bs-target="#tab-countries" type="button" role="tab" aria-controls="tab-countries" aria-selected="false">Countries</button>
-            </li>
-        </ul>
+    <div class="settings-main">
+        <section class="table-panel p-4 p-md-5">
 
-        <div class="tab-content" id="settingsTabContent">
+            {% if saved %}
+            <div class="alert alert-success rounded-4 mb-4" role="alert">
+                Settings updated.
+            </div>
+            {% endif %}
 
             <!-- ── General ── -->
-            <div class="tab-pane fade show active" id="tab-general" role="tabpanel" aria-labelledby="tab-general-btn">
+            <div id="tab-general" class="settings-pane">
 
                 <div class="settings-section">
                     <div class="settings-section-header">
@@ -227,7 +272,7 @@
             </div><!-- /tab-general -->
 
             <!-- ── Alerts ── -->
-            <div class="tab-pane fade" id="tab-alerts" role="tabpanel" aria-labelledby="tab-alerts-btn">
+            <div id="tab-alerts" class="settings-pane" style="display:none">
 
                 <div class="settings-section">
                     <div class="settings-section-header">
@@ -252,39 +297,10 @@
                     </div>
                 </div>
 
-                <div class="settings-section">
-                    <div class="settings-section-header">
-                        <div class="settings-section-title">Alert Risk Matrix PDF Visibility</div>
-                        <div class="form-text">
-                            Control which alerts appear in the Alert Risk Matrix on PDF reports. Hidden alerts still appear as warning blocks in the report and still count toward signature requirements.
-                        </div>
-                    </div>
-                    <div class="row g-3">
-                        {% for alert_key, alert_label in pdf_alert_labels.items() %}
-                        <div class="col-md-6 col-lg-4">
-                            <div class="form-check form-switch">
-                                <input
-                                    class="form-check-input"
-                                    type="checkbox"
-                                    role="switch"
-                                    id="alert_visible_{{ alert_key }}"
-                                    name="alert_visible_{{ alert_key }}"
-                                    value="true"
-                                    {% if alert_pdf_visibility.get(alert_key, True) %}checked{% endif %}
-                                >
-                                <label class="form-check-label small fw-semibold" for="alert_visible_{{ alert_key }}">
-                                    {{ alert_label }}
-                                </label>
-                            </div>
-                        </div>
-                        {% endfor %}
-                    </div>
-                </div>
-
             </div><!-- /tab-alerts -->
 
             <!-- ── Countries ── -->
-            <div class="tab-pane fade" id="tab-countries" role="tabpanel" aria-labelledby="tab-countries-btn">
+            <div id="tab-countries" class="settings-pane" style="display:none">
 
                 <div class="settings-section">
                     <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-start gap-3 settings-section-header">
@@ -338,13 +354,40 @@
 
             </div><!-- /tab-countries -->
 
-        </div><!-- /tab-content -->
+            <button type="submit" class="btn btn-primary rounded-pill px-4 mt-2">Save Settings</button>
 
-        <button type="submit" class="btn btn-primary rounded-pill px-4 mt-2">Save Settings</button>
-    </form>
-</section>
+        </section>
+    </div><!-- /settings-main -->
+
+</div><!-- /settings-layout -->
+</form>
+
 <script type="application/json" id="country_options_data">{{ country_options|tojson }}</script>
 <script>
+    // ── Tab switching ────────────────────────────────────────────
+    const settingsNavBtns = document.querySelectorAll(".settings-nav-link");
+    const settingsPanes   = document.querySelectorAll(".settings-pane");
+
+    function switchSettingsTab(targetId) {
+        settingsNavBtns.forEach((btn) => {
+            btn.classList.toggle("active", btn.dataset.settingsTab === targetId);
+        });
+        settingsPanes.forEach((pane) => {
+            pane.style.display = pane.id === targetId ? "" : "none";
+        });
+        sessionStorage.setItem("settings_active_tab", targetId);
+    }
+
+    settingsNavBtns.forEach((btn) => {
+        btn.addEventListener("click", () => switchSettingsTab(btn.dataset.settingsTab));
+    });
+
+    const savedTab = sessionStorage.getItem("settings_active_tab");
+    if (savedTab && document.getElementById(savedTab)) {
+        switchSettingsTab(savedTab);
+    }
+
+    // ── Country risk assignment ──────────────────────────────────
     const countryOptions = JSON.parse(document.getElementById("country_options_data").textContent);
     const riskLevelSelector = document.getElementById("risk_level_selector");
     const selectedRiskLevelLabel = document.getElementById("selected_risk_level_label");
@@ -429,19 +472,5 @@
 
     riskLevelSelector.addEventListener("change", renderCountryRiskLists);
     renderCountryRiskLists();
-
-    // Restore active tab from sessionStorage so navigating away and back keeps the tab open
-    const savedTab = sessionStorage.getItem("settings_active_tab");
-    if (savedTab) {
-        const tabBtn = document.querySelector(`[data-bs-target="${savedTab}"]`);
-        if (tabBtn) {
-            bootstrap.Tab.getOrCreateInstance(tabBtn).show();
-        }
-    }
-    document.querySelectorAll("#settingsTabs [data-bs-toggle='tab']").forEach((btn) => {
-        btn.addEventListener("shown.bs.tab", (e) => {
-            sessionStorage.setItem("settings_active_tab", e.target.dataset.bsTarget);
-        });
-    });
 </script>
 {% endblock %}

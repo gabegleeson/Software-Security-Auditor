@@ -101,7 +101,9 @@ ASSESSMENT_FIELDS = (
     "unrelated_cves",
     "it_recommendation",
     "st4s_compliant",
+    "st4s_notes",
     "essential_eight_compliant",
+    "essential_eight_notes",
     "no_vendor_terms_conditions",
 )
 
@@ -708,7 +710,9 @@ PDF_FIELD_LABELS = {
     "risk_level": "Risk Level",
     "it_recommendation": "IT Recommendation",
     "st4s_compliant": "ST4S Compliance",
+    "st4s_notes": "ST4S Notes",
     "essential_eight_compliant": "Essential 8 Compliance",
+    "essential_eight_notes": "Essential 8 Notes",
 }
 
 PDF_SECTION_FIELDS = [
@@ -763,7 +767,9 @@ PDF_SECTION_FIELDS = [
         "supports_m365_sso",
         "integration_notes",
         "st4s_compliant",
+        "st4s_notes",
         "essential_eight_compliant",
+        "essential_eight_notes",
         "risk_level",
     ]),
 ]
@@ -820,6 +826,7 @@ EEA_COUNTRY_OPTIONS = (
     "Norway",
 )
 OTHER_DATA_STORAGE_LOCATION = "Other countries (unspecified)"
+UNSPECIFIED_VENDOR_COUNTRY = "Overseas (Unspecified)"
 DATA_STORAGE_LOCATION_OPTIONS = COUNTRY_OPTIONS + (OTHER_DATA_STORAGE_LOCATION,)
 DATA_STORAGE_COUNTRY_GROUPS = (
     ("EU", EU_COUNTRY_OPTIONS),
@@ -1229,24 +1236,6 @@ def get_alert_risk_levels():
     return normalize_alert_risk_levels(APP_SETTINGS.get("alert_risk_levels", "{}"))
 
 
-def normalize_alert_pdf_visibility(value):
-    if isinstance(value, str):
-        try:
-            parsed = json.loads(value) if value.strip() else {}
-        except json.JSONDecodeError:
-            parsed = {}
-    elif isinstance(value, dict):
-        parsed = value
-    else:
-        parsed = {}
-    valid_alerts = set(PDF_ALERT_LABELS)
-    return {key: bool(val) for key, val in parsed.items() if key in valid_alerts}
-
-
-def get_alert_pdf_visibility():
-    stored = normalize_alert_pdf_visibility(APP_SETTINGS.get("alert_pdf_visibility", "{}"))
-    return {key: stored.get(key, True) for key in PDF_ALERT_LABELS}
-
 
 def compute_software_alert_keys(record, vendor_record, vendor_map, home_country, item=None):
     """Returns the set of PDF_ALERT_LABELS keys that currently fire for a software item."""
@@ -1319,9 +1308,13 @@ def compute_software_alert_keys(record, vendor_record, vendor_map, home_country,
 
     if is_assessment and not record.get("st4s_compliant", ""):
         alert_keys.add("st4s_not_assessed")
+    elif is_assessment and record.get("st4s_compliant", "") in ("Non-Compliant", "Partially Compliant"):
+        alert_keys.add("st4s_not_compliant")
 
     if is_assessment and not record.get("essential_eight_compliant", ""):
         alert_keys.add("essential_eight_not_assessed")
+    elif is_assessment and record.get("essential_eight_compliant", "") in ("Non-Compliant", "Partially Compliant"):
+        alert_keys.add("essential_eight_not_compliant")
 
     return alert_keys
 
@@ -1568,7 +1561,6 @@ def build_assessment_pdf(record, cve_data=None):
     story.append(Spacer(1, 8))
 
     fired_alerts = set()
-    alert_visibility = get_alert_pdf_visibility()
     for section_title, fields in PDF_SECTION_FIELDS:
         table_rows = []
         for field in fields:
@@ -2140,6 +2132,50 @@ def build_assessment_pdf(record, cve_data=None):
         story.append(st4s_table)
         story.append(Spacer(1, 10))
 
+    if record.get("is_assessment") and record.get("st4s_compliant", "") in ("Non-Compliant", "Partially Compliant"):
+        st4s_nc_heading_style = ParagraphStyle(
+            "ST4SNCHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        st4s_nc_body_style = ParagraphStyle(
+            "ST4SNCBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        st4s_nc_status = record.get("st4s_compliant", "")
+        st4s_nc_cell = [
+            Paragraph(f"ST4S compliance: {st4s_nc_status}.", st4s_nc_heading_style),
+            Paragraph(
+                "This software has been assessed as not fully compliant with the ST4S framework. "
+                "Review the ST4S compliance notes and consider remediation steps.",
+                st4s_nc_body_style,
+            ),
+        ]
+        st4s_nc_table = Table([[st4s_nc_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        st4s_nc_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        fired_alerts.add("st4s_not_compliant")
+        story.append(st4s_nc_table)
+        story.append(Spacer(1, 10))
+
     if record.get("is_assessment") and not record.get("essential_eight_compliant", ""):
         e8_heading_style = ParagraphStyle(
             "E8Heading",
@@ -2182,6 +2218,50 @@ def build_assessment_pdf(record, cve_data=None):
         )
         fired_alerts.add("essential_eight_not_assessed")
         story.append(e8_table)
+        story.append(Spacer(1, 10))
+
+    if record.get("is_assessment") and record.get("essential_eight_compliant", "") in ("Non-Compliant", "Partially Compliant"):
+        e8_nc_heading_style = ParagraphStyle(
+            "E8NCHeading",
+            parent=styles["BodyText"],
+            fontSize=9,
+            leading=13,
+            textColor=colors.HexColor("#92400E"),
+            fontName="Helvetica-Bold",
+            spaceAfter=2,
+        )
+        e8_nc_body_style = ParagraphStyle(
+            "E8NCBody",
+            parent=styles["BodyText"],
+            fontSize=8.5,
+            leading=12,
+            textColor=colors.HexColor("#92400E"),
+        )
+        e8_nc_status = record.get("essential_eight_compliant", "")
+        e8_nc_cell = [
+            Paragraph(f"Essential 8 compliance: {e8_nc_status}.", e8_nc_heading_style),
+            Paragraph(
+                "This software has been assessed as not fully compliant with the ACSC Essential Eight "
+                "mitigation strategies. Review the Essential 8 compliance notes and consider remediation steps.",
+                e8_nc_body_style,
+            ),
+        ]
+        e8_nc_table = Table([[e8_nc_cell]], colWidths=[174 * mm], hAlign="LEFT")
+        e8_nc_table.setStyle(
+            TableStyle(
+                [
+                    ("BACKGROUND", (0, 0), (-1, -1), colors.HexColor("#FEF3C7")),
+                    ("BOX", (0, 0), (-1, -1), 0.75, colors.HexColor("#D1D5DB")),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 10),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 10),
+                    ("TOPPADDING", (0, 0), (-1, -1), 8),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 8),
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ]
+            )
+        )
+        fired_alerts.add("essential_eight_not_compliant")
+        story.append(e8_nc_table)
         story.append(Spacer(1, 10))
 
     if record.get("is_assessment") and not record.get("product_updates") and record.get("software_type") != "SaaS":
@@ -2565,7 +2645,7 @@ def build_assessment_pdf(record, cve_data=None):
         def sort_key(k):
             level = alert_risk_levels.get(k, "")
             return (risk_order.get(level, len(RISK_CATEGORY_OPTIONS)), PDF_ALERT_LABELS[k])
-        visible_keys = [k for k in PDF_ALERT_LABELS if alert_visibility.get(k, True)]
+        visible_keys = [k for k in PDF_ALERT_LABELS if alert_risk_levels.get(k, "")]
         return sorted(visible_keys, key=sort_key, reverse=False)
 
     matrix_rows = [[
@@ -2720,7 +2800,9 @@ DEFAULT_APP_SETTINGS = {
         "app_collection_notice": "Low",
         "not_tested": "Moderate",
         "st4s_not_assessed": "Moderate",
+        "st4s_not_compliant": "High",
         "essential_eight_not_assessed": "Moderate",
+        "essential_eight_not_compliant": "High",
         "no_product_updates": "Moderate",
         "no_security_updates": "Moderate",
         "sso": "Low",
@@ -2775,7 +2857,9 @@ PDF_ALERT_LABELS = {
     "app_collection_notice": "APP Collection Notice reminder",
     "not_tested": "Software not tested",
     "st4s_not_assessed": "ST4S not assessed",
+    "st4s_not_compliant": "ST4S not compliant",
     "essential_eight_not_assessed": "Essential 8 not assessed",
+    "essential_eight_not_compliant": "Essential 8 not compliant",
     "no_product_updates": "No product updates",
     "no_security_updates": "No security updates",
     "sso": "SSO not available via Microsoft Entra",
@@ -3509,10 +3593,14 @@ def load_app_settings():
     settings["signatory_alerts"] = json.dumps(
         normalize_signatory_alerts(settings.get("signatory_alerts", "{}"))
     )
-    default_alert_risk_levels = normalize_alert_risk_levels(DEFAULT_APP_SETTINGS["alert_risk_levels"])
-    loaded_alert_risk_levels = normalize_alert_risk_levels(settings.get("alert_risk_levels", "{}"))
-    merged = {**default_alert_risk_levels, **loaded_alert_risk_levels}
-    settings["alert_risk_levels"] = json.dumps(merged)
+    try:
+        saved_levels = json.loads(settings.get("alert_risk_levels", "{}") or "{}")
+        if not isinstance(saved_levels, dict):
+            saved_levels = {}
+    except (json.JSONDecodeError, ValueError):
+        saved_levels = {}
+    default_levels = json.loads(DEFAULT_APP_SETTINGS["alert_risk_levels"])
+    settings["alert_risk_levels"] = json.dumps({**default_levels, **saved_levels})
     return settings
 
 
@@ -5883,6 +5971,8 @@ def country_list():
 
     countries = []
     for name in COUNTRY_OPTIONS:
+        if name == UNSPECIFIED_VENDOR_COUNTRY:
+            continue
         countries.append({
             "name": name,
             "is_active": name in active_countries,
@@ -5901,7 +5991,7 @@ def country_list():
 
 @app.route("/countries/<path:country_name>/comments/<int:comment_id>/delete", methods=["POST"])
 def delete_country_risk_comment(country_name, comment_id):
-    if country_name not in COUNTRY_OPTIONS:
+    if country_name not in COUNTRY_OPTIONS or country_name == UNSPECIFIED_VENDOR_COUNTRY:
         abort(404)
     with get_db_connection() as conn:
         conn.execute(
@@ -5913,7 +6003,7 @@ def delete_country_risk_comment(country_name, comment_id):
 
 @app.route("/countries/<path:country_name>", methods=["GET", "POST"])
 def country_detail(country_name):
-    if country_name not in COUNTRY_OPTIONS:
+    if country_name not in COUNTRY_OPTIONS or country_name == UNSPECIFIED_VENDOR_COUNTRY:
         abort(404)
 
     if request.method == "POST":
@@ -5966,12 +6056,11 @@ def settings():
             key = "signatory_" + role.lower().replace(" ", "_")
             raw_signatory[role] = request.form.getlist(key)
         APP_SETTINGS["signatory_alerts"] = json.dumps(normalize_signatory_alerts(raw_signatory))
-        raw_alert_risks = {}
-        for alert_key in PDF_ALERT_LABELS:
-            raw_alert_risks[alert_key] = request.form.get("alert_risk_" + alert_key, "").strip()
-        APP_SETTINGS["alert_risk_levels"] = json.dumps(normalize_alert_risk_levels(raw_alert_risks))
-        raw_visibility = {alert_key: request.form.get("alert_visible_" + alert_key) == "true" for alert_key in PDF_ALERT_LABELS}
-        APP_SETTINGS["alert_pdf_visibility"] = json.dumps(normalize_alert_pdf_visibility(raw_visibility))
+        raw_alert_risks = {
+            alert_key: request.form.get("alert_risk_" + alert_key, "").strip()
+            for alert_key in PDF_ALERT_LABELS
+        }
+        APP_SETTINGS["alert_risk_levels"] = json.dumps(raw_alert_risks)
         persist_app_settings()
         saved = True
 
@@ -5986,7 +6075,6 @@ def settings():
         pdf_alert_labels=PDF_ALERT_LABELS,
         signatory_alerts=get_signatory_alerts(),
         alert_risk_levels=get_alert_risk_levels(),
-        alert_pdf_visibility=get_alert_pdf_visibility(),
     )
 
 

@@ -500,6 +500,12 @@
                 </select>
                 <p class="form-text">Indicate whether this software aligns with the <a href="https://st4s.edu.au/" target="_blank" rel="noopener noreferrer">ST4S framework</a>.</p>
             </div>
+
+            <div class="field">
+                <label for="st4s_notes">ST4S Compliance Notes</label>
+                <textarea id="st4s_notes" name="st4s_notes" rows="3">{{ assessment.st4s_notes or '' }}</textarea>
+                <p class="form-text">Additional context about the ST4S compliance assessment, including any partial compliance details or remediation notes.</p>
+            </div>
         </div>
 
         <div class="section">
@@ -517,6 +523,12 @@
                     <option value="N/A" {% if assessment.essential_eight_compliant == "N/A" %}selected{% endif %}>N/A</option>
                 </select>
                 <p class="form-text">Indicate whether this software aligns with the <a href="https://www.cyber.gov.au/business-government/asds-cyber-security-frameworks/essential-eight" target="_blank" rel="noopener noreferrer">Australian Cyber Security Centre's Essential Eight</a> mitigation strategies.</p>
+            </div>
+
+            <div class="field">
+                <label for="essential_eight_notes">Essential 8 Compliance Notes</label>
+                <textarea id="essential_eight_notes" name="essential_eight_notes" rows="3">{{ assessment.essential_eight_notes or '' }}</textarea>
+                <p class="form-text">Additional context about the Essential 8 compliance assessment, including any partial compliance details or remediation notes.</p>
             </div>
         </div>
 

@@ -7,6 +7,8 @@ __pycache__/
 *.pyo
 *.pyd
 
+data/
+uploads/
 software_auditor.db
 software_auditor.db-journal
 

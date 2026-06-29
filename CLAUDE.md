@@ -21,8 +21,9 @@ The app runs at `http://127.0.0.1:5000`. Credentials are created on first run vi
 
 | Variable | Default | Purpose |
 |---|---|---|
-| `APP_SECRET_KEY` | `change-this-secret-key` | Flask session secret |
+| `APP_SECRET_KEY` | _(auto-generated)_ | Flask session secret — auto-generated and stored in DB on first run; set this env var to override |
 | `NVD_API_KEY` | _(empty)_ | NVD CVE API key |
+| `PORT` | `5000` | Port waitress listens on |
 
 ## Hard Rules
 
@@ -34,7 +35,7 @@ This is a single-file Flask application (`app.py`, ~6500 lines) with no blueprin
 
 ### Database
 
-SQLite at `.venv/data/software_auditor.db`. Tables are created by `init_db()` and auto-migrated at startup. The schema uses a JSON blob pattern — most tables store a `data TEXT` column containing a JSON dict; only key lookup fields (name, id, vendor_name) are real columns.
+SQLite at `data/software_auditor.db` (relative to the app). Tables are created by `init_db()` and auto-migrated at startup. The schema uses a JSON blob pattern — most tables store a `data TEXT` column containing a JSON dict; only key lookup fields (name, id, vendor_name) are real columns.
 
 Main tables:
 - `software` — one row per software product (the "item" record)
@@ -77,11 +78,11 @@ Vendor data is denormalised across software records and vendor records. `get_ven
 
 ### PDF Generation
 
-`build_assessment_pdf()` uses ReportLab to generate assessment PDFs. A school crest logo is loaded from a hardcoded absolute path (`PDF_LOGO_PATH`, `app.py:47`) — this will fail if run outside the original machine. The `pypdf` library is used to merge additional vendor T&C/privacy policy PDFs uploaded by users.
+`build_assessment_pdf()` uses ReportLab to generate assessment PDFs. The logo is loaded from `data/logo.png` (`PDF_LOGO_PATH`), uploaded via the setup page or Settings > Report Logo. The `pypdf` library is used to merge additional vendor T&C/privacy policy PDFs uploaded by users.
 
 ### File Uploads
 
-PDF uploads (vendor T&Cs, privacy policies, EULAs) are stored in the `uploads/` directory at the project root. Filenames are UUIDs; original filenames are kept in the corresponding record's `data` JSON.
+PDF uploads (vendor T&Cs, privacy policies, EULAs) are stored in `data/uploads/`. Filenames are UUIDs; original filenames are kept in the corresponding record's `data` JSON.
 
 ### Templates
 

@@ -177,6 +177,7 @@
         <button type="button" class="settings-nav-link active" data-settings-tab="tab-general">General</button>
         <button type="button" class="settings-nav-link" data-settings-tab="tab-alerts">Alerts</button>
         <button type="button" class="settings-nav-link" data-settings-tab="tab-countries">Countries</button>
+        <button type="button" class="settings-nav-link" data-settings-tab="tab-security">Security</button>
     </nav>
 
     <div class="settings-main">
@@ -354,6 +355,44 @@
 
             </div><!-- /tab-countries -->
 
+            <!-- ── Security ── -->
+            <div id="tab-security" class="settings-pane" style="display:none">
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <div class="settings-section-title">Change Login Credentials</div>
+                        <div class="form-text">Update the username and password used to access this application. You will be signed out immediately and must log in again with the new credentials.</div>
+                    </div>
+
+                    {% if cred_error %}
+                    <div class="alert alert-danger rounded-4 mb-3" role="alert">{{ cred_error }}</div>
+                    {% endif %}
+
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="current_password">Current password</label>
+                        <input class="form-control" type="password" id="current_password" name="current_password" autocomplete="current-password">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="new_username">New username</label>
+                        <input class="form-control" type="text" id="new_username" name="new_username"
+                               value="{{ settings.get('auth_username', '') }}" autocomplete="username">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-semibold" for="new_password">New password</label>
+                        <input class="form-control" type="password" id="new_password" name="new_password"
+                               autocomplete="new-password" minlength="8">
+                    </div>
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold" for="new_password_confirm">Confirm new password</label>
+                        <input class="form-control" type="password" id="new_password_confirm" name="new_password_confirm"
+                               autocomplete="new-password" minlength="8">
+                    </div>
+                    <button type="submit" name="change_credentials" value="1"
+                            class="btn btn-danger rounded-pill px-4">
+                        Change credentials
+                    </button>
+                </div>
+            </div><!-- /tab-security -->
+
             <button type="submit" class="btn btn-primary rounded-pill px-4 mt-2">Save Settings</button>
 
         </section>
@@ -386,6 +425,10 @@
     if (savedTab && document.getElementById(savedTab)) {
         switchSettingsTab(savedTab);
     }
+
+    {% if cred_error %}
+    switchSettingsTab("tab-security");
+    {% endif %}
 
     // ── Country risk assignment ──────────────────────────────────
     const countryOptions = JSON.parse(document.getElementById("country_options_data").textContent);

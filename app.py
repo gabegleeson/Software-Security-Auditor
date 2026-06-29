@@ -6,6 +6,7 @@ import json
 import os
 from pathlib import Path
 import re
+import secrets
 import sqlite3
 import time
 import urllib.parse
@@ -13,7 +14,7 @@ import uuid
 import urllib.request
 from xml.sax.saxutils import escape
 
-from flask import Flask, abort, jsonify, redirect, render_template, request, send_file, session, url_for
+from flask import Flask, abort, jsonify, redirect, render_template, render_template_string, request, send_file, session, url_for
 from markupsafe import Markup, escape as html_escape
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
@@ -25,7 +26,7 @@ from pypdf import PdfReader, PdfWriter
 from werkzeug.security import check_password_hash, generate_password_hash
 
 app = Flask(__name__)
-app.config["SECRET_KEY"] = os.environ.get("APP_SECRET_KEY", "change-this-secret-key")
+app.config["SECRET_KEY"] = ""  # set properly after DB init in _ensure_secret_key()
 
 _URL_RE = re.compile(r"(https?://[^\s<>\"']+)")
 
@@ -45,8 +46,6 @@ DB_PATH = DB_DIRECTORY / "software_auditor.db"
 UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
 UPLOADS_DIR.mkdir(exist_ok=True)
 PDF_LOGO_PATH = Path(r"C:\Users\ggleeson\OneDrive - St Patricks College\Visual Studio Projects\Ticketpad\static\images\crest.png")
-LOGIN_USERNAME = os.environ.get("APP_USERNAME", "admin")
-LOGIN_PASSWORD_HASH = generate_password_hash(os.environ.get("APP_PASSWORD", "change-me"))
 
 ASSESSMENT_FIELDS = (
     "software_name",
@@ -3613,6 +3612,10 @@ def persist_app_settings():
         )
 
 
+def credentials_configured():
+    return bool(APP_SETTINGS.get("auth_username") and APP_SETTINGS.get("auth_password_hash"))
+
+
 @app.context_processor
 def inject_app_theme_settings():
     return {
@@ -3776,11 +3779,32 @@ init_db()
 refresh_runtime_state()
 
 
+def _ensure_secret_key():
+    env_key = os.environ.get("APP_SECRET_KEY", "").strip()
+    if env_key:
+        app.config["SECRET_KEY"] = env_key
+        return
+
+    stored_key = APP_SETTINGS.get("secret_key", "").strip()
+    if not stored_key:
+        stored_key = secrets.token_hex(32)
+        APP_SETTINGS["secret_key"] = stored_key
+        persist_app_settings()
+
+    app.config["SECRET_KEY"] = stored_key
+
+
+_ensure_secret_key()
+
+
 @app.before_request
 def require_login():
-    allowed_endpoints = {"login", "static"}
+    allowed_endpoints = {"login", "static", "setup"}
     if request.endpoint in allowed_endpoints:
         return None
+
+    if not credentials_configured():
+        return redirect(url_for("setup"))
 
     if session.get("authenticated"):
         return None
@@ -5252,6 +5276,65 @@ def build_vendor_data_storage_map(vendor_name):
     }
 
 
+SETUP_TEMPLATE = """
+{% extends "base.html" %}
+{% block title %}Initial Setup{% endblock %}
+{% block content %}
+<section class="glass-panel rounded-5 p-4 p-md-5 mx-auto" style="max-width: 520px; margin-top: 6rem;">
+    <div class="text-center mb-4">
+        <span class="badge text-bg-warning rounded-pill px-3 py-2 mb-3">First Run</span>
+        <h1 class="display-6 fw-semibold mb-2">Create admin account</h1>
+        <p class="text-secondary mb-0">Set a username and password. These will be stored securely and required for all future logins.</p>
+    </div>
+    <form method="POST">
+        {% if error_message %}
+        <div class="alert alert-danger rounded-4 mb-3" role="alert">{{ error_message }}</div>
+        {% endif %}
+        <div class="mb-3">
+            <label class="form-label fw-semibold" for="username">Username</label>
+            <input class="form-control" type="text" id="username" name="username" autocomplete="username" required minlength="1">
+        </div>
+        <div class="mb-3">
+            <label class="form-label fw-semibold" for="password">Password</label>
+            <input class="form-control" type="password" id="password" name="password" autocomplete="new-password" required minlength="8">
+        </div>
+        <div class="mb-4">
+            <label class="form-label fw-semibold" for="password_confirm">Confirm password</label>
+            <input class="form-control" type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" required minlength="8">
+        </div>
+        <button class="btn btn-primary rounded-pill px-4 w-100" type="submit">Create account</button>
+    </form>
+</section>
+{% endblock %}
+"""
+
+
+@app.route("/setup", methods=["GET", "POST"])
+def setup():
+    if credentials_configured():
+        return redirect(url_for("login"))
+
+    error_message = ""
+    if request.method == "POST":
+        username = request.form.get("username", "").strip()
+        password = request.form.get("password", "")
+        password_confirm = request.form.get("password_confirm", "")
+
+        if not username:
+            error_message = "Username is required."
+        elif len(password) < 8:
+            error_message = "Password must be at least 8 characters."
+        elif password != password_confirm:
+            error_message = "Passwords do not match."
+        else:
+            APP_SETTINGS["auth_username"] = username
+            APP_SETTINGS["auth_password_hash"] = generate_password_hash(password)
+            persist_app_settings()
+            return redirect(url_for("login"))
+
+    return render_template_string(SETUP_TEMPLATE, error_message=error_message)
+
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if session.get("authenticated"):
@@ -5263,7 +5346,10 @@ def login():
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        if username == LOGIN_USERNAME and check_password_hash(LOGIN_PASSWORD_HASH, password):
+        if (
+            username == APP_SETTINGS.get("auth_username")
+            and check_password_hash(APP_SETTINGS.get("auth_password_hash", ""), password)
+        ):
             session["authenticated"] = True
             session["username"] = username
             if next_url and next_url.startswith("/"):
@@ -6043,6 +6129,42 @@ def country_detail(country_name):
 def settings():
     saved = False
     if request.method == "POST":
+        if "change_credentials" in request.form:
+            cred_error = ""
+            current_password = request.form.get("current_password", "")
+            new_username = request.form.get("new_username", "").strip()
+            new_password = request.form.get("new_password", "")
+            new_password_confirm = request.form.get("new_password_confirm", "")
+
+            if not check_password_hash(APP_SETTINGS.get("auth_password_hash", ""), current_password):
+                cred_error = "Current password is incorrect."
+            elif not new_username:
+                cred_error = "New username is required."
+            elif len(new_password) < 8:
+                cred_error = "New password must be at least 8 characters."
+            elif new_password != new_password_confirm:
+                cred_error = "New passwords do not match."
+            else:
+                APP_SETTINGS["auth_username"] = new_username
+                APP_SETTINGS["auth_password_hash"] = generate_password_hash(new_password)
+                persist_app_settings()
+                session.clear()
+                return redirect(url_for("login"))
+
+            return render_template(
+                "settings.html",
+                settings=APP_SETTINGS,
+                saved=False,
+                cred_error=cred_error,
+                country_options=COUNTRY_OPTIONS,
+                risk_category_options=RISK_CATEGORY_OPTIONS,
+                country_risk_assignments=get_country_risk_assignments(),
+                signatory_roles=SIGNATORY_ROLES,
+                pdf_alert_labels=PDF_ALERT_LABELS,
+                signatory_alerts=get_signatory_alerts(),
+                alert_risk_levels=get_alert_risk_levels(),
+            )
+
         APP_SETTINGS["reminder_email"] = request.form.get("reminder_email", "").strip()
         home_country = request.form.get("home_country", "").strip()
         APP_SETTINGS["home_country"] = home_country if home_country in COUNTRY_OPTIONS else DEFAULT_APP_SETTINGS["home_country"]
@@ -6068,6 +6190,7 @@ def settings():
         "settings.html",
         settings=APP_SETTINGS,
         saved=saved,
+        cred_error=None,
         country_options=COUNTRY_OPTIONS,
         risk_category_options=RISK_CATEGORY_OPTIONS,
         country_risk_assignments=get_country_risk_assignments(),

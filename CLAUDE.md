@@ -8,11 +8,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Activate virtual environment
 .venv\Scripts\activate
 
-# Run the Flask development server
+# Development server (hot-reload, debug toolbar)
+$env:FLASK_DEBUG="1"; python app.py
+
+# Production server (waitress, no reloader) — same as how it runs on IIS
 python app.py
 ```
 
-The app runs at `http://127.0.0.1:5000` in debug mode (set in `app.py:6546`). Credentials are created on first run via the `/setup` page and stored securely in the database.
+The app runs at `http://127.0.0.1:5000`. Credentials are created on first run via the `/setup` page and stored securely in the database.
 
 ## Environment Variables
 

@@ -6791,7 +6791,20 @@ def delete_assessment(assessment_id):
 
 
 if __name__ == "__main__":
-    port = 5000
-    if getattr(sys, "frozen", False):
-        threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
-    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)
+    port = int(os.environ.get("PORT", 5000))
+    debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
+
+    if debug:
+        app.run(host="127.0.0.1", port=port, debug=True, use_reloader=True)
+    else:
+        import logging
+        _fh = logging.FileHandler(str(_DATA_ROOT / "app.log"))
+        _fh.setLevel(logging.WARNING)
+        _fh.setFormatter(logging.Formatter("%(asctime)s %(levelname)s: %(message)s"))
+        logging.getLogger().addHandler(_fh)
+
+        if getattr(sys, "frozen", False):
+            threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
+
+        from waitress import serve
+        serve(app, host="127.0.0.1", port=port, threads=4)

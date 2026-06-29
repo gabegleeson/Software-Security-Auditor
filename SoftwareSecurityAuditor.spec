@@ -28,6 +28,7 @@ hiddenimports = [
     "pypdf._crypt_providers", "pypdf._crypt_providers._fallback",
     "PIL", "PIL.Image", "PIL.PngImagePlugin", "PIL.JpegImagePlugin",
     "sqlite3", "_sqlite3",
+    "waitress", "waitress.server", "waitress.task", "waitress.channel",
 ]
 
 a = Analysis(

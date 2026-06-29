@@ -10,3 +10,4 @@ click==8.3.2
 itsdangerous==2.2.0
 colorama==0.4.6
 charset-normalizer==3.4.7
+waitress==3.0.2

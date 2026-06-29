@@ -8,7 +8,10 @@ from pathlib import Path
 import re
 import secrets
 import sqlite3
+import sys
+import threading
 import time
+import webbrowser
 import urllib.parse
 import uuid
 import urllib.request
@@ -25,7 +28,16 @@ from reportlab.platypus import Image as PlatypusImage, PageBreak, Paragraph, Sim
 from pypdf import PdfReader, PdfWriter
 from werkzeug.security import check_password_hash, generate_password_hash
 
-app = Flask(__name__)
+
+def _bundle_dir() -> Path:
+    """Directory containing bundled read-only resources (templates, assets).
+    Resolves to sys._MEIPASS in a PyInstaller build; the source tree in dev."""
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS)
+    return Path(__file__).resolve().parent
+
+
+app = Flask(__name__, template_folder=str(_bundle_dir() / "templates"))
 app.config["SECRET_KEY"] = ""  # set properly after DB init in _ensure_secret_key()
 
 _URL_RE = re.compile(r"(https?://[^\s<>\"']+)")
@@ -41,11 +53,13 @@ def linkify_filter(text):
 NVD_API_KEY = os.environ.get("NVD_API_KEY", "")
 NVD_CACHE_TTL = 3600
 _nvd_cache: dict = {}
-DB_DIRECTORY = Path(__file__).resolve().parent / ".venv" / "data"
-DB_PATH = DB_DIRECTORY / "software_auditor.db"
-UPLOADS_DIR = Path(__file__).resolve().parent / "uploads"
-UPLOADS_DIR.mkdir(exist_ok=True)
-PDF_LOGO_PATH = Path(r"C:\Users\ggleeson\OneDrive - St Patricks College\Visual Studio Projects\Ticketpad\static\images\crest.png")
+_DATA_ROOT = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "SoftwareSecurityAuditor"
+_DATA_ROOT.mkdir(parents=True, exist_ok=True)
+DB_DIRECTORY = _DATA_ROOT / "data"
+DB_PATH      = DB_DIRECTORY / "software_auditor.db"
+UPLOADS_DIR  = _DATA_ROOT / "uploads"
+UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
+PDF_LOGO_PATH = _DATA_ROOT / "logo.png"
 
 ASSESSMENT_FIELDS = (
     "software_name",
@@ -5315,6 +5329,12 @@ SETUP_TEMPLATE = """
         {% endif %}
 
         <div class="mb-3">
+            <label class="form-label fw-semibold" for="logo_file">Organisation logo <span class="text-secondary fw-normal">(optional)</span></label>
+            <input class="form-control" type="file" id="logo_file" name="logo_file" accept="image/png,image/jpeg">
+            <div class="form-text">PNG or JPEG, displayed on PDF audit reports. Can be changed later in Settings.</div>
+        </div>
+
+        <div class="mb-3">
             <label class="form-label fw-semibold" for="username">Username</label>
             <input class="form-control" type="text" id="username" name="username" autocomplete="username" minlength="1">
         </div>
@@ -5338,6 +5358,13 @@ SETUP_TEMPLATE = """
 """
 
 
+@app.route("/logo")
+def serve_logo():
+    if PDF_LOGO_PATH.exists():
+        return send_file(str(PDF_LOGO_PATH), mimetype="image/png")
+    return "", 404
+
+
 @app.route("/setup", methods=["GET", "POST"])
 def setup():
     if credentials_configured():
@@ -5347,6 +5374,12 @@ def setup():
     restore_error = ""
 
     if request.method == "POST":
+
+        # ── Save logo if provided (optional, any submission) ───────
+        _logo = request.files.get("logo_file")
+        if _logo and _logo.filename and _logo.content_type in ("image/png", "image/jpeg", "image/jpg"):
+            _DATA_ROOT.mkdir(parents=True, exist_ok=True)
+            _logo.save(str(PDF_LOGO_PATH))
 
         # ── Restore from backup ────────────────────────────────────
         if "restore_db" in request.form:
@@ -6225,6 +6258,7 @@ def settings():
                 settings=APP_SETTINGS,
                 saved=False,
                 cred_error=cred_error,
+                logo_exists=PDF_LOGO_PATH.exists(),
                 country_options=COUNTRY_OPTIONS,
                 risk_category_options=RISK_CATEGORY_OPTIONS,
                 country_risk_assignments=get_country_risk_assignments(),
@@ -6233,6 +6267,10 @@ def settings():
                 signatory_alerts=get_signatory_alerts(),
                 alert_risk_levels=get_alert_risk_levels(),
             )
+
+        _logo = request.files.get("logo_file")
+        if _logo and _logo.filename and _logo.content_type in ("image/png", "image/jpeg", "image/jpg"):
+            _logo.save(str(PDF_LOGO_PATH))
 
         APP_SETTINGS["reminder_email"] = request.form.get("reminder_email", "").strip()
         home_country = request.form.get("home_country", "").strip()
@@ -6260,6 +6298,7 @@ def settings():
         settings=APP_SETTINGS,
         saved=saved,
         cred_error=None,
+        logo_exists=PDF_LOGO_PATH.exists(),
         country_options=COUNTRY_OPTIONS,
         risk_category_options=RISK_CATEGORY_OPTIONS,
         country_risk_assignments=get_country_risk_assignments(),
@@ -6735,4 +6774,7 @@ def delete_assessment(assessment_id):
 
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False)
+    port = 5000
+    if getattr(sys, "frozen", False):
+        threading.Timer(1.5, lambda: webbrowser.open(f"http://127.0.0.1:{port}")).start()
+    app.run(host="127.0.0.1", port=port, debug=False, use_reloader=False)

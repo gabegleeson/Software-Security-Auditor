@@ -53,10 +53,10 @@ def linkify_filter(text):
 NVD_API_KEY = os.environ.get("NVD_API_KEY", "")
 NVD_CACHE_TTL = 3600
 _nvd_cache: dict = {}
-_DATA_ROOT = Path(os.environ.get("LOCALAPPDATA", Path.home())) / "SoftwareSecurityAuditor"
+_DATA_ROOT = (Path(sys.executable).parent if getattr(sys, "frozen", False) else Path(__file__).resolve().parent) / "data"
 _DATA_ROOT.mkdir(parents=True, exist_ok=True)
-DB_DIRECTORY = _DATA_ROOT / "data"
-DB_PATH      = DB_DIRECTORY / "software_auditor.db"
+DB_DIRECTORY = _DATA_ROOT
+DB_PATH      = _DATA_ROOT / "software_auditor.db"
 UPLOADS_DIR  = _DATA_ROOT / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 PDF_LOGO_PATH = _DATA_ROOT / "logo.png"
@@ -5395,24 +5395,35 @@ def setup():
                     try:
                         tmp_path.write_bytes(db_bytes)
                         conn = sqlite3.connect(str(tmp_path))
-                        tables = {
-                            row[0]
-                            for row in conn.execute(
-                                "SELECT name FROM sqlite_master WHERE type='table'"
-                            ).fetchall()
-                        }
-                        conn.close()
+                        try:
+                            tables = {
+                                row[0]
+                                for row in conn.execute(
+                                    "SELECT name FROM sqlite_master WHERE type='table'"
+                                ).fetchall()
+                            }
+                        finally:
+                            conn.close()
                         required_tables = {"assessments", "software", "vendors", "settings"}
                         if not required_tables.issubset(tables):
                             restore_error = "The uploaded database is missing required tables and cannot be restored."
                             tmp_path.unlink(missing_ok=True)
                         else:
-                            os.replace(str(tmp_path), str(DB_PATH))
+                            src_conn = sqlite3.connect(str(tmp_path))
+                            try:
+                                dst_conn = sqlite3.connect(str(DB_PATH))
+                                try:
+                                    src_conn.backup(dst_conn)
+                                finally:
+                                    dst_conn.close()
+                            finally:
+                                src_conn.close()
+                            tmp_path.unlink(missing_ok=True)
                             refresh_runtime_state()
                             _ensure_secret_key()
                             return redirect(url_for("login"))
-                    except Exception:
-                        restore_error = "Could not read the uploaded file. Ensure it is a valid database."
+                    except Exception as exc:
+                        restore_error = f"Restore failed: {type(exc).__name__}: {exc}"
                         tmp_path.unlink(missing_ok=True)
 
             return render_template_string(SETUP_TEMPLATE, error_message="", restore_error=restore_error)
@@ -6231,6 +6242,14 @@ def country_detail(country_name):
 def settings():
     saved = False
     if request.method == "POST":
+        if "upload_logo" in request.form:
+            _logo = request.files.get("logo_file")
+            if _logo and _logo.filename and _logo.content_type in ("image/png", "image/jpeg", "image/jpg"):
+                _logo.save(str(PDF_LOGO_PATH))
+                APP_SETTINGS["logo_filename"] = _logo.filename
+                persist_app_settings()
+            return redirect(url_for("settings"))
+
         if "change_credentials" in request.form:
             cred_error = ""
             current_password = request.form.get("current_password", "")
@@ -6259,6 +6278,7 @@ def settings():
                 saved=False,
                 cred_error=cred_error,
                 logo_exists=PDF_LOGO_PATH.exists(),
+                logo_filename=APP_SETTINGS.get("logo_filename", ""),
                 country_options=COUNTRY_OPTIONS,
                 risk_category_options=RISK_CATEGORY_OPTIONS,
                 country_risk_assignments=get_country_risk_assignments(),
@@ -6267,10 +6287,6 @@ def settings():
                 signatory_alerts=get_signatory_alerts(),
                 alert_risk_levels=get_alert_risk_levels(),
             )
-
-        _logo = request.files.get("logo_file")
-        if _logo and _logo.filename and _logo.content_type in ("image/png", "image/jpeg", "image/jpg"):
-            _logo.save(str(PDF_LOGO_PATH))
 
         APP_SETTINGS["reminder_email"] = request.form.get("reminder_email", "").strip()
         home_country = request.form.get("home_country", "").strip()
@@ -6299,6 +6315,7 @@ def settings():
         saved=saved,
         cred_error=None,
         logo_exists=PDF_LOGO_PATH.exists(),
+        logo_filename=APP_SETTINGS.get("logo_filename", ""),
         country_options=COUNTRY_OPTIONS,
         risk_category_options=RISK_CATEGORY_OPTIONS,
         country_risk_assignments=get_country_risk_assignments(),

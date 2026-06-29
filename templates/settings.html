@@ -106,7 +106,8 @@
     .settings-sidenav {
         width: 160px;
         flex-shrink: 0;
-        background: linear-gradient(180deg, var(--nav-bg-from) 0%, var(--nav-bg-to) 100%);
+        background: var(--surface-subtle);
+        border: 1px solid var(--border-soft);
         border-radius: 1rem;
         padding: 0.65rem;
         display: flex;
@@ -121,7 +122,7 @@
         align-items: center;
         padding: 0.65rem 0.85rem;
         border-radius: 0.75rem;
-        color: rgba(255, 255, 255, 0.78);
+        color: var(--muted-text);
         font-size: 0.9rem;
         font-weight: 500;
         transition: background 0.16s ease, color 0.16s ease;
@@ -134,15 +135,15 @@
 
     .settings-nav-link:hover,
     .settings-nav-link:focus {
-        background: rgba(255, 255, 255, 0.1);
-        color: #fff;
+        background: rgba(0, 0, 0, 0.05);
+        color: var(--page-text);
         outline: none;
     }
 
     .settings-nav-link.active {
-        background: rgba(255, 255, 255, 0.16);
-        color: #fff;
-        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.1);
+        background: rgba(0, 0, 0, 0.08);
+        color: var(--page-text);
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.08);
     }
 
     .settings-main {
@@ -159,6 +160,32 @@
             position: static;
         }
         .settings-nav-link { width: auto; }
+    }
+
+    body.dark-mode .settings-sidenav {
+        background: rgba(255, 255, 255, 0.05);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    body.dark-mode .settings-section {
+        background: rgba(255, 255, 255, 0.04);
+        border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    body.dark-mode .settings-nav-link {
+        color: var(--muted-text);
+    }
+
+    body.dark-mode .settings-nav-link:hover,
+    body.dark-mode .settings-nav-link:focus {
+        background: rgba(255, 255, 255, 0.07);
+        color: var(--page-text);
+    }
+
+    body.dark-mode .settings-nav-link.active {
+        background: rgba(255, 255, 255, 0.12);
+        color: var(--page-text);
+        box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
     }
 </style>
 
@@ -244,14 +271,17 @@
                     <div class="mb-3">
                         <img src="{{ url_for('serve_logo') }}" alt="Current logo"
                              style="max-height: 80px; max-width: 300px; border-radius: 6px; border: 1px solid var(--border-soft); padding: 6px; background: var(--surface-field);">
-                        <div class="form-text mt-1">Current logo</div>
+                        <div class="form-text mt-1">{{ logo_filename if logo_filename else "Logo uploaded" }}</div>
                     </div>
                     {% endif %}
 
-                    <div>
+                    <div class="mb-3">
                         <label class="form-label fw-semibold" for="logo_file">{{ "Replace logo" if logo_exists else "Upload logo" }}</label>
                         <input class="form-control" type="file" id="logo_file" name="logo_file" accept="image/png,image/jpeg">
                     </div>
+                    <button type="submit" name="upload_logo" value="1" class="btn btn-outline-primary rounded-pill px-4">
+                        {{ "Replace logo" if logo_exists else "Upload logo" }}
+                    </button>
                 </div>
 
                 <div class="settings-section">

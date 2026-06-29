@@ -378,13 +378,17 @@
                     </div>
                     <div class="mb-3">
                         <label class="form-label fw-semibold" for="new_password">New password</label>
-                        <input class="form-control" type="password" id="new_password" name="new_password"
-                               autocomplete="new-password" minlength="8">
+                        <div class="password-field">
+                            <input class="form-control" type="password" id="new_password" name="new_password"
+                                   autocomplete="new-password" minlength="8">
+                        </div>
                     </div>
                     <div class="mb-4">
                         <label class="form-label fw-semibold" for="new_password_confirm">Confirm new password</label>
-                        <input class="form-control" type="password" id="new_password_confirm" name="new_password_confirm"
-                               autocomplete="new-password" minlength="8">
+                        <div class="password-field">
+                            <input class="form-control" type="password" id="new_password_confirm" name="new_password_confirm"
+                                   autocomplete="new-password" minlength="8">
+                        </div>
                     </div>
                     <button type="submit" name="change_credentials" value="1"
                             class="btn btn-danger rounded-pill px-4">
@@ -393,7 +397,7 @@
                 </div>
             </div><!-- /tab-security -->
 
-            <button type="submit" class="btn btn-primary rounded-pill px-4 mt-2">Save Settings</button>
+            <button type="submit" id="save-settings-btn" class="btn btn-primary rounded-pill px-4 mt-2">Save Settings</button>
 
         </section>
     </div><!-- /settings-main -->
@@ -414,6 +418,8 @@
         settingsPanes.forEach((pane) => {
             pane.style.display = pane.id === targetId ? "" : "none";
         });
+        document.getElementById("save-settings-btn").style.display =
+            targetId === "tab-security" ? "none" : "";
         sessionStorage.setItem("settings_active_tab", targetId);
     }
 

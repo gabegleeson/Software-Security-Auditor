@@ -5280,29 +5280,58 @@ SETUP_TEMPLATE = """
 {% extends "base.html" %}
 {% block title %}Initial Setup{% endblock %}
 {% block content %}
-<section class="glass-panel rounded-5 p-4 p-md-5 mx-auto" style="max-width: 520px; margin-top: 6rem;">
+<section class="glass-panel rounded-5 p-4 p-md-5 mx-auto" style="max-width: 640px; margin-top: 4rem;">
     <div class="text-center mb-4">
         <span class="badge text-bg-warning rounded-pill px-3 py-2 mb-3">First Run</span>
-        <h1 class="display-6 fw-semibold mb-2">Create admin account</h1>
-        <p class="text-secondary mb-0">Set a username and password. These will be stored securely and required for all future logins.</p>
+        <h1 class="display-6 fw-semibold mb-2">Welcome</h1>
+        <p class="text-secondary mb-0">Restore an existing database or create a new admin account to get started.</p>
     </div>
-    <form method="POST">
+
+    <form method="POST" enctype="multipart/form-data">
+
+        <!-- ── Restore from backup ── -->
+        <div class="mb-4 pb-4" style="border-bottom: 1px solid var(--border-soft);">
+            <div class="fw-semibold mb-1">Restore from backup</div>
+            <div class="form-text mb-3">Upload a <code>.db</code> file from a previous installation to restore all data. You will be redirected to login once the restore is complete.</div>
+
+            {% if restore_error %}
+            <div class="alert alert-danger rounded-4 mb-3" role="alert">{{ restore_error }}</div>
+            {% endif %}
+
+            <div class="mb-3">
+                <input class="form-control" type="file" name="db_file" accept=".db">
+            </div>
+            <button type="submit" name="restore_db" value="1" class="btn btn-outline-primary rounded-pill px-4">
+                Restore database
+            </button>
+        </div>
+
+        <!-- ── Create new account ── -->
+        <div class="fw-semibold mb-1">Create new account</div>
+        <div class="form-text mb-3">Set a username and password. These will be stored securely and required for all future logins.</div>
+
         {% if error_message %}
         <div class="alert alert-danger rounded-4 mb-3" role="alert">{{ error_message }}</div>
         {% endif %}
+
         <div class="mb-3">
             <label class="form-label fw-semibold" for="username">Username</label>
-            <input class="form-control" type="text" id="username" name="username" autocomplete="username" required minlength="1">
+            <input class="form-control" type="text" id="username" name="username" autocomplete="username" minlength="1">
         </div>
         <div class="mb-3">
             <label class="form-label fw-semibold" for="password">Password</label>
-            <input class="form-control" type="password" id="password" name="password" autocomplete="new-password" required minlength="8">
+            <div class="password-field">
+                <input class="form-control" type="password" id="password" name="password" autocomplete="new-password" minlength="8">
+            </div>
         </div>
         <div class="mb-4">
             <label class="form-label fw-semibold" for="password_confirm">Confirm password</label>
-            <input class="form-control" type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" required minlength="8">
+            <div class="password-field">
+                <input class="form-control" type="password" id="password_confirm" name="password_confirm" autocomplete="new-password" minlength="8">
+            </div>
         </div>
         <button class="btn btn-primary rounded-pill px-4 w-100" type="submit">Create account</button>
+
     </form>
 </section>
 {% endblock %}
@@ -5315,7 +5344,47 @@ def setup():
         return redirect(url_for("login"))
 
     error_message = ""
+    restore_error = ""
+
     if request.method == "POST":
+
+        # ── Restore from backup ────────────────────────────────────
+        if "restore_db" in request.form:
+            uploaded = request.files.get("db_file")
+            if not uploaded or not uploaded.filename:
+                restore_error = "Please select a database file to upload."
+            else:
+                db_bytes = uploaded.read()
+                if db_bytes[:16] != b"SQLite format 3\x00":
+                    restore_error = "The uploaded file is not a valid SQLite database."
+                else:
+                    tmp_path = DB_DIRECTORY / "restore_tmp.db"
+                    try:
+                        tmp_path.write_bytes(db_bytes)
+                        conn = sqlite3.connect(str(tmp_path))
+                        tables = {
+                            row[0]
+                            for row in conn.execute(
+                                "SELECT name FROM sqlite_master WHERE type='table'"
+                            ).fetchall()
+                        }
+                        conn.close()
+                        required_tables = {"assessments", "software", "vendors", "settings"}
+                        if not required_tables.issubset(tables):
+                            restore_error = "The uploaded database is missing required tables and cannot be restored."
+                            tmp_path.unlink(missing_ok=True)
+                        else:
+                            os.replace(str(tmp_path), str(DB_PATH))
+                            refresh_runtime_state()
+                            _ensure_secret_key()
+                            return redirect(url_for("login"))
+                    except Exception:
+                        restore_error = "Could not read the uploaded file. Ensure it is a valid database."
+                        tmp_path.unlink(missing_ok=True)
+
+            return render_template_string(SETUP_TEMPLATE, error_message="", restore_error=restore_error)
+
+        # ── Create new account ─────────────────────────────────────
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         password_confirm = request.form.get("password_confirm", "")
@@ -5332,7 +5401,7 @@ def setup():
             persist_app_settings()
             return redirect(url_for("login"))
 
-    return render_template_string(SETUP_TEMPLATE, error_message=error_message)
+    return render_template_string(SETUP_TEMPLATE, error_message=error_message, restore_error=restore_error)
 
 
 @app.route("/login", methods=["GET", "POST"])

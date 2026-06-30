@@ -6243,11 +6243,16 @@ def settings_export_csv():
     import csv
     from io import StringIO
 
+    include_inactive = request.args.get("include_inactive") == "1"
+    items = SOFTWARE_ITEMS
+    if not include_inactive:
+        items = [i for i in items if i.get("deployed", True)]
+
     buf = StringIO()
     writer = csv.writer(buf)
-    writer.writerow(["Software Name", "Website", "Category", "Vendor", "Vendor Website"])
+    writer.writerow(["Software Name", "Website", "Category", "Vendor", "Vendor Website", "Active"])
 
-    for item in sorted(SOFTWARE_ITEMS, key=lambda r: r.get("software_name", "").lower()):
+    for item in sorted(items, key=lambda r: r.get("software_name", "").lower()):
         vendor_website = item.get("vendor_website") or get_vendor_backed_value(item, "vendor_website") or ""
         writer.writerow([
             item.get("software_name", ""),
@@ -6255,6 +6260,7 @@ def settings_export_csv():
             item.get("category", ""),
             item.get("vendor_name", ""),
             vendor_website,
+            "Yes" if item.get("deployed", True) else "No",
         ])
 
     output = buf.getvalue()

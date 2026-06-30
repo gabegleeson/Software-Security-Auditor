@@ -6239,7 +6239,6 @@ def country_detail(country_name):
 
 
 @app.route("/settings/export.csv")
-@require_login
 def settings_export_csv():
     import csv
     from io import StringIO

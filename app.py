@@ -5707,6 +5707,7 @@ def new_category():
         else:
             CATEGORIES.append({"id": NEXT_CATEGORY_ID, "name": name, "genuine_need": genuine_need})
             NEXT_CATEGORY_ID += 1
+            CATEGORIES.sort(key=lambda c: c["name"].casefold())
             persist_categories()
             return redirect(url_for("category_list"))
     return render_template("new_category.html", error=error)

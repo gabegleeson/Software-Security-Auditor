@@ -6238,6 +6238,35 @@ def country_detail(country_name):
     )
 
 
+@app.route("/settings/export.csv")
+@require_login
+def settings_export_csv():
+    import csv
+    from io import StringIO
+
+    buf = StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(["Software Name", "Website", "Category", "Vendor", "Vendor Website"])
+
+    for item in sorted(SOFTWARE_ITEMS, key=lambda r: r.get("software_name", "").lower()):
+        vendor_website = item.get("vendor_website") or get_vendor_backed_value(item, "vendor_website") or ""
+        writer.writerow([
+            item.get("software_name", ""),
+            item.get("software_website", ""),
+            item.get("category", ""),
+            item.get("vendor_name", ""),
+            vendor_website,
+        ])
+
+    output = buf.getvalue()
+    return app.response_class(
+        response=output,
+        status=200,
+        mimetype="text/csv",
+        headers={"Content-Disposition": "attachment; filename=software-list.csv"},
+    )
+
+
 @app.route("/settings", methods=["GET", "POST"])
 def settings():
     saved = False

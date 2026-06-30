@@ -205,6 +205,7 @@
         <button type="button" class="settings-nav-link" data-settings-tab="tab-alerts">Alerts</button>
         <button type="button" class="settings-nav-link" data-settings-tab="tab-countries">Countries</button>
         <button type="button" class="settings-nav-link" data-settings-tab="tab-security">Security</button>
+        <button type="button" class="settings-nav-link" data-settings-tab="tab-export">Export</button>
     </nav>
 
     <div class="settings-main">
@@ -447,6 +448,20 @@
                 </div>
             </div><!-- /tab-security -->
 
+            <!-- ── Export ── -->
+            <div id="tab-export" class="settings-pane" style="display:none">
+                <div class="settings-section">
+                    <div class="settings-section-header">
+                        <div class="settings-section-title">Export Software List</div>
+                        <div class="form-text">Download a CSV containing all software items, their websites, categories, and vendors.</div>
+                    </div>
+                    <p class="text-secondary mb-4">The export includes one row per software product with the following columns: <strong>Software Name</strong>, <strong>Website</strong>, <strong>Category</strong>, <strong>Vendor</strong>, and <strong>Vendor Website</strong>.</p>
+                    <a href="{{ url_for('settings_export_csv') }}" class="btn btn-outline-primary rounded-pill px-4">
+                        Download CSV
+                    </a>
+                </div>
+            </div><!-- /tab-export -->
+
             <button type="submit" id="save-settings-btn" class="btn btn-primary rounded-pill px-4 mt-2">Save Settings</button>
 
         </section>
@@ -469,7 +484,7 @@
             pane.style.display = pane.id === targetId ? "" : "none";
         });
         document.getElementById("save-settings-btn").style.display =
-            targetId === "tab-security" ? "none" : "";
+            (targetId === "tab-security" || targetId === "tab-export") ? "none" : "";
         sessionStorage.setItem("settings_active_tab", targetId);
     }
 

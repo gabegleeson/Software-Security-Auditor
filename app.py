@@ -61,6 +61,15 @@ UPLOADS_DIR  = _DATA_ROOT / "uploads"
 UPLOADS_DIR.mkdir(parents=True, exist_ok=True)
 PDF_LOGO_PATH = _DATA_ROOT / "logo.png"
 
+# One-time migration: copy any uploads from the old root-level uploads/ directory
+if not getattr(sys, "frozen", False):
+    import shutil as _shutil
+    _old_uploads = Path(__file__).resolve().parent / "uploads"
+    if _old_uploads.exists() and _old_uploads.resolve() != UPLOADS_DIR.resolve():
+        for _f in _old_uploads.iterdir():
+            if _f.is_file() and not (UPLOADS_DIR / _f.name).exists():
+                _shutil.copy2(str(_f), str(UPLOADS_DIR / _f.name))
+
 ASSESSMENT_FIELDS = (
     "software_name",
     "vendor_name",
